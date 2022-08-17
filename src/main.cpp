@@ -25,8 +25,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-#include "engine/ecs/include.hpp"
-#include "engine/ecs/sorted_vec.hpp"
+#include "engine/ecs/ecs.hpp"
 
 int main() {
     Engine::initialize(Window{"window", 1920, 1080});
@@ -35,53 +34,14 @@ int main() {
 
     const auto window = Engine::window();
 
-    struct eRenderData {
-        VAO vao;
-        Shader *sh{nullptr};
-        std::vector<SHADERDATA> sh_data;
-
-        eRenderData() {}
-        eRenderData(const eRenderData &d) {}
+    struct Transform {
+        float x, y, z;
     };
 
-    class RenderSystem : public SystemBase {
-        std::map<Shader *, SortedVectorUnique<EntityID>> entities;
-
-      public:
-        RenderSystem() { set_component_family<eRenderData>(Engine::ecs()->components_mgr()); }
-
-        void insert_entity(const Entity &e) final {
-            auto sh = Engine::ecs()->get_component<eRenderData>(e.id);
-            if (sh) entities[sh.value()->sh].insert(e.id);
-        }
-        void remove_entity(const Entity &e) final {
-            auto sh = Engine::ecs()->get_component<eRenderData>(e.id);
-
-            if (sh && entities.contains(sh.value()->sh)) entities[sh.value()->sh].remove(e.id);
-        }
-        void update() final {
-            for (const auto &e : entities) {
-                e.first->use();
-                auto &at = entities.at(e.first);
-                for (auto it = at.begin(); it != at.end(); ++it) {
-                    auto data = Engine::ecs()->get_component<eRenderData>(*it).value();
-
-                    data->vao.bind();
-                    e.first->feed_uniforms(data->sh_data);
-                    data->vao.draw();
-                }
-            }
-        }
-    };
-
-    SortedVectorUnique<int> ints;
-    ints.emplace(1);
-    ints.emplace(1);
-    ints.emplace(3);
-    ints.emplace(2);
-    ints.emplace(2);
-    ints.emplace(0);
-    ints.emplace(1);
+    ECS e;
+    e.register_component<Transform>();
+    auto eid = e.add_entity();
+    auto comp = e.add_component<Transform>(eid);
 
     VAO skybox_vao;
     Texture skybox_tex{GL_LINEAR, GL_CLAMP_TO_EDGE};
@@ -114,15 +74,6 @@ int main() {
     triangle.insert_ebo(3, {0, inds});
     triangle.configure(2, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}});
     triangle.set_draw_func(glDrawElements, GL_TRIANGLES, inds.size(), GL_UNSIGNED_INT, nullptr);
-
-    auto &ecs = *Engine::ecs();
-    ecs.register_component<eRenderData>();
-    ecs.add_system<RenderSystem>();
-    auto eid  = ecs.create_entity();
-    auto comp = ecs.add_component<eRenderData>(eid,
-                                               std::move(triangle),
-                                               Engine::shader_manager()->get_shader("default"),
-                                               std::vector<SHADERDATA>{{{"color", glm::vec3{1.f, 0.f, 0.f}}}});
 
     Scene scene_;
     Engine::set_scene(&scene_);

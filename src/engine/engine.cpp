@@ -27,7 +27,6 @@ void Engine::render_frame() {
     glClearColor(0.1f, 0.2f, 0.4f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     renderer_->render();
-    ecs_->update();
     gui_->draw();
     window_->swap_buffers();
 }

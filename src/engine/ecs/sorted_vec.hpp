@@ -46,10 +46,12 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
         auto it = find_element_idx(d);
         if (it != vec.end() && *it == d) vec.erase(it);
     }
-    template <typename VAL, typename CMP, typename PRED>
-    constexpr void remove(VAL &&v, CMP cmp = CMP{}, PRED p = PRED{}) {
-        auto it = std::lower_bound(vec.begin(), vec.end(), v, [](auto &&e, auto &&v) { return p(e, v); });
-        if (it != vec.end() && cmp(v, *it)) vec.erase(it);
+    template <typename VAL, typename PRED> constexpr decltype(auto) find(VAL &&v, PRED p = PRED{}) {
+        return std::lower_bound(vec.begin(), vec.end(), v, [](auto &&e, auto &&v) { return p(e, v); });
+    }
+    template <typename VAL, typename PRED> constexpr void remove(VAL &&v, PRED p = PRED{}) {
+        auto it = find(v, p);
+        if (it != vec.end() && v == *it) vec.erase(it);
     }
     template <typename... ARGS> constexpr DATA_TYPE &emplace(ARGS &&...args) {
         return insert(DATA_TYPE{std::forward<ARGS>(args)...});
