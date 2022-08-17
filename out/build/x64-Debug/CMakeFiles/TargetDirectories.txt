@@ -1,9 +1,0 @@
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/CMakeFiles/edit_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/CMakeFiles/opengl_engine.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/CMakeFiles/edit_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/CMakeFiles/rebuild_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/3rdparty/CMakeFiles/edit_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/3rdparty/CMakeFiles/rebuild_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/assets/CMakeFiles/edit_cache.dir
-C:/Users/k/Desktop/opengl_engine/out/build/x64-Debug/src/assets/CMakeFiles/rebuild_cache.dir
