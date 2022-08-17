@@ -1,0 +1,85 @@
+    const auto catmull_clark = [&]() {
+        struct Face {
+            std::array<uint32_t, 3> indices;
+            uint32_t index;
+            Face(uint32_t a, uint32_t b, uint32_t c) : indices{a, b, c} {}
+            auto operator[](uint32_t i) const { return indices.at(i); }
+            auto centroid(const std::vector<glm::vec3> &vs) const {
+                return (vs[indices[0]] + vs[indices[1]] + vs[indices[2]]) / 3.f;
+            };
+        };
+
+        std::vector<Face> faces;
+        std::map<uint32_t, std::set<const Face *>> vertex_faces;
+        for (auto i = 0u; i < indices.size(); i += 3) {
+            const auto [i0, i1, i2] = std::tie(indices[i], indices[i + 1], indices[i + 2]);
+            faces.emplace_back(i0, i1, i2);
+        }
+        for (const auto &f : faces) {
+            vertex_faces[f[0]].insert(&f);
+            vertex_faces[f[1]].insert(&f);
+            vertex_faces[f[2]].insert(&f);
+        }
+
+        std::map<const Face *, std::set<const Face *>> neighboring_faces;
+        for (const auto &f1 : faces) {
+            for (const auto &f2 : faces) {
+                if (&f1 == &f2) continue;
+
+                auto shared_indices_count = std::count_if(f1.indices.begin(), f1.indices.end(), [&f2](const auto &f) {
+                    return std::count(f2.indices.begin(), f2.indices.end(), f) > 0;
+                });
+
+                if (shared_indices_count < 2) continue;
+
+                neighboring_faces[&f1].insert(&f2);
+                neighboring_faces[&f2].insert(&f1);
+            }
+        }
+
+        std::map<uint32_t, std::set<uint32_t>> vertex_edges;
+        for (const auto &f : faces) {
+            vertex_edges[f[0]].insert(f[1]);
+            vertex_edges[f[0]].insert(f[2]);
+            vertex_edges[f[1]].insert(f[0]);
+            vertex_edges[f[1]].insert(f[2]);
+            vertex_edges[f[2]].insert(f[0]);
+            vertex_edges[f[2]].insert(f[1]);
+        }
+
+        for (auto &f : faces) {
+            f.index = faces.size();
+            vertices.push_back(f.centroid(vertices));
+        }
+        new_face_count = faces.size();
+
+        std::set<std::pair<const Face *, const Face *>> added_face_neighbors;
+        for (const auto &[f, ns] : neighboring_faces) {
+            for (const auto n : ns) {
+                if (added_face_neighbors.contains({f, n}) || added_face_neighbors.contains({n, f})) continue;
+
+                added_face_neighbors.insert({f, n});
+                vertices.push_back((f->centroid(vertices) + n->centroid(vertices)) * 0.5f);
+                ++new_edge_count;
+            }
+        }
+
+        for (auto i = 0u; i < vertices.size() - new_edge_count - new_face_count; ++i) {
+            auto &v = vertices[i];
+
+            glm::vec3 F{0.f}, R{0.f};
+            float N = static_cast<float>(vertex_faces.at(i).size());
+
+            for (const auto f : vertex_faces.at(i)) {
+                printf("%u\n", i);
+                F += f->centroid(vertices);
+            }
+            for (const auto &e : vertex_edges.at(i)) { R += (v + vertices[e]) * 0.5f; }
+
+            F /= N;
+            R /= N;
+
+            v = (F + 2.f * R + (N - 3) * v) / N;
+        }
+    };
+    catmull_clark();
