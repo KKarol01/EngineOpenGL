@@ -28,7 +28,6 @@ void Engine::render_frame() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     renderer_->render();
     gui_->draw();
-    window_->swap_buffers();
 }
 
 void Engine::set_scene(Scene *scene_) {

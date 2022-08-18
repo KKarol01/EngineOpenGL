@@ -34,6 +34,7 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
         auto it = get_insertion_idx(d);
         return *vec.insert(it, d);
     }
+
     constexpr DATA_TYPE &insert(DATA_TYPE &&d) {
         if constexpr (std::is_same_v<INSERT_BHV, UNIQUE_INSERT>) {
             auto f_it = find_element_idx(d);
@@ -42,24 +43,34 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
         auto it = get_insertion_idx(d);
         return *vec.emplace(it, std::move(d));
     }
+
     constexpr void remove(const DATA_TYPE &d) {
         auto it = find_element_idx(d);
         if (it != vec.end() && *it == d) vec.erase(it);
     }
-    template <typename VAL, typename PRED> constexpr decltype(auto) find(VAL &&v, PRED p = PRED{}) {
-        return std::lower_bound(vec.begin(), vec.end(), v, [](auto &&e, auto &&v) { return p(e, v); });
+
+    template <typename VAL, typename PRED = COMP> constexpr decltype(auto) find(VAL &&v, PRED p = COMP{}) {
+        return std::lower_bound(vec.begin(), vec.end(), v, [&p](auto &&e, auto &&v) { return p(e, v); });
     }
+    template <typename VAL, typename PRED = COMP> constexpr bool contains(VAL &&v, PRED p = COMP{}) {
+        return find(v, p) != vec.end();
+    }
+
     template <typename VAL, typename PRED> constexpr void remove(VAL &&v, PRED p = PRED{}) {
         auto it = find(v, p);
         if (it != vec.end() && v == *it) vec.erase(it);
     }
+
     template <typename... ARGS> constexpr DATA_TYPE &emplace(ARGS &&...args) {
         return insert(DATA_TYPE{std::forward<ARGS>(args)...});
     }
 
     constexpr auto &data() { return vec; }
+    constexpr const auto &data() const { return vec; }
     constexpr auto begin() { return vec.begin(); }
     constexpr auto end() { return vec.end(); }
+    constexpr auto cbegin() const { return vec.cbegin(); }
+    constexpr auto cend() const { return vec.cend(); }
 
   private:
     constexpr auto find_element_idx(const DATA_TYPE &d, COMP comp = COMP{}) {
@@ -72,5 +83,6 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
 
 template <typename DATA_TYPE, typename COMP = std::less<>>
 using SortedVector = SortedVector_TMPL<NON_UNIQUE_INSERT, DATA_TYPE, COMP>;
+
 template <typename DATA_TYPE, typename COMP = std::less<>>
 using SortedVectorUnique = SortedVector_TMPL<UNIQUE_INSERT, DATA_TYPE, COMP>;

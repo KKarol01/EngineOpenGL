@@ -12,6 +12,7 @@
 #include <chrono>
 #include <algorithm>
 #include <concepts>
+#include <ranges>
 
 #include "engine/engine.hpp"
 #include "engine/wrappers/include_all.hpp"
@@ -34,14 +35,51 @@ int main() {
 
     const auto window = Engine::window();
 
-    struct Transform {
-        float x, y, z;
+    struct RD {
+        Shader *sh{nullptr};
+        std::vector<SHADERDATA> sh_datas;
+        VAO vao;
     };
 
-    ECS e;
-    e.register_component<Transform>();
-    auto eid = e.add_entity();
-    auto comp = e.add_component<Transform>(eid);
+    class A : public SystemBase {
+        std::map<Shader *, SortedVectorUnique<EntityID>> entities;
+        std::map<EntityID, SortedVectorUnique<EntityID> *> ent_vec;
+
+      public:
+        A() : SystemBase() { set_component_family<RD>(Engine::ecs()); }
+
+        void update_entity(EntityID id) final {
+            const auto &e       = Engine::ecs()->get_entity(id);
+            const auto accepted = entity_compatible(e);
+
+            if (!accepted && !ent_vec.contains(id)) {
+                return;
+            } else if (!accepted) {
+                ent_vec.at(id)->remove(id);
+                ent_vec.erase(id);
+                return;
+            }
+
+            const auto &rd = Engine::ecs()->get_component<RD>(id);
+
+            if (ent_vec.contains(id)) { ent_vec.at(id)->remove(id); }
+            if (rd.sh == nullptr) return;
+
+            entities[rd.sh].insert(id);
+            ent_vec[id] = &entities.at(rd.sh);
+        }
+        void update() final {
+            for (const auto &[sh, ids] : entities) {
+                sh->use();
+                for (const auto id : ids.data()) {
+                    const auto &comp = Engine::ecs()->get_component<RD>(id);
+                    comp.vao.bind();
+                    sh->feed_uniforms(comp.sh_datas);
+                    comp.vao.draw();
+                }
+            }
+        }
+    };
 
     VAO skybox_vao;
     Texture skybox_tex{GL_LINEAR, GL_CLAMP_TO_EDGE};
@@ -87,6 +125,19 @@ int main() {
 
     Camera c;
 
+    auto &ecs = *Engine::ecs();
+    auto ent  = ecs.create_entity();
+    ecs.register_component<RD>();
+    A system;
+    system.update_entity(ent);
+    auto &comp = ecs.add_component<RD>(ent);
+    system.update_entity(ent);
+    comp.sh       = Engine::shader_manager()->get_shader("default");
+    comp.sh_datas = {{"color", glm::vec3{1.f, 0.f, 0.f}}};
+    comp.vao      = std::move(triangle);
+    system.update_entity(ent);
+
+
     while (!window->should_close()) {
         glfwPollEvents();
         Engine::update();
@@ -95,7 +146,10 @@ int main() {
         skybox.uniforms.at(0).value = c.view_matrix();
         skybox.uniforms.at(1).value = c.perspective_matrix();
 
+
         Engine::render_frame();
+        system.update();
+        Engine::window()->swap_buffers();
     }
 
     Engine::terminate();

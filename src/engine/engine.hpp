@@ -11,7 +11,6 @@
 #include "ecs/ecs.hpp"
 #include "wrappers/include_all.hpp"
 
-class ECS;
 class Engine {
     inline static std::unique_ptr<Window> window_;
     inline static std::unique_ptr<Controller> controller_;

@@ -29,6 +29,6 @@ class TypeMap {
         return [](const void *data) { delete static_cast<const T *>(data); };
     }
     template <typename T> static unique_ptr get_unique_ptr(T *t) {
-        return unique_ptr{new T{*t}, unique_ptr_deleter<T>()};
+        return unique_ptr{t, unique_ptr_deleter<T>()};
     }
 };
