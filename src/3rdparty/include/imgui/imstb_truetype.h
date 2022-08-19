@@ -1503,22 +1503,22 @@ STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codep
    stbtt_uint8 *data = info->data;
    stbtt_uint32 index_map = info->index_map;
 
-   stbtt_uint16 format = ttUSHORT(data + index_map + 0);
-   if (format == 0) { // apple byte encoding
+   stbtt_uint16 TIME_FORMAT = ttUSHORT(data + index_map + 0);
+   if (TIME_FORMAT == 0) { // apple byte encoding
       stbtt_int32 bytes = ttUSHORT(data + index_map + 2);
       if (unicode_codepoint < bytes-6)
          return ttBYTE(data + index_map + 6 + unicode_codepoint);
       return 0;
-   } else if (format == 6) {
+   } else if (TIME_FORMAT == 6) {
       stbtt_uint32 first = ttUSHORT(data + index_map + 6);
       stbtt_uint32 count = ttUSHORT(data + index_map + 8);
       if ((stbtt_uint32) unicode_codepoint >= first && (stbtt_uint32) unicode_codepoint < first+count)
          return ttUSHORT(data + index_map + 10 + (unicode_codepoint - first)*2);
       return 0;
-   } else if (format == 2) {
+   } else if (TIME_FORMAT == 2) {
       STBTT_assert(0); // @TODO: high-byte mapping for japanese/chinese/korean
       return 0;
-   } else if (format == 4) { // standard mapping for windows fonts: binary search collection of ranges
+   } else if (TIME_FORMAT == 4) { // standard mapping for windows fonts: binary search collection of ranges
       stbtt_uint16 segcount = ttUSHORT(data+index_map+6) >> 1;
       stbtt_uint16 searchRange = ttUSHORT(data+index_map+8) >> 1;
       stbtt_uint16 entrySelector = ttUSHORT(data+index_map+10);
@@ -1563,7 +1563,7 @@ STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codep
 
          return ttUSHORT(data + offset + (unicode_codepoint-start)*2 + index_map + 14 + segcount*6 + 2 + 2*item);
       }
-   } else if (format == 12 || format == 13) {
+   } else if (TIME_FORMAT == 12 || TIME_FORMAT == 13) {
       stbtt_uint32 ngroups = ttULONG(data+index_map+12);
       stbtt_int32 low,high;
       low = 0; high = (stbtt_int32)ngroups;
@@ -1578,7 +1578,7 @@ STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codep
             low = mid+1;
          else {
             stbtt_uint32 start_glyph = ttULONG(data+index_map+16+mid*12+8);
-            if (format == 12)
+            if (TIME_FORMAT == 12)
                return start_glyph + unicode_codepoint-start_char;
             else // format == 13
                return start_glyph;

@@ -4468,7 +4468,7 @@ void RenderColorBar(const ImU32* colors, int size, ImDrawList& DrawList, const I
     }
 }
 
-void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& size, const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap) {
+void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& size, const char* TIME_FORMAT, ImPlotColormapScaleFlags flags, ImPlotColormap cmap) {
     ImGuiContext &G      = *GImGui;
     ImGuiWindow * Window = G.CurrentWindow;
     if (Window->SkipItems)
@@ -4490,7 +4490,7 @@ void ColormapScale(const char* label, double scale_min, double scale_max, const 
 
     ImPlotRange range(ImMin(scale_min,scale_max), ImMax(scale_min,scale_max));
     gp.CTicker.Reset();
-    Locator_Default(gp.CTicker, range, frame_size.y, true, Formatter_Default, (void*)format);
+    Locator_Default(gp.CTicker, range, frame_size.y, true, Formatter_Default, (void*)TIME_FORMAT);
 
     const bool rend_label = label_size.x > 0;
     const float txt_off   = gp.Style.LabelPadding.x;
@@ -4557,7 +4557,7 @@ void ColormapScale(const char* label, double scale_min, double scale_max, const 
     ImGui::PopClipRect();
 }
 
-bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* format, ImPlotColormap cmap) {
+bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* TIME_FORMAT, ImPlotColormap cmap) {
     *t = ImClamp(*t,0.0f,1.0f);
     ImGuiContext &G      = *GImGui;
     ImGuiWindow * Window = G.CurrentWindow;
@@ -4583,7 +4583,7 @@ bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* format
     ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, grab);
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize,2);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,0);
-    const bool changed = ImGui::SliderFloat(label,t,0,1,format);
+    const bool changed = ImGui::SliderFloat(label,t,0,1,TIME_FORMAT);
     ImGui::PopStyleColor(5);
     ImGui::PopStyleVar(2);
     if (out != NULL)

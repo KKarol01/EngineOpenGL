@@ -15,6 +15,8 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
     SortedVector_TMPL() = default;
     SortedVector_TMPL(const std::vector<DATA_TYPE> &d) { *this = d; }
     SortedVector_TMPL(std::vector<DATA_TYPE> &&d) { *this = std::move(d); }
+    SortedVector_TMPL(const SortedVector_TMPL &d) { *this = d; }
+    SortedVector_TMPL(SortedVector_TMPL &&d) { *this = std::move(d); }
     SortedVector_TMPL &operator=(const std::vector<DATA_TYPE> &d) {
         vec = d;
         std::sort(vec.begin(), vec.end(), COMP{});
@@ -25,6 +27,16 @@ template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> 
         std::sort(vec.begin(), vec.end(), COMP{});
         return *this;
     }
+    SortedVector_TMPL &operator=(const SortedVector_TMPL &other) {
+        vec = other.vec;
+        return *this;
+    }
+    SortedVector_TMPL &operator=(SortedVector_TMPL &&other) {
+        vec = std::move(other.vec);
+        return *this;
+    }
+    DATA_TYPE &operator[](std::size_t id) { return vec[id]; }
+    const DATA_TYPE &operator[](std::size_t id) const { return vec.at(id); }
 
     constexpr DATA_TYPE &insert(const DATA_TYPE &d) {
         if constexpr (std::is_same_v<INSERT_BHV, UNIQUE_INSERT>) {

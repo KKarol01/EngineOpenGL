@@ -1,7 +1,6 @@
 #include "gui.hpp"
 
 #include "../engine.hpp"
-#include "../scene/scene.hpp"
 
 #include <optional>
 #include <variant>
@@ -37,7 +36,7 @@ void GUI::draw() const {
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
-    auto s = Engine::scene();
+ //   auto s = Engine::scene();
     auto ww = Engine::window()->width();
     auto wh = Engine::window()->height();
     ImGui::SetNextWindowSizeConstraints({500.f, (float)wh}, {1000.f, (float)wh});

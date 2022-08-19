@@ -37,12 +37,12 @@ Texture::~Texture() {
     printf("Deleting handle: %u\n", handle);
     glDeleteTextures(1, &handle); }
 
-void Texture::build2d(std::string_view path, uint32_t format) {
+void Texture::build2d(std::string_view path, uint32_t TIME_FORMAT) {
     int x, y, ch;
     auto data = stbi_load(path.data(), &x, &y, &ch, 0);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &handle);
-    glTextureStorage2D(handle, 0, format, x, y);
+    glTextureStorage2D(handle, 0, TIME_FORMAT, x, y);
     glTextureSubImage2D(handle, 0, 0, 0, x, y, ch == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
     glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
     glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);
@@ -56,7 +56,7 @@ void Texture::build2d_mips(std::string_view path, uint32_t dimensions) { assert(
 
 void Texture::build2d_ms(std::string_view path, uint32_t dimensions, uint32_t samples, bool fixedsamplelocations) { assert(false); }
 
-void Texture::buildcube(std::string *path, uint32_t format) {
+void Texture::buildcube(std::string *path, uint32_t TIME_FORMAT) {
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &handle);
     glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
     glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);
@@ -69,7 +69,7 @@ void Texture::buildcube(std::string *path, uint32_t format) {
         int x, y, ch;
         auto data = stbi_load(path[i].data(), &x, &y, &ch, 0);
 
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, x, y, 0, ch == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, TIME_FORMAT, x, y, 0, ch == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
         stbi_image_free(data);
     }
 }

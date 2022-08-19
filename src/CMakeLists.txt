@@ -1,4 +1,4 @@
-add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"  "engine/wrappers/buffer/buffer.cpp" "engine/wrappers/shader/shader.cpp" "engine/wrappers/shader/shader_template.cpp" "engine/wrappers/shader/shader_manager.cpp" "engine/wrappers/texture/texture.cpp" "engine/wrappers/window/window.cpp" "engine/engine.cpp" "engine/camera/camera.cpp" "engine/gui/gui.cpp" "engine/controller/controller.cpp" "engine/controller/keyboard/keyboard.cpp" "engine/renderer/renderer.cpp" )
+add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"  "engine/wrappers/buffer/buffer.cpp" "engine/wrappers/shader/shader.cpp" "engine/wrappers/shader/shader_template.cpp" "engine/wrappers/shader/shader_manager.cpp" "engine/wrappers/texture/texture.cpp" "engine/wrappers/window/window.cpp" "engine/engine.cpp" "engine/camera/camera.cpp" "engine/gui/gui.cpp" "engine/controller/controller.cpp" "engine/controller/keyboard/keyboard.cpp"  "engine/ecs/ecs.cpp" "engine/renderer/renderer.cpp" "engine/renderer/systems.cpp" )
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 
 target_link_directories(opengl_engine PRIVATE "3rdparty/lib")

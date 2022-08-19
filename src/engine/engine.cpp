@@ -10,8 +10,8 @@ void Engine::initialize(Window &&window) {
     Engine::controller_     = std::make_unique<Keyboard>();
     Engine::shader_manager_ = std::make_unique<ShaderManager>();
     Engine::gui_            = std::make_unique<GUI>();
-    Engine::renderer_       = std::make_unique<Renderer>();
     Engine::ecs_            = std::make_unique<ECS>();
+    Engine::renderer_       = std::make_unique<Renderer>();
 
     time = dt = glfwGetTime();
 }
@@ -26,13 +26,9 @@ void Engine::update() {
 void Engine::render_frame() {
     glClearColor(0.1f, 0.2f, 0.4f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    renderer_->render();
+    renderer_->render_frame();
     gui_->draw();
-}
-
-void Engine::set_scene(Scene *scene_) {
-    Engine::scene_ = scene_;
-    // renderer_->load_scene(*Engine::scene_);
+    window_->swap_buffers();
 }
 
 void Engine::terminate() {
