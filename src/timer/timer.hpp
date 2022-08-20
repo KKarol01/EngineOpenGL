@@ -4,48 +4,45 @@
 #include <cstdint>
 #include <chrono>
 #include <stack>
+#include <queue>
 #include <ratio>
 #include <string>
 
-class Timer {
+template <typename TIMEFORMAT = std::nano> class Timer {
     using clock = std::chrono::high_resolution_clock;
-
-    struct Snapshot {
-        Snapshot() { time = clock::now(); }
-        std::chrono::steady_clock::time_point time;
-    };
-
-    inline static std::stack<Snapshot> snaps;
-    inline static std::stack<std::string> names;
+    clock::time_point last_time;
+    std::string name{""};
+    std::queue<std::chrono::duration<long long, TIMEFORMAT>> durations;
+    std::deque<std::string> duration_names;
 
   public:
-    struct Time {
-        std::string name;
-        std::chrono::duration<long long, std::micro> time;
-        std::uint32_t indent{0u};
-        Time(std::string &&name, std::chrono::duration<long long, std::micro> t, std::uint32_t indent = 0)
-            : name{std::move(name)}, time{t}, indent{indent} {}
-    };
+    Timer() = default;
+    Timer(std::string &&name) : name{std::move(name)} { last_time = clock::now(); }
 
-    static void start(const std::string &name) {
-        snaps.emplace();
-        names.push(name);
+    inline void start() { last_time = clock::now(); }
+    inline auto step() {
+        durations.emplace(clock::now() - last_time);
+        duration_names.emplace_back("");
+        last_time = clock::now();
+
+        return [this](std::string &&name = "") {
+            duration_names.pop_back();
+            duration_names.emplace_back(std::move(name));
+            last_time = clock::now();
+        };
     }
-    static auto step() {
-        return Time{std::string{names.top()},
-                    std::chrono::duration_cast<std::chrono::microseconds>(Snapshot{}.time - snaps.top().time),
-                    (uint32_t)(snaps.size() - 1)};
+    inline auto end() {
+        step()("end");
+        print();
     }
-    static auto end() {
-        auto res = step();
-        snaps.pop();
-        names.pop();
-        return res;
+
+  private:
+    void print() {
+        std::cout << "=== " << name << " ===\n";
+        while (durations.empty() == false) {
+            std::cout << "\t" << duration_names.front() << ": " << durations.front().count() << '\n';
+            durations.pop();
+            duration_names.pop_front();
+        }
     }
 };
-
-std::ostream &operator<<(std::ostream &s, const Timer::Time &time) {
-    for (auto i = 0u; i < time.indent; ++i) s << '\t';
-    s << time.name << ": " << time.time.count() << '\n';
-    return s;
-}

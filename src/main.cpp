@@ -66,18 +66,20 @@ int main() {
     auto ecs = Engine::ecs();
     VAO triangle;
     {
-        Timer::start("test");
+        Timer time{"draw func setup"};
         std::vector<glm::vec2> vertices{
             {0.f, 0.f},
             {1.f, 0.f},
             {0.f, 1.f},
         };
-        std::cout << Timer::end();
         std::vector<unsigned> indices{0, 1, 2};
         triangle.insert_vbo(BUFFEROBJECT{0, vertices});
         triangle.insert_ebo(3, BUFFEROBJECT{0, indices});
         triangle.configure(2, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}});
-        triangle.draw = []() { glDrawArrays(GL_TRIANGLES, 0, 3); };
+        time.start();
+        triangle.draw = [] { glDrawArrays(GL_TRIANGLES, 0, 3); };
+        time.step()("name");
+        time.end();
     }
     auto e1 = ecs->create_entity();
     RenderData rd1{.vao      = std::move(triangle),
