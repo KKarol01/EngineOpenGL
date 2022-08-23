@@ -2,35 +2,37 @@
 
 #include <memory>
 
-#include "camera/camera.hpp"
-#include "renderer/renderer.hpp"
-#include "controller/keyboard/keyboard.hpp"
-#include "gui/gui.hpp"
-#include "signal/signal.hpp"
-#include "ecs/ecs.hpp"
-#include "wrappers/include_all.hpp"
+class Window;
+class Controller;
+class ShaderManager;
+class ECS;
+class Renderer;
 
 class Engine {
-    inline static std::unique_ptr<Window> window_;
-    inline static std::unique_ptr<Controller> controller_;
-    inline static std::unique_ptr<ShaderManager> shader_manager_;
-    inline static std::unique_ptr<GUI> gui_;
-    inline static std::unique_ptr<ECS> ecs_;
-    inline static std::unique_ptr<Renderer> renderer_;
-
-    inline static double time{0.f}, dt{0.f};
-
   public:
-    static void initialize(Window &&window);
-    static void terminate();
-    static void update();
-    static void render_frame();
+    Engine() = default;
+    Engine(Window &&) noexcept;
+    Engine &operator=(Window &&) noexcept;
+    ~Engine();
 
-    inline static Window *window() { return window_.get(); }
-    inline static Controller *controller() { return controller_.get(); }
-    inline static ShaderManager *shader_manager() { return shader_manager_.get(); }
-    inline static GUI *gui() { return gui_.get(); }
-    inline static ECS *ecs() { return ecs_.get(); }
+    void update();
 
-    inline static double deltatime() { return dt; }
+    inline Window *window() { return window_.get(); }
+    inline Controller *controller() { return controller_.get(); }
+    inline ShaderManager *shader_manager() { return shader_manager_.get(); }
+    inline ECS *ecs() { return ecs_.get(); }
+    inline double deltatime() { return dt; }
+
+    static void initialise(Window &&w);
+    static Engine &instance() { return _instance; }
+
+    double time{0.f}, dt{0.f};
+    std::unique_ptr<Window> window_;
+    std::unique_ptr<Controller> controller_;
+    std::unique_ptr<ShaderManager> shader_manager_;
+    std::unique_ptr<ECS> ecs_;
+    std::unique_ptr<Renderer> renderer_;
+
+  private:
+    static Engine _instance;
 };

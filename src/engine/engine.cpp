@@ -5,15 +5,29 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-void Engine::initialize(Window &&window) {
+#include "camera/camera.hpp"
+#include "subsystems/renderer/renderer.hpp"
+#include "controller/keyboard/keyboard.hpp"
+#include "signal/signal.hpp"
+#include "subsystems/ecs/ecs.hpp"
+#include "wrappers/include_all.hpp"
+
+Engine::Engine(Window &&window) noexcept { *this = std::move(window); }
+
+Engine &Engine::operator=(Window &&window) noexcept {
     Engine::window_         = std::make_unique<Window>(std::move(window));
     Engine::controller_     = std::make_unique<Keyboard>();
     Engine::shader_manager_ = std::make_unique<ShaderManager>();
-    Engine::gui_            = std::make_unique<GUI>();
     Engine::ecs_            = std::make_unique<ECS>();
     Engine::renderer_       = std::make_unique<Renderer>();
 
     time = dt = glfwGetTime();
+    return *this;
+}
+
+Engine::~Engine() {
+    window_->close();
+    glfwTerminate();
 }
 
 void Engine::update() {
@@ -21,17 +35,13 @@ void Engine::update() {
     time = glfwGetTime();
 
     controller_->update();
-}
 
-void Engine::render_frame() {
-    glClearColor(0.1f, 0.2f, 0.4f, 1.f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.3f, 0.8f, 0.21f, 1.f);
+    window_->clear_framebuffer();
     renderer_->render_frame();
-    gui_->draw();
     window_->swap_buffers();
 }
 
-void Engine::terminate() {
-    window_->close();
-    glfwTerminate();
-}
+void Engine::initialise(Window &&w) { _instance = std::move(w); }
+
+Engine Engine::_instance = Engine{};

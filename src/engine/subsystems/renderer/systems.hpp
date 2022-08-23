@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../ecs/ecs.hpp"
-#include "../engine.hpp"
+#include "../../engine.hpp"
+
+class Shader;
 
 class RenderSystem : public SystemBase {
     std::map<Shader *, SortedVectorUnique<EntityID>> entities;

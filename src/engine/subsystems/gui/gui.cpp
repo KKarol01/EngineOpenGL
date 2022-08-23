@@ -1,6 +1,7 @@
 #include "gui.hpp"
 
-#include "../engine.hpp"
+#include "../../engine.hpp"
+#include "../../wrappers/window/window.hpp"
 
 #include <optional>
 #include <variant>
@@ -14,7 +15,7 @@ GUI::GUI() {
     io = &ImGui::GetIO();
     ImGui::StyleColorsDark();
 
-    ImGui_ImplGlfw_InitForOpenGL(Engine::window()->glfwptr(), true);
+    ImGui_ImplGlfw_InitForOpenGL(Engine::instance().window()->glfwptr(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 
     io->IniFilename         = "imgui.ini";
@@ -36,9 +37,9 @@ void GUI::draw() const {
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
- //   auto s = Engine::scene();
-    auto ww = Engine::window()->width();
-    auto wh = Engine::window()->height();
+ //   auto s = Engine::instance().sceneinstance().();
+    auto ww = Engine::instance().window()->width();
+    auto wh = Engine::instance().window()->height();
     ImGui::SetNextWindowSizeConstraints({500.f, (float)wh}, {1000.f, (float)wh});
     ImGui::Begin("Scene objects", 0, ImGuiWindowFlags_NoMove);
 //    for (int i = 0; i < s->object_count(); ++i) {

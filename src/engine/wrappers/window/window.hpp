@@ -6,10 +6,13 @@
 struct GLFWwindow;
 
 class Window {
-    GLFWwindow *glfw_window{nullptr};
-    std::string window_name;
-    unsigned window_width{640}, window_height{480};
-    unsigned clear_buffer_flags;
+  public:
+    struct WINDOW_HINTS {
+        unsigned MAJOR_VERSION;
+        unsigned MINOR_VERSION;
+        unsigned PROFILE;
+        unsigned FORWARD_COMPAT;
+    };
 
   public:
     Window() noexcept = default;
@@ -34,14 +37,13 @@ class Window {
     inline auto height() const { return window_width; }
     inline auto aspect() const { return (float)(window_width) / (float)(window_height); }
 
-  public:
-    struct WINDOW_HINTS {
-        unsigned MAJOR_VERSION;
-        unsigned MINOR_VERSION;
-        unsigned PROFILE;
-        unsigned FORWARD_COMPAT;
-    };
-
-    static inline bool glfw_initialized{false};
+  private:
     static void configure_glfw_and_hints(WINDOW_HINTS hints);
+
+  private:
+    static inline bool glfw_initialized{false};
+    GLFWwindow *glfw_window{nullptr};
+    std::string window_name;
+    unsigned window_width{640}, window_height{480};
+    unsigned clear_buffer_flags;
 };
