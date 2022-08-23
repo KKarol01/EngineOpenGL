@@ -1,7 +1,7 @@
 #include "renderer.hpp"
 
 #include "systems.hpp"
-#include "components.hpp"
+#include "../ecs/components.hpp"
 
 #include "../../engine.hpp"
 #include "../../timer/timer.hpp"

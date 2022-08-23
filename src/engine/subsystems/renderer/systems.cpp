@@ -1,11 +1,10 @@
 #include "systems.hpp"
-#include "components.hpp"
+#include "../ecs/components.hpp"
 
 #include "../../engine.hpp"
 #include "../../timer/timer.hpp"
 
 RenderSystem::RenderSystem() : SystemBase() { set_component_family<RenderData>(Engine::instance().ecs()); }
-
 
 void RenderSystem::update_entity(EntityID id) {
     const auto &e       = Engine::instance().ecs()->get_entity(id);

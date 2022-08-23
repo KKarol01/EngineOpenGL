@@ -3,16 +3,17 @@
 #include "engine/engine.hpp"
 #include "engine/wrappers/include_all.hpp"
 #include "engine/camera/camera.hpp"
-#include "engine/subsystems/renderer/components.hpp"
+#include "engine/subsystems/ecs/components.hpp"
 #include "engine/subsystems/ecs/ecs.hpp"
 
 #include <GLFW/glfw3.h>
 
+
 int main() {
     Engine::initialise({Window{"window", 1920, 1080}});
     auto &engine = Engine::instance();
-   // glEnable(GL_DEPTH_TEST);
-   // glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     const auto window = engine.window();
 
@@ -32,7 +33,6 @@ int main() {
         skybox_vao.insert_vbo(BUFFEROBJECT{0, skyboxVertices, sizeof(skyboxVertices) / 4, 12, 0});
         skybox_vao.configure(3, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}});
         std::string paths[6] = {"textures/right.jpg",
-
                                 "textures/left.jpg",
                                 "textures/top.jpg",
                                 "textures/bottom.jpg",
@@ -44,7 +44,7 @@ int main() {
     Camera c;
 
     auto ecs = Engine::instance().ecs();
-    for (auto i = 0u; i < 1u; ++i) {
+    for (auto i = 0u; i < 2u; ++i) {
 
         VAO triangle;
         {

@@ -8,12 +8,9 @@
 
 struct ImGuiIO;
 
+#include "ecs_comps.hpp"
+
 class GUI {
-    std::map<uint32_t, std::function<void()>> ui_draws;
-    uint32_t ui_draws_count{0u};
-
-    ImGuiIO *io{nullptr};
-
   public:
     GUI();
     ~GUI();
@@ -22,6 +19,7 @@ class GUI {
         ui_draws.emplace(ui_draws_count, std::move(f));
         return ui_draws_count++;
     }
+
     void remove_draw(uint32_t id) {
         if (!ui_draws.contains(id)) {
             char err[128];
@@ -32,5 +30,11 @@ class GUI {
         ui_draws.erase(id);
     }
 
-    void draw() const;
+    void draw();
+
+  private:
+    std::map<uint32_t, std::function<void()>> ui_draws;
+    uint32_t ui_draws_count{0u};
+    ComponentGUI comp_gui;
+    ImGuiIO *io{nullptr};
 };

@@ -7,6 +7,7 @@ class Controller;
 class ShaderManager;
 class ECS;
 class Renderer;
+class GUI;
 
 class Engine {
   public:
@@ -32,6 +33,7 @@ class Engine {
     std::unique_ptr<ShaderManager> shader_manager_;
     std::unique_ptr<ECS> ecs_;
     std::unique_ptr<Renderer> renderer_;
+    std::unique_ptr<GUI> gui_;
 
   private:
     static Engine _instance;
