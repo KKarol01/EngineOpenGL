@@ -7,5 +7,6 @@
 struct RenderData {
     VAO vao;
     Shader *sh{nullptr};
-    std::vector<SHADERDATA> sh_datas;
+    ShaderStorage sh_datas;
+    std::unordered_map<std::uint32_t, std::uint32_t> textures;
 };

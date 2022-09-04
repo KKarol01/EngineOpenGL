@@ -2,13 +2,15 @@
 #include "../ecs/components.hpp"
 
 #include "../../engine.hpp"
-#include "../../timer/timer.hpp"
 
-RenderSystem::RenderSystem() : SystemBase() { set_component_family<RenderData>(Engine::instance().ecs()); }
+RenderSystem::RenderSystem() : eng::SystemBase() { set_component_family<RenderData>(eng::Engine::instance().ecs()); }
 
-void RenderSystem::update_entity(EntityID id) {
-    const auto &e       = Engine::instance().ecs()->get_entity(id);
-    const auto accepted = entity_compatible(e);
+void RenderSystem::update_entity(eng::EntityID id) {
+    const auto &e       = eng::Engine::instance().ecs()->get_entity(id);
+
+    if(!e) return;
+
+    const auto accepted = entity_compatible(e.value().get());
 
     if (!accepted && !ent_vec.contains(id)) {
         return;
@@ -18,7 +20,7 @@ void RenderSystem::update_entity(EntityID id) {
         return;
     }
 
-    const auto &rd = Engine::instance().ecs()->get_component<RenderData>(id);
+    const auto &rd = eng::Engine::instance().ecs()->get_component<RenderData>(id);
 
     if (ent_vec.contains(id)) { ent_vec.at(id)->remove(id); }
     if (rd.sh == nullptr) return;
@@ -31,7 +33,7 @@ void RenderSystem::update() {
     for (const auto &[sh, ids] : entities) {
         sh->use();
         for (const auto id : ids.data()) {
-            const auto &comp = Engine::instance().ecs()->get_component<RenderData>(id);
+            const auto &comp = eng::Engine::instance().ecs()->get_component<RenderData>(id);
             sh->feed_uniforms(comp.sh_datas);
             comp.vao.bind();
             comp.vao.draw();

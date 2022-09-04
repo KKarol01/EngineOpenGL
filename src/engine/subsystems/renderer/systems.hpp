@@ -5,13 +5,13 @@
 
 class Shader;
 
-class RenderSystem : public SystemBase {
-    std::map<Shader *, SortedVectorUnique<EntityID>> entities;
-    std::map<EntityID, SortedVectorUnique<EntityID> *> ent_vec;
+class RenderSystem : public eng::SystemBase {
+    std::map<Shader *, eng::SortedVectorUnique<eng::EntityID>> entities;
+    std::map<eng::EntityID, eng::SortedVectorUnique<eng::EntityID> *> ent_vec;
 
   public:
     RenderSystem();
 
-    void update_entity(EntityID) final;
+    void update_entity(eng::EntityID) final;
     void update() final;
 };

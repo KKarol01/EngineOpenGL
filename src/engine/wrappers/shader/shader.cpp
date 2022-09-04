@@ -84,19 +84,9 @@ Shader::~Shader() { glDeleteProgram(program_id); }
 
 void Shader::use() { glUseProgram(program_id); }
 
-void Shader::feed_uniforms(const std::vector<SHADERDATA> &data) {
-    for (const auto &d : data) {
-        if (auto ptr = std::get_if<int>(&d.value)) {
-            set(d.name, *ptr);
-        } else if (auto ptr = std::get_if<float>(&d.value)) {
-            set(d.name, *ptr);
-        } else if (auto ptr = std::get_if<glm::vec2>(&d.value)) {
-            set(d.name, *ptr);
-        } else if (auto ptr = std::get_if<glm::vec3>(&d.value)) {
-            set(d.name, *ptr);
-        } else if (auto ptr = std::get_if<glm::mat4>(&d.value)) {
-            set(d.name, *ptr);
-        }
+void Shader::feed_uniforms(const ShaderStorage &data) {
+    for (const auto &[name, get_var] : data.data) {
+        std::visit([&name, this](auto &&val) { set(name, val.get()); }, get_var());
     }
 }
 

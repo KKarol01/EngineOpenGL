@@ -13,9 +13,9 @@
 #include "subsystems/ecs/ecs.d.hpp"
 #include "wrappers/include_all.hpp"
 
-Engine::Engine(Window &&window) noexcept { *this = std::move(window); }
+eng::Engine::Engine(Window &&window) noexcept { *this = std::move(window); }
 
-Engine &Engine::operator=(Window &&window) noexcept {
+eng::Engine &eng::Engine::operator=(Window &&window) noexcept {
     Engine::window_         = std::make_unique<Window>(std::move(window));
     Engine::controller_     = std::make_unique<Keyboard>();
     Engine::shader_manager_ = std::make_unique<ShaderManager>();
@@ -27,12 +27,12 @@ Engine &Engine::operator=(Window &&window) noexcept {
     return *this;
 }
 
-Engine::~Engine() {
+eng::Engine::~Engine() {
     window_->close();
     glfwTerminate();
 }
 
-void Engine::update() {
+void eng::Engine::update() {
     dt   = glfwGetTime() - time;
     time = glfwGetTime();
 
@@ -45,6 +45,6 @@ void Engine::update() {
     window_->swap_buffers();
 }
 
-void Engine::initialise(Window &&w) { _instance = std::move(w); }
+void eng::Engine::initialise(Window &&w) { _instance = std::move(w); }
 
-Engine Engine::_instance = Engine{};
+eng::Engine eng::Engine::_instance = Engine{};

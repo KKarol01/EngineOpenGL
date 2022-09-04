@@ -12,7 +12,7 @@ add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"
  "engine/wrappers/shader/shader_manager.cpp" 
  "engine/wrappers/texture/texture.cpp"
  "engine/wrappers/window/window.cpp"
- "engine/subsystems/gui/ecs_comps.cpp")
+ "engine/subsystems/gui/ecs_comps.cpp" "engine/scene/scene.hpp" "engine/scene/scene.cpp")
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 
 target_link_directories(opengl_engine PRIVATE "3rdparty/lib")

@@ -16,7 +16,7 @@ GUI::GUI() {
     io = &ImGui::GetIO();
     ImGui::StyleColorsDark();
 
-    ImGui_ImplGlfw_InitForOpenGL(Engine::instance().window()->glfwptr(), true);
+    ImGui_ImplGlfw_InitForOpenGL(eng::Engine::instance().window()->glfwptr(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 
     io->IniFilename         = "imgui.ini";
@@ -39,30 +39,18 @@ void GUI::draw() {
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
     //   auto s = Engine::instance().sceneinstance().();
-    auto ww = Engine::instance().window()->width();
-    auto wh = Engine::instance().window()->height();
+    auto ww = eng::Engine::instance().window()->width();
+    auto wh = eng::Engine::instance().window()->height();
     ImGui::SetNextWindowSizeConstraints({500.f, (float)wh}, {1000.f, (float)wh});
     ImGui::Begin("Scene objects", 0, ImGuiWindowFlags_NoMove);
 
-    const auto &objs = Engine::instance().ecs()->get_entities();
+    const auto &objs = eng::Engine::instance().ecs()->get_entities();
 
     for (std::uint32_t i = 0u; i < objs.size(); ++i) {
         const auto &entity = objs.at(i);
         if (ImGui::CollapsingHeader(std::to_string(i).c_str())) {
             ImGui::BeginChild(std::to_string(i).c_str(), {0, 100 + ImGui::GetFrameHeightWithSpacing() * 4}, true);
-            // ImGui::TextWrapped("Position");
-            // ImGui::SameLine();
-            // ImGui::SliderFloat3("pos", &s->model_pos_scl_rots.at(i)[0].x, -10.f, 10.f);
-            // ImGui::TextWrapped("Scale");
-            // ImGui::SameLine();
-            // ImGui::SliderFloat3("scale", &s->model_pos_scl_rots.at(i)[1].x, -10.f, 10.f);
-            // ImGui::TextWrapped("Rotation");
-            // ImGui::SameLine();
-            // ImGui::SliderFloat3("rot", &s->model_pos_scl_rots.at(i)[2].x, -10.f, 10.f);
-            // ImGui::Separator();
-            ImGui::BeginChild("Shader Data", {0, 100}, true);
             comp_gui.draw_entity(entity.first);
-            ImGui::EndChild();
             ImGui::EndChild();
         }
     }

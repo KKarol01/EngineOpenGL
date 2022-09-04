@@ -5,12 +5,52 @@
 #include <string_view>
 #include <variant>
 #include <vector>
+#include <concepts>
+#include <memory>
+#include <functional>
+#include <utility>
 
 #include <glm/glm.hpp>
 
-struct SHADERDATA {
-    std::string name;
-    std::variant<int, float, glm::vec2, glm::vec3, glm::mat4> value;
+template <typename... OPS> struct ExhaustiveVisitor : OPS... { using OPS::operator()...; };
+
+struct ShaderDataWrapper {
+    using SupportedTypes = std::variant<std::reference_wrapper<int>,
+                                        std::reference_wrapper<float>,
+                                        std::reference_wrapper<glm::vec2>,
+                                        std::reference_wrapper<glm::vec3>,
+                                        std::reference_wrapper<glm::mat4>>;
+
+    ShaderDataWrapper() = default;
+
+    template <typename T> ShaderDataWrapper(T &&t) {
+        if constexpr (std::is_pointer_v<T>) {
+            data      = std::shared_ptr<void>{t, [](void *) {}};
+            conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T >(ptr)}; };
+        } else if constexpr (std::is_lvalue_reference_v<decltype(t)>) {
+            data      = std::shared_ptr<void>{new std::remove_cvref_t<T>{t}};
+            conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T *>(ptr)}; };
+        } else if constexpr (std::is_rvalue_reference_v<decltype(t)>) {
+            data      = std::shared_ptr<void>{new std::remove_cvref_t<T>{std::move(t)}};
+            conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T *>(ptr)}; };
+        }
+    }
+
+    SupportedTypes operator()() { return conv_func(data.get()); };
+    const SupportedTypes operator()() const { return conv_func(data.get()); };
+
+    std::shared_ptr<void> data;
+    SupportedTypes (*conv_func)(void *) = [](void *) {
+        assert("type not initialised." && false);
+        int x;
+        return SupportedTypes{x};
+    };
+};
+
+struct ShaderStorage {
+    std::unordered_map<std::string, ShaderDataWrapper> data;
+
+    ShaderDataWrapper &operator[](const std::string &name) { return data[name]; }
 };
 
 class Shader {
@@ -18,7 +58,7 @@ class Shader {
     unsigned program_id{0u};
     std::string file_name;
     static inline const std::string SHADERS_DIR = "shaders/";
-    enum class SHADER_TYPE: unsigned {
+    enum class SHADER_TYPE : unsigned {
         VERTEX   = 1 << 0,
         FRAGMENT = 1 << 1,
         COMPUTE  = 1 << 2,
@@ -30,23 +70,35 @@ class Shader {
     Shader(const std::string &file_name);
 
     Shader() = default;
-    Shader(const Shader&)               noexcept;
-    Shader(Shader&&)                    noexcept;
-    Shader& operator=(const Shader&)    noexcept;
-    Shader& operator=(Shader&&)         noexcept;
+    Shader(const Shader &) noexcept;
+    Shader(Shader &&) noexcept;
+    Shader &operator=(const Shader &) noexcept;
+    Shader &operator=(Shader &&) noexcept;
     ~Shader();
 
   public:
-      template <typename T> requires std::is_integral_v<T>			void set(std::string_view name, const T& t);
-	  template <typename T> requires std::is_floating_point_v<T>	void set(std::string_view name, const T& t);
-	  template <typename T> requires std::is_same_v<T, glm::vec2>	void set(std::string_view name, const T& t);
-	  template <typename T> requires std::is_same_v<T, glm::vec3>	void set(std::string_view name, const T& t);
-	  template <typename T> requires std::is_same_v<T, glm::vec4>	void set(std::string_view name, const T& t);
-	  template <typename T> requires std::is_same_v<T, glm::mat4>	void set(std::string_view name, const T& t);
+    template <typename T>
+    requires std::is_integral_v<T>
+    void set(std::string_view name, const T &t);
+    template <typename T>
+    requires std::is_floating_point_v<T>
+    void set(std::string_view name, const T &t);
+    template <typename T>
+    requires std::is_same_v<T, glm::vec2>
+    void set(std::string_view name, const T &t);
+    template <typename T>
+    requires std::is_same_v<T, glm::vec3>
+    void set(std::string_view name, const T &t);
+    template <typename T>
+    requires std::is_same_v<T, glm::vec4>
+    void set(std::string_view name, const T &t);
+    template <typename T>
+    requires std::is_same_v<T, glm::mat4>
+    void set(std::string_view name, const T &t);
 
   public:
     void use();
-    void feed_uniforms(const std::vector<SHADERDATA>& data);
+    void feed_uniforms(const ShaderStorage &data);
     void recompile();
 
     auto get_program() const { return program_id; }

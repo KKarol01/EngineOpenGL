@@ -6,5 +6,5 @@
 
 class ComponentGUI {
   public:
-	void draw_entity(EntityID eid);
+	void draw_entity(eng::EntityID eid);
 };

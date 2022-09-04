@@ -1,21 +1,22 @@
 #include "ecs.d.hpp"
 
-EntityID ECS::create_entity() {
+
+eng::EntityID eng::ECS::create_entity() {
     static EntityID gid{0u};
     entities[gid];
     return gid++;
 }
 
-Entity &ECS::get_entity(EntityID eid) { return entities.at(eid); }
+eng::OptionalReference<eng::Entity> eng::ECS::get_entity(eng::EntityID eid) { return entities.at(eid); }
 
-void ECS::update_entity(EntityID id) {
+void eng::ECS::update_entity(eng::EntityID id) {
     for (auto &s : systems) s.second->update_entity(id);
 }
 
-void ECS::update() {
+void eng::ECS::update() {
     for (auto &s : systems) s.second->update();
 }
 
-ECS::~ECS() {
+eng::ECS::~ECS() {
     for (auto &s : systems) delete s.second;
 }
