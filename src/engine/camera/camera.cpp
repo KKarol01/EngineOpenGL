@@ -4,11 +4,22 @@
 #include "../wrappers/window/window.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <iostream>
+#include <GLFW/glfw3.h>
 
 Camera::Camera() { update_projection(); }
 
 void Camera::update() {
     const auto &controller = *eng::Engine::instance().controller();
+
+    static bool proceed     = true;
+    static double last_time = glfwGetTime();
+    if (controller.key_pressed(GLFW_KEY_TAB) && glfwGetTime() - last_time > 0.2) {
+        proceed   = !proceed;
+        last_time = glfwGetTime();
+    }
+
+    if (proceed == false) return;
+
     yaw_pitch += controller.look_vec();
     yaw_pitch.y = glm::clamp(yaw_pitch.y, -89.f, 89.f);
 
@@ -31,5 +42,6 @@ void Camera::update() {
 glm::mat4 Camera::view_matrix() const { return glm::lookAt(m_position, m_position + look_forward, up); }
 
 void Camera::update_projection() {
-    projection = glm::perspective(glm::radians(lens.fovydeg), eng::Engine::instance().window()->aspect(), lens.near, lens.far);
+    projection
+        = glm::perspective(glm::radians(lens.fovydeg), eng::Engine::instance().window()->aspect(), lens.near, lens.far);
 }

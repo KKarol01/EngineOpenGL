@@ -38,6 +38,7 @@ void GUI::draw() {
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
+    #if 0 == 1
     //   auto s = Engine::instance().sceneinstance().();
     auto ww = eng::Engine::instance().window()->width();
     auto wh = eng::Engine::instance().window()->height();
@@ -55,6 +56,7 @@ void GUI::draw() {
         }
     }
     ImGui::End();
+    #endif
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

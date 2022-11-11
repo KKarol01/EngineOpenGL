@@ -257,7 +257,7 @@ ImPlotItem* RegisterOrGetItem(const char* label_id, ImPlotItemFlags flags, bool*
     item->ID = id;
     if (!ImHasFlag(flags, ImPlotItemFlags_NoLegend) && ImGui::FindRenderedTextEnd(label_id, NULL) != label_id) {
         Items.Legend.Indices.push_back(idx);
-        item->NameOffset = Items.Legend.Labels.size();
+        item->NameOffset = Items.Legend.Labels.vertices_size_bytes();
         Items.Legend.Labels.append(label_id, label_id + strlen(label_id) + 1);
     }
     else {
@@ -293,19 +293,19 @@ void SetNextFillStyle(const ImVec4& col, float alpha) {
     gp.NextItemData.FillAlpha              = alpha;
 }
 
-void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4& fill, float weight, const ImVec4& outline) {
+void SetNextMarkerStyle(ImPlotMarker marker, float vertices_size_bytes, const ImVec4& fill, float weight, const ImVec4& outline) {
     ImPlotContext& gp = *GImPlot;
     gp.NextItemData.Marker                          = marker;
     gp.NextItemData.Colors[ImPlotCol_MarkerFill]    = fill;
-    gp.NextItemData.MarkerSize                      = size;
+    gp.NextItemData.MarkerSize                      = vertices_size_bytes;
     gp.NextItemData.Colors[ImPlotCol_MarkerOutline] = outline;
     gp.NextItemData.MarkerWeight                    = weight;
 }
 
-void SetNextErrorBarStyle(const ImVec4& col, float size, float weight) {
+void SetNextErrorBarStyle(const ImVec4& col, float vertices_size_bytes, float weight) {
     ImPlotContext& gp = *GImPlot;
     gp.NextItemData.Colors[ImPlotCol_ErrorBar] = col;
-    gp.NextItemData.ErrorBarSize               = size;
+    gp.NextItemData.ErrorBarSize               = vertices_size_bytes;
     gp.NextItemData.ErrorBarWeight             = weight;
 }
 
@@ -1378,12 +1378,12 @@ void RenderPrimitives2(const _Getter1& getter1, const _Getter2& getter2, Args...
 
 template <class _Getter>
 struct RendererMarkersFill : RendererBase {
-    RendererMarkersFill(const _Getter& getter, const ImVec2* marker, int count, float size, ImU32 col) :
+    RendererMarkersFill(const _Getter& getter, const ImVec2* marker, int count, float vertices_size_bytes, ImU32 col) :
         RendererBase(getter.Count, (count-2)*3, count),
         Getter(getter),
         Marker(marker),
         Count(count),
-        Size(size),
+        Size(vertices_size_bytes),
         Col(col)
     { }
     void Init(ImDrawList& draw_list) const {
@@ -1421,13 +1421,13 @@ struct RendererMarkersFill : RendererBase {
 
 template <class _Getter>
 struct RendererMarkersLine : RendererBase {
-    RendererMarkersLine(const _Getter& getter, const ImVec2* marker, int count, float size, float weight, ImU32 col) :
+    RendererMarkersLine(const _Getter& getter, const ImVec2* marker, int count, float vertices_size_bytes, float weight, ImU32 col) :
         RendererBase(getter.Count, count/2*6, count/2*4),
         Getter(getter),
         Marker(marker),
         Count(count),
         HalfWeight(ImMax(1.0f,weight)*0.5f),
-        Size(size),
+        Size(vertices_size_bytes),
         Col(col)
     { }
     void Init(ImDrawList& draw_list) const {
@@ -1496,30 +1496,30 @@ static const ImVec2 MARKER_LINE_PLUS[4]     = {ImVec2(-1, 0), ImVec2(1, 0), ImVe
 static const ImVec2 MARKER_LINE_CROSS[4]    = {ImVec2(-SQRT_1_2,-SQRT_1_2),ImVec2(SQRT_1_2,SQRT_1_2),ImVec2(SQRT_1_2,-SQRT_1_2),ImVec2(-SQRT_1_2,SQRT_1_2)};
 
 template <typename _Getter>
-void RenderMarkers(const _Getter& getter, ImPlotMarker marker, float size, bool rend_fill, ImU32 col_fill, bool rend_line, ImU32 col_line, float weight) {
+void RenderMarkers(const _Getter& getter, ImPlotMarker marker, float vertices_size_bytes, bool rend_fill, ImU32 col_fill, bool rend_line, ImU32 col_line, float weight) {
     if (rend_fill) {
         switch (marker) {
-            case ImPlotMarker_Circle  : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_CIRCLE,10,size,col_fill); break;
-            case ImPlotMarker_Square  : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_SQUARE, 4,size,col_fill); break;
-            case ImPlotMarker_Diamond : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_DIAMOND,4,size,col_fill); break;
-            case ImPlotMarker_Up      : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_UP,     3,size,col_fill); break;
-            case ImPlotMarker_Down    : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_DOWN,   3,size,col_fill); break;
-            case ImPlotMarker_Left    : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_LEFT,   3,size,col_fill); break;
-            case ImPlotMarker_Right   : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_RIGHT,  3,size,col_fill); break;
+            case ImPlotMarker_Circle  : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_CIRCLE,10,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Square  : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_SQUARE, 4,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Diamond : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_DIAMOND,4,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Up      : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_UP,     3,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Down    : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_DOWN,   3,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Left    : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_LEFT,   3,vertices_size_bytes,col_fill); break;
+            case ImPlotMarker_Right   : RenderPrimitives1<RendererMarkersFill>(getter,MARKER_FILL_RIGHT,  3,vertices_size_bytes,col_fill); break;
         }
     }
     if (rend_line) {
         switch (marker) {
-            case ImPlotMarker_Circle    : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_CIRCLE, 20,size,weight,col_line); break;
-            case ImPlotMarker_Square    : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_SQUARE,  8,size,weight,col_line); break;
-            case ImPlotMarker_Diamond   : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_DIAMOND, 8,size,weight,col_line); break;
-            case ImPlotMarker_Up        : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_UP,      6,size,weight,col_line); break;
-            case ImPlotMarker_Down      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_DOWN,    6,size,weight,col_line); break;
-            case ImPlotMarker_Left      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_LEFT,    6,size,weight,col_line); break;
-            case ImPlotMarker_Right     : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_RIGHT,   6,size,weight,col_line); break;
-            case ImPlotMarker_Asterisk  : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_ASTERISK,6,size,weight,col_line); break;
-            case ImPlotMarker_Plus      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_PLUS,    4,size,weight,col_line); break;
-            case ImPlotMarker_Cross     : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_CROSS,   4,size,weight,col_line); break;
+            case ImPlotMarker_Circle    : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_CIRCLE, 20,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Square    : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_SQUARE,  8,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Diamond   : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_DIAMOND, 8,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Up        : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_UP,      6,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Down      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_DOWN,    6,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Left      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_LEFT,    6,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Right     : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_RIGHT,   6,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Asterisk  : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_ASTERISK,6,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Plus      : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_PLUS,    4,vertices_size_bytes,weight,col_line); break;
+            case ImPlotMarker_Cross     : RenderPrimitives1<RendererMarkersLine>(getter,MARKER_LINE_CROSS,   4,vertices_size_bytes,weight,col_line); break;
         }
     }
 }
@@ -2307,11 +2307,11 @@ void PlotPieChart(const char* const label_ids[], const T* values, int count, dou
             a1 = a0 + 2 * IM_PI * percent;
             if (item->Show) {
                 ImFormatString(buffer, 32, fmt, (double)values[i]);
-                ImVec2 size = ImGui::CalcTextSize(buffer);
+                ImVec2 vertices_size_bytes = ImGui::CalcTextSize(buffer);
                 double angle = a0 + (a1 - a0) * 0.5;
                 ImVec2 pos = PlotToPixels(center.x + 0.5 * radius * cos(angle), center.y + 0.5 * radius * sin(angle),IMPLOT_AUTO,IMPLOT_AUTO);
                 ImU32 col  = CalcTextColor(ImGui::ColorConvertU32ToFloat4(item->Color));
-                draw_list.AddText(pos - size * 0.5f, col, buffer);
+                draw_list.AddText(pos - vertices_size_bytes * 0.5f, col, buffer);
             }
             a0 = a1;
         }
@@ -2444,11 +2444,11 @@ void RenderHeatmap(ImDrawList& draw_list, const T* values, int rows, int cols, d
                     ImVec2 px = transformer(p);
                     char buff[32];
                     ImFormatString(buff, 32, fmt, values[i]);
-                    ImVec2 size = ImGui::CalcTextSize(buff);
+                    ImVec2 vertices_size_bytes = ImGui::CalcTextSize(buff);
                     double t = ImClamp(ImRemap01((double)values[i], scale_min, scale_max),0.0,1.0);
                     ImVec4 color = SampleColormap((float)t);
                     ImU32 col = CalcTextColor(color);
-                    draw_list.AddText(px - size * 0.5f, col, buff);
+                    draw_list.AddText(px - vertices_size_bytes * 0.5f, col, buff);
                     i++;
                 }
             }
@@ -2462,11 +2462,11 @@ void RenderHeatmap(ImDrawList& draw_list, const T* values, int rows, int cols, d
                     ImVec2 px = transformer(p);
                     char buff[32];
                     ImFormatString(buff, 32, fmt, values[i]);
-                    ImVec2 size = ImGui::CalcTextSize(buff);
+                    ImVec2 vertices_size_bytes = ImGui::CalcTextSize(buff);
                     double t = ImClamp(ImRemap01((double)values[i], scale_min, scale_max),0.0,1.0);
                     ImVec4 color = SampleColormap((float)t);
                     ImU32 col = CalcTextColor(color);
-                    draw_list.AddText(px - size * 0.5f, col, buff);
+                    draw_list.AddText(px - vertices_size_bytes * 0.5f, col, buff);
                     i++;
                 }
             }

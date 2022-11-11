@@ -4,6 +4,7 @@
 #include "../ecs/components.hpp"
 
 #include "../../engine.hpp"
+#include "renderer.hpp"
 
 static eng::SystemID render_system_id{0u};
 static RenderSystem *rs{nullptr};

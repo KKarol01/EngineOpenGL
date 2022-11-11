@@ -10,7 +10,7 @@ namespace eng {
 
     struct UNIQUE_INSERT;
     struct NON_UNIQUE_INSERT;
-    template <typename INSERT_BHV, typename DATA_TYPE, typename COMP = std::less<>> class SortedVector_TMPL {
+    template <typename INSERT_BHV, typename DATA_TYPE, typename COMP_LESS = std::less<>> class SortedVector_TMPL {
         std::vector<DATA_TYPE> vec;
 
       public:
@@ -21,12 +21,12 @@ namespace eng {
         SortedVector_TMPL(SortedVector_TMPL &&d) { *this = std::move(d); }
         SortedVector_TMPL &operator=(const std::vector<DATA_TYPE> &d) {
             vec = d;
-            std::sort(vec.begin(), vec.end(), COMP{});
+            std::sort(vec.begin(), vec.end(), COMP_LESS{});
             return *this;
         }
         SortedVector_TMPL &operator=(std::vector<DATA_TYPE> &&d) {
             vec = std::move(d);
-            std::sort(vec.begin(), vec.end(), COMP{});
+            std::sort(vec.begin(), vec.end(), COMP_LESS{});
             return *this;
         }
         SortedVector_TMPL &operator=(const SortedVector_TMPL &other) {
@@ -63,10 +63,14 @@ namespace eng {
             if (it != vec.end() && *it == d) vec.erase(it);
         }
 
-        template <typename VAL, typename PRED = COMP> constexpr decltype(auto) find(VAL &&v, PRED p = COMP{}) {
+        template <typename VAL, typename PRED = COMP_LESS> constexpr decltype(auto) find(VAL &&v, PRED p = COMP_LESS{}) {
             return std::lower_bound(vec.begin(), vec.end(), v, [&p](auto &&e, auto &&v) { return p(e, v); });
         }
-        template <typename VAL, typename PRED = COMP> constexpr bool contains(VAL &&v, PRED p = COMP{}) {
+        template <typename VAL, typename PRED = COMP_LESS>
+        constexpr decltype(auto) find(VAL &&v, PRED p = COMP_LESS{}) const {
+            return std::lower_bound(vec.begin(), vec.end(), v, [&p](auto &&e, auto &&v) { return p(e, v); });
+        }
+        template <typename VAL, typename PRED = COMP_LESS> constexpr bool contains(VAL &&v, PRED p = COMP_LESS{}) {
             return find(v, p) != vec.end();
         }
 
@@ -87,17 +91,17 @@ namespace eng {
         constexpr auto cend() const { return vec.cend(); }
 
       private:
-        constexpr auto find_element_idx(const DATA_TYPE &d, COMP comp = COMP{}) {
+        constexpr auto find_element_idx(const DATA_TYPE &d, COMP_LESS comp = COMP_LESS{}) {
             return std::lower_bound(vec.begin(), vec.end(), d, comp);
         }
-        constexpr auto get_insertion_idx(const DATA_TYPE &d, COMP comp = COMP{}) {
+        constexpr auto get_insertion_idx(const DATA_TYPE &d, COMP_LESS comp = COMP_LESS{}) {
             return std::upper_bound(vec.begin(), vec.end(), d, comp);
         }
     };
 
-    template <typename DATA_TYPE, typename COMP = std::less<>>
-    using SortedVector = SortedVector_TMPL<NON_UNIQUE_INSERT, DATA_TYPE, COMP>;
+    template <typename DATA_TYPE, typename COMP_LESS = std::less<>>
+    using SortedVector = SortedVector_TMPL<NON_UNIQUE_INSERT, DATA_TYPE, COMP_LESS>;
 
-    template <typename DATA_TYPE, typename COMP = std::less<>>
-    using SortedVectorUnique = SortedVector_TMPL<UNIQUE_INSERT, DATA_TYPE, COMP>;
+    template <typename DATA_TYPE, typename COMP_LESS = std::less<>>
+    using SortedVectorUnique = SortedVector_TMPL<UNIQUE_INSERT, DATA_TYPE, COMP_LESS>;
 } // namespace eng

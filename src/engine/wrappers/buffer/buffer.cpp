@@ -1,71 +1,89 @@
 #include "buffer.hpp"
+
 #include <stdexcept>
+#include <cassert>
 
 #include <glad/glad.h>
 
-BUFFEROBJECT::BUFFEROBJECT(
-    uint32_t id, void *data, uint32_t arr_length, uint32_t stride, uint32_t offset, uint32_t flags)
-    : id{id}, offset{offset}, stride{stride} {
-    glCreateBuffers(1, &handle);
-    glNamedBufferStorage(handle, arr_length * stride, data, flags);
+GLBuffer::GLBuffer(uint32_t flags) {
+    descriptor.flags = flags;
+    glCreateBuffers(1, &descriptor.handle);
 }
 
-BUFFEROBJECT::BUFFEROBJECT(BUFFEROBJECT &&other) noexcept { *this = std::move(other); }
+GLBuffer::GLBuffer(void *data, uint32_t size_bytes, uint32_t flags) : GLBuffer(flags) { push_data(data, size_bytes); }
 
-BUFFEROBJECT &BUFFEROBJECT::operator=(BUFFEROBJECT &&other) noexcept {
+GLBuffer::GLBuffer(GLBuffer &&other) noexcept { *this = std::move(other); }
+
+GLBuffer &GLBuffer::operator=(GLBuffer &&other) noexcept {
+    descriptor = std::move(other.descriptor);
+    other.descriptor.handle = 0;
+    return *this;
+}
+
+void GLBuffer::push_data(void *data, size_t data_size) {
+    if (descriptor.capacity < descriptor.size + data_size) { resize(descriptor.size + data_size); }
+
+    if ((descriptor.flags & GL_DYNAMIC_STORAGE_BIT) != GL_DYNAMIC_STORAGE_BIT) {
+        GLuint temp_buffer;
+        glCreateBuffers(1, &temp_buffer);
+        glNamedBufferStorage(temp_buffer, data_size, data, 0);
+
+        glCopyNamedBufferSubData(temp_buffer, descriptor.handle, 0, descriptor.size, data_size);
+        glDeleteBuffers(1, &temp_buffer);
+    } else {
+        glNamedBufferSubData(descriptor.handle, descriptor.size, data_size, data);
+    }
+
+    descriptor.size += data_size;
+}
+
+void GLBuffer::resize(size_t required_size) {
+    size_t new_capacity = fmaxl(required_size * GROWTH_FACTOR, 1.);
+
+    uint32_t old_handle = descriptor.handle;
+    uint32_t new_handle;
+
+    glCreateBuffers(1, &new_handle);
+    glNamedBufferStorage(new_handle, new_capacity, 0, descriptor.flags);
+    glCopyNamedBufferSubData(old_handle, new_handle, 0, 0, descriptor.size);
+    glDeleteBuffers(1, &old_handle);
+
+    descriptor.handle   = new_handle;
+    descriptor.capacity = new_capacity;
+    descriptor.on_handle_change.emit(descriptor.handle);
+}
+
+GLBuffer::~GLBuffer() { glDeleteBuffers(1, &descriptor.handle); }
+
+GLVao::GLVao() { glCreateVertexArrays(1, &handle); }
+
+GLVao::GLVao(GLVao &&other) noexcept { *this = std::move(other); }
+
+GLVao &GLVao::operator=(GLVao &&other) noexcept {
     handle       = other.handle;
-    id           = other.id;
-    offset       = other.offset;
-    stride       = other.stride;
     other.handle = 0u;
 
     return *this;
 }
 
-VAO::VAO() : indice_count{0u} { glCreateVertexArrays(1, &handle); }
+GLVao::~GLVao() { glDeleteVertexArrays(1, &handle); }
 
-VAO::VAO(VAO &&other) noexcept { *this = std::move(other); }
+void GLVao::bind() const { glBindVertexArray(handle); }
 
-VAO &VAO::operator=(VAO &&other) noexcept {
-    handle       = other.handle;
-    buffers      = std::move(other.buffers);
-    indice_count = other.indice_count;
-    draw         = std::move(other.draw);
-
-    other.handle = 0u;
-
-    return *this;
+void GLVao::configure_binding(uint32_t id, uint32_t handle, size_t stride, size_t offset) {
+    glVertexArrayVertexBuffer(this->handle, id, handle, offset, stride);
 }
 
-VAO::~VAO() {
-    for (const auto &b : buffers) { glDeleteBuffers(1, &b.second.handle); }
-    glDeleteVertexArrays(1, &handle);
-}
+void GLVao::configure_ebo(uint32_t handle) { glVertexArrayElementBuffer(this->handle, handle); }
 
-void VAO::bind() const { glBindVertexArray(handle); }
-
-void VAO::insert_vbo(BUFFEROBJECT &&buff) {
-    glVertexArrayVertexBuffer(handle, buff.id, buff.handle, buff.offset, buff.stride);
-    buffers.emplace(buff.id, std::move(buff));
-}
-
-void VAO::configure_binding(uint32_t id, uint32_t buffer_id, uint32_t stride, uint32_t offset) {
-    if (!buffers.contains(buffer_id)) throw std::runtime_error{"Could not configure new binding point"};
-    glVertexArrayVertexBuffer(handle, id, buffers.at(buffer_id).handle, offset, stride);
-}
-
-void VAO::insert_ebo(uint32_t indice_count, BUFFEROBJECT &&buff) {
-    this->indice_count = indice_count;
-    glVertexArrayElementBuffer(handle, buff.handle);
-    ebo = std::move(buff);
-}
-
-void VAO::configure(std::initializer_list<ATTRCUSTORMFORMAT> formats) {
-
+void GLVao::configure_attr(std::initializer_list<ATTRCUSTORMFORMAT> formats) {
     for (auto &f : formats) { _configure_impl(f.format_func, f.id, f.buffer, f.size, f.type, f.normalized, f.offset); }
 }
 
-void VAO::configure(uint32_t size, uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMEFORMAT> formats) {
+void GLVao::configure_attr(uint32_t size,
+                           uint32_t type,
+                           uint32_t type_size,
+                           std::initializer_list<ATTRSAMEFORMAT> formats) {
     std::map<uint32_t, uint32_t> buff_offsets;
 
     for (auto &f : formats) {
@@ -74,7 +92,7 @@ void VAO::configure(uint32_t size, uint32_t type, uint32_t type_size, std::initi
     }
 }
 
-void VAO::configure(uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMETYPE> formats) {
+void GLVao::configure_attr(uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMETYPE> formats) {
     std::map<uint32_t, uint32_t> buff_offsets;
 
     for (auto &f : formats) {
@@ -83,13 +101,13 @@ void VAO::configure(uint32_t type, uint32_t type_size, std::initializer_list<ATT
     }
 }
 
-void VAO::_configure_impl(ATTRFORMATCOMMON::GL_FUNC func,
-                          uint32_t idx,
-                          uint32_t buffer,
-                          uint32_t size,
-                          uint32_t type,
-                          uint32_t normalized,
-                          uint32_t offset) {
+void GLVao::_configure_impl(ATTRFORMATCOMMON::GL_FUNC func,
+                            uint32_t idx,
+                            uint32_t buffer,
+                            uint32_t size,
+                            uint32_t type,
+                            uint32_t normalized,
+                            uint32_t offset) {
 
     glEnableVertexArrayAttrib(handle, idx);
     glVertexArrayAttribBinding(handle, idx, buffer);

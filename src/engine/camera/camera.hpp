@@ -8,7 +8,7 @@ class Camera {
 
   public:
     static inline const glm::vec3 forward{0.f, 0.f, -1.f}, right{1.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-    static inline float movement_speed{1.5f};
+    static inline float movement_speed{.5f};
 
     struct LensSettings {
         float fovydeg{90.f}, near{0.01f}, far{100.f};

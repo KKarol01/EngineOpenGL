@@ -9,7 +9,7 @@ class Window;
 class Controller;
 class ShaderManager;
 class ECS;
-class Renderer;
+class RE;
 class GUI;
 
 namespace eng {
@@ -37,7 +37,7 @@ namespace eng {
         std::unique_ptr<Controller> controller_;
         std::unique_ptr<ShaderManager> shader_manager_;
         std::unique_ptr<eng::ECS> ecs_;
-        std::unique_ptr<Renderer> renderer_;
+        std::unique_ptr<RE> renderer_;
         std::unique_ptr<GUI> gui_;
 
       private:

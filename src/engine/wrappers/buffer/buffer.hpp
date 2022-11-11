@@ -6,21 +6,35 @@
 #include <functional>
 #include <map>
 
-struct BUFFEROBJECT {
-    uint32_t handle{0u};
-    uint32_t id{0u}, offset{0u}, stride{0u};
+#include "../../signal/signal.hpp"
 
-    BUFFEROBJECT() = default;
-    template <typename T>
-    BUFFEROBJECT(uint32_t id, std::vector<T> &data, uint32_t flags = 0u)
-        : BUFFEROBJECT(id, data.data(), data.size(), sizeof(T), 0u, flags) {}
-    template <typename T>
-    BUFFEROBJECT(uint32_t id, std::vector<T> &data, uint32_t stride, uint32_t offset, uint32_t flags = 0u)
-        : BUFFEROBJECT(id, data.data(), data.size(), stride, offset, flags) {}
+struct GLBufferDescriptor {
+    bool operator==(const GLBufferDescriptor &other) const noexcept { return handle == other.handle; }
 
-    BUFFEROBJECT(uint32_t id, void *data, uint32_t arr_length, uint32_t stride, uint32_t offset, uint32_t flags = 0u);
-    BUFFEROBJECT(BUFFEROBJECT &&) noexcept;
-    BUFFEROBJECT &operator=(BUFFEROBJECT &&) noexcept;
+    std::uint32_t handle{0u}, flags{0u};
+    std::size_t size{0u}, capacity{0u}, stride{0u};
+
+    Signal<uint32_t> on_handle_change;
+};
+
+struct GLBuffer {
+    explicit GLBuffer(uint32_t flags);
+    GLBuffer(GLBuffer &&) noexcept;
+    GLBuffer &operator=(GLBuffer &&) noexcept;
+    GLBuffer(void *data, uint32_t size_bytes, uint32_t flags);
+    template <typename T>
+    GLBuffer(std::vector<T> &data, uint32_t flags = 0u) : GLBuffer(data.data(), data.size() * sizeof(T), flags) {}
+
+    ~GLBuffer();
+
+    void push_data(void *data, size_t size_bytes);
+
+    GLBufferDescriptor descriptor;
+
+  private:
+    void resize(size_t required_size);
+
+    const constexpr static inline float GROWTH_FACTOR{1.61f};
 };
 
 struct ATTRFORMATCOMMON {
@@ -43,8 +57,6 @@ template <> struct ATTRFORMAT<BEHAVIORSAMEFORMAT> : ATTRFORMATCOMMON {
         : ATTRFORMATCOMMON{id, buffer, format_func, normalized} {}
 };
 template <> struct ATTRFORMAT<BEHAVIORCUSTOMFORMAT> : ATTRFORMATCOMMON {
-    uint32_t size, type, type_size, offset;
-
     ATTRFORMAT(uint32_t id,
                uint32_t buffer,
                uint32_t size,
@@ -55,46 +67,44 @@ template <> struct ATTRFORMAT<BEHAVIORCUSTOMFORMAT> : ATTRFORMATCOMMON {
                uint32_t normalized = 0u)
         : ATTRFORMATCOMMON{id, buffer, format_func, normalized}, size{size}, type{type}, type_size{type_size},
           offset{offset} {}
+
+    std::uint32_t size, type, type_size, offset;
 };
 template <> struct ATTRFORMAT<BEHAVIORSAMETYPE> : ATTRFORMATCOMMON {
-    uint32_t size;
-
     ATTRFORMAT(
         uint32_t id, uint32_t buffer, uint32_t size, GL_FUNC format_func = GL_FUNC::FLOAT, uint32_t normalized = 0u)
         : ATTRFORMATCOMMON{id, buffer, format_func, normalized}, size{size} {}
+
+    std::uint32_t size;
 };
 
-struct VAO {
-    uint32_t handle;
-    uint32_t indice_count;
-    BUFFEROBJECT ebo;
-    std::map<uint32_t, BUFFEROBJECT> buffers;
-    std::function<void()> draw;
+struct GLVao {
 
-    VAO();
-    VAO(VAO &&) noexcept;
-    VAO &operator=(VAO &&) noexcept;
-    ~VAO();
+    GLVao();
+    GLVao(GLVao &&) noexcept;
+    GLVao &operator=(GLVao &&) noexcept;
+    bool operator==(const GLVao &other) const noexcept { return handle == other.handle; }
+    ~GLVao();
 
     void bind() const;
 
-    void insert_vbo(BUFFEROBJECT &&buff);
-    void configure_binding(uint32_t id, uint32_t buffer_id, uint32_t stride, uint32_t offset);
-    void insert_ebo(uint32_t indice_count, BUFFEROBJECT &&buff);
+    void configure_binding(uint32_t id, uint32_t handle, size_t stride, size_t offset = 0u);
+    void configure_ebo(uint32_t handle);
 
-    void configure(std::initializer_list<ATTRCUSTORMFORMAT> formats);
-    void configure(uint32_t size, uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMEFORMAT> formats);
-    void configure(uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMETYPE> formats);
+    void configure_attr(std::initializer_list<ATTRCUSTORMFORMAT> formats);
+    void configure_attr(uint32_t vertices_size_bytes,
+                        uint32_t type,
+                        uint32_t type_size,
+                        std::initializer_list<ATTRSAMEFORMAT> formats);
+    void configure_attr(uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMETYPE> formats);
 
-    template <typename F, typename... DRAW_ARGS> void set_draw_func(F &&f, DRAW_ARGS &&...draw_args) {
-        draw = std::bind(f, std::forward<DRAW_ARGS>(draw_args)...);
-    }
+    uint32_t handle;
 
   private:
     void _configure_impl(ATTRFORMATCOMMON::GL_FUNC func,
                          uint32_t idx,
                          uint32_t buffer,
-                         uint32_t size,
+                         uint32_t vertices_size_bytes,
                          uint32_t type,
                          uint32_t normalized,
                          uint32_t offset);

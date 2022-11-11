@@ -90,7 +90,12 @@ void Shader::feed_uniforms(const ShaderStorage &data) {
     }
 }
 
-void Shader::recompile() { *this = Shader{file_name}; }
+void Shader::recompile() {
+    
+    glFinish();
+    glUseProgram(0);
+    *this = Shader{file_name};
+}
 
 static unsigned compile_shader(const std::string &path, unsigned type) {
     uint32_t shader_id;

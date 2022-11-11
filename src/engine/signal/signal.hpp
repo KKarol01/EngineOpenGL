@@ -17,44 +17,57 @@ template <typename... ARGS> class Connection {
   public:
     Connection(Signal<ARGS...> *s) : id{gid++}, signal{s} {}
 
-  public:
     void disconnect() { signal->disconnect(*this); }
+
+    operator bool() const { return !!signal; }
 
   public:
     friend class Signal<ARGS...>;
 };
 
 template <typename... ARGS> class Signal {
+  public:
+    typedef Connection<ARGS...> ConnectionType;
+
+  private:
     using func_t = std::function<void(ARGS...)>;
 
     struct Slot {
-        std::uint32_t conn_id{0ull};
-        func_t func;
-
-        Slot(std::uint32_t id, func_t f) : conn_id(id), func(f) {}
+        Slot(std::uint32_t id, func_t &&f) : conn_id(id), func(std::move(f)) {}
         Slot(Slot &&s) noexcept { *this = std::move(s); }
         Slot &operator=(Slot &&s) noexcept {
             conn_id = s.conn_id;
             func    = std::move(s.func);
             return *this;
         }
+        Slot(const Slot &s) noexcept { *this = s; }
+        Slot &operator=(const Slot &s) noexcept {
+            conn_id = s.conn_id;
+            func    = s.func;
+            return *this;
+        }
+
+        std::uint32_t conn_id{0u};
+        func_t func;
     };
-    std::vector<Slot> slots;
 
   public:
-    Connection<ARGS...> connect(const func_t &f) {
+    Connection<ARGS...> connect(func_t &&f) {
         Connection<ARGS...> c{this};
-        slots.emplace_back(c.id, f);
+        slots.emplace_back(c.id, std::move(f));
         return c;
     }
     void disconnect(const Connection<ARGS...> &c) {
         slots.erase(std::remove_if(slots.begin(), slots.end(), [&c](const Slot &s) { return s.conn_id == c.id; }),
                     slots.end());
     }
-    void emit(ARGS &&...args) {
-        for (const auto &s : slots) { s.func(std::forward<ARGS>(args)...); }
+
+    template <typename... EMIT_ARGS> void emit(EMIT_ARGS &&...args) {
+        for (const auto &s : slots) { s.func(std::forward<EMIT_ARGS>(args)...); }
     }
 
-  public:
+  private:
+    std::vector<Slot> slots;
+
     friend class Connection<ARGS...>;
 };
