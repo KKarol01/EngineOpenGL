@@ -11,12 +11,12 @@ in vec2 vtc;
 flat in int draw_id;
 in mat3 tbn;
 
-uniform vec3 cam_pos;
-uniform vec3 cam_dir;
-
-uniform vec3 lcol;
-uniform vec3 lpos;
-uniform float attenuation;
+layout(std140, binding=2) uniform UserSettings {
+    mat4 p, v, m;
+    vec4 cam_dir, cam_pos, lpos, lcol;
+    float attenuation;
+    int use_pbr;
+};
 
 layout(std430, binding = 0) buffer sb_textures {
     uint64_t handles[];
@@ -71,10 +71,10 @@ vec4 pbrr() {
 	float roughness     = texture(sampler2D(handles[draw_id + 3]), vtc.xy).g;
 
 
-	vec3 ldir = normalize(lpos - fragpos);
+	vec3 ldir = normalize(lpos.xyz - fragpos);
 	normal = normal*2.f - 1.f;
 	normal = normalize(tbn * normal);
-    vec3 view_dir = normalize(cam_pos - fragpos);
+    vec3 view_dir = normalize(cam_pos.xyz - fragpos);
 
     vec3 f0 = vec3(.04f);
     f0 = mix(f0, albedo.rgb, metalicness);
@@ -83,11 +83,11 @@ vec4 pbrr() {
     int steps = 1;
 
     for(int i=0; i<steps; ++i) {
-        vec3 L = normalize(lpos - fragpos);
+        vec3 L = normalize(lpos.xyz - fragpos);
         vec3 H = normalize(view_dir + L);
 
-        float distance = length(lpos - fragpos);
-        vec3 radiance = lcol * attenuation;
+        float distance = length(lpos.xyz - fragpos);
+        vec3 radiance = lcol.xyz * attenuation;
 
         float NDF = DistributionGGX(normal, H, roughness);
         float G = GeometrySmith(normal, view_dir, L, roughness);
@@ -113,8 +113,6 @@ vec4 pbrr() {
     return vec4(color, 1.0);
 }
 
-uniform int use_pbr;
-
 void main() {
 	if(use_pbr==1) FRAG_COLOR = pbrr();
     else {
@@ -123,21 +121,20 @@ void main() {
 	    normal = normal*2.f - 1.f;
 	    normal = normalize(tbn * normal);
 
-	    vec3 ldir = normalize(lpos - fragpos);
-        vec3 view_dir = normalize(cam_pos - fragpos);
+	    vec3 ldir = normalize(lpos.xyz - fragpos);
+        vec3 view_dir = normalize(cam_pos.xyz - fragpos);
 
-        vec3 ambient =lcol * 0.3;
+        vec3 ambient =lcol.xyz * 0.3;
 
         float diff = max(dot(normal, ldir), 0.f);
 
         float specular_str = 0.5f;
         float spec = pow(max(dot(view_dir, reflect(-ldir, normal)), 0.f), 32.f);
 
-        vec3 diffuse = diff * lcol;
-        vec3 specular = spec * lcol * specular_str;
+        vec3 diffuse = diff * lcol.xyz;
+        vec3 specular = spec * lcol.xyz * specular_str;
 
         FRAG_COLOR = vec4( (ambient + diffuse + specular) * albedo.rgb, 1.f);
 
     }
-    
 }

@@ -43,7 +43,7 @@ int main() {
 
     PipelineBuilder pipebuilder{pipeid};
     pipebuilder.begin_new_phase();
-    pipebuilder.add_stage(sh.get_program(), pipe.vao, DRAW_CMD::MULTI_DRAW_ELEMENTS_INDIRECT, true);
+    pipebuilder.add_stage(&sh, pipe.vao, DRAW_CMD::MULTI_DRAW_ELEMENTS_INDIRECT, true);
     pipebuilder.configure_vao([&](GLVao &vao) {
         vao.configure_binding(0, pipe.geometry_vertices, 14 * 4, 0);
         vao.configure_ebo(pipe.geometry_indices);
@@ -63,18 +63,33 @@ int main() {
     Camera cam;
     glm::mat4 mat_model = glm::scale(glm::mat4{1.f}, glm::vec3{5.f});
 
-    glm::vec3 lpos{1.f}, lcol{1.f};
-    float attenuation{1.f};
-    bool use_pbr = 1;
-
+    struct UBO_CLIENTDATA {
+        glm::mat4 p, v, m;
+        glm::vec4 cam_dir, cam_pos, light_dir, light_col;
+        float attenuation;
+        int use_pbr;
+    } client_data;
+    client_data.attenuation = 12.f;
+    client_data.use_pbr     = 1;
+    client_data.light_dir   = glm::vec4{1.f};
+    client_data.light_col   = glm::vec4{1.f};
+    GLBuffer ubo{&client_data,
+                 264,
+                 GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT
+                     | GL_DYNAMIC_STORAGE_BIT};
+    auto ubo_map = (char *)glMapNamedBufferRange(ubo.descriptor.handle,
+                                                 0,
+                                                 sizeof(UBO_CLIENTDATA),
+                                                 GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT
+                                                     | GL_MAP_PERSISTENT_BIT);
     glm::vec3 cc{0.3f};
     Camera::LensSettings lens = cam.lens;
     engine.gui_->add_draw([&] {
-        ImGui::SliderFloat3("light position", &lpos.x, -3.f, 3.f);
-        ImGui::ColorEdit3("light color", &lcol.x);
+        ImGui::SliderFloat3("light position", (float *)(ubo_map + 224), -3.f, 3.f);
+        ImGui::ColorEdit3("light color", (float *)(ubo_map + 240));
         ImGui::ColorEdit3("Background color", &cc.x);
-        ImGui::SliderFloat("light attenuation", &attenuation, 0.1f, 1000.f);
-        ImGui::Checkbox("Use physically-based rendering", &use_pbr);
+        ImGui::SliderFloat("light attenuation", (float *)(ubo_map + 256), 0.1f, 1000.f);
+        ImGui::Checkbox("Use physically-based rendering", (bool *)(ubo_map + 260));
         if (ImGui::Button("recompile PBR shader")) { sh.recompile(); }
 
         if (ImGui::CollapsingHeader("Camera lens settings")) {
@@ -90,16 +105,17 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-        sh.use();
-        sh.set("model", mat_model);
-        sh.set("view", cam.view_matrix());
-        sh.set("projection", cam.perspective_matrix());
-        sh.set("cam_dir", cam.forward_vec());
-        sh.set("cam_pos", cam.position());
-        sh.set("lpos", lpos);
-        sh.set("lcol", lcol);
-        sh.set("attenuation", attenuation);
-        sh.set("use_pbr", int{use_pbr});
+        auto p  = cam.perspective_matrix();
+        auto v  = cam.view_matrix();
+        auto m  = mat_model;
+        auto cd = cam.forward_vec();
+        auto cp = cam.position();
+        memcpy((char *)ubo_map + 0, &p, 64);
+        memcpy((char *)ubo_map + 64, &v, 64);
+        memcpy((char *)ubo_map + 128, &m, 64);
+        memcpy((char *)ubo_map + 192, &cd, 16);
+        memcpy((char *)ubo_map + 208, &cp, 16);
+        glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo.descriptor.handle, 0, sizeof(UBO_CLIENTDATA));
 
         re.render();
 

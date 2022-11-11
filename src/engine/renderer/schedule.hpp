@@ -5,10 +5,10 @@
 #include "./typedefs.hpp"
 #include "./draw_commands.hpp"
 
-struct Stage {
-    Stage() = default;
+class Shader;
 
-    ProgramID pid;
+struct Stage {
+    Shader* pid{nullptr};
     VaoID vid;
     std::shared_ptr<DrawCommand> cmd;
 };

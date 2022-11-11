@@ -14,12 +14,15 @@ out vec2 vtc;
 flat out int draw_id;
 out mat3 tbn;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+layout(std140, binding=2) uniform UserSettings {
+    mat4 p, v, m;
+    vec4 cam_dir, cam_pos, lpos, lcol;
+    float attenuation;
+    int use_pbr;
+};
 
 void main() {
-	vec4 wpos = model * vec4(pos.xyz + vec3(0.f, 0.f, 3.f)*gl_InstanceID, 1.f);
+	vec4 wpos = m * vec4(pos.xyz + vec3(0.f, 0.f, 3.f)*gl_InstanceID, 1.f);
 
 	fragpos = wpos.xyz;
 	vn = n;
@@ -27,5 +30,5 @@ void main() {
 	draw_id = gl_DrawID;
 	tbn = mat3(t, b, n);
 
-	gl_Position = projection * view * wpos;
+	gl_Position = p * v * wpos;
 }

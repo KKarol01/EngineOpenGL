@@ -4,6 +4,7 @@
 
 #include "../engine.hpp"
 #include "./renderer.hpp"
+#include "../wrappers/shader/shader.hpp"
 
 #include <glad/glad.h>
 
@@ -64,7 +65,7 @@ void RenderingPipeline::render() {
 
     for (auto &phase : schedule.phases) {
         for (auto &stage : phase) {
-          //  glUseProgram(stage.pid);
+            stage.pid->use();
             re.get_vao(stage.vid).bind();
             stage.cmd->draw();
         }

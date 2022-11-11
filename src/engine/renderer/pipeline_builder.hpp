@@ -19,7 +19,7 @@ class PipelineBuilder {
         schedule_phase     = &pipeline_schedule.phases.emplace_back();
         at_least_one_phase = true;
     }
-    void add_stage(ProgramID phandle, VaoID vid, DRAW_CMD cmd, bool notify) {
+    void add_stage(Shader* phandle, VaoID vid, DRAW_CMD cmd, bool notify) {
         assert(("Did you forget to call \"BeginNewPhase()\"?" && schedule_phase));
 
         auto &stage = schedule_phase->emplace_back();
