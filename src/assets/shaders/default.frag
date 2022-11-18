@@ -155,6 +155,17 @@ layout(std140, binding=5) uniform FIRE_SETTINGS {
 };
 
 
+vec3 aces_approx(vec3 v)
+{
+    v *= 0.6f;
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0.0f, 1.0f);
+}
+
 out vec4 FRAG_COLOR;
 in vec3 wpos;
 in vec3 n;
@@ -188,7 +199,7 @@ float realTime = time * speed;
 
     float f = pow(flame, color_weights_mult.x), f3 = pow(flame, color_weights_mult.y), f6 = pow(flame, color_weights_mult.z);
 	
-    FRAG_COLOR =  color_weights_mult.w*vec4(f, f3, f6,noise < alpha_threshold ? 0. : 1.);
+    FRAG_COLOR =  color_weights_mult.w*vec4(aces_approx(vec3(f, f3, f6)), flame< alpha_threshold ? 0. : 1.);
 }
 
 /*

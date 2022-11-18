@@ -94,7 +94,7 @@ int main() {
                 ImGui::SliderFloat("clip", ubo_fire_settings1.get<float>("clip"), 0.f, 200.f);
                 ImGui::SliderFloat("xatt", ubo_fire_settings1.get<float>("xatt"), 0.f, 1.f);
                 ImGui::SliderFloat("speed", ubo_fire_settings1.get<float>("speed"), 0.f, 10.f);
-                ImGui::SliderFloat("scale", ubo_fire_settings1.get<float>("scale"), 0.00001f, 3.f);
+                ImGui::SliderFloat("scale", ubo_fire_settings1.get<float>("scale"), 1.f, 50.f);
                 ImGui::SliderFloat("flowxmult", ubo_fire_settings1.get<float>("flowxmult"), 0.f, 5.f);
                 ImGui::SliderFloat("flowymult", ubo_fire_settings1.get<float>("flowymult"), -5.f, 5.f);
                 ImGui::SliderFloat3("flow_dir", ubo_fire_settings1.get<float>("flow_dir"), -3.f, 3.f);
