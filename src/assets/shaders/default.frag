@@ -136,6 +136,24 @@ vec2 noiseStackUV(vec3 pos,int octaves,float falloff){
 
 
 
+layout(std140, binding=5) uniform FIRE_SETTINGS {
+	float clip;
+	float xatt;
+	float speed;
+	float scale;
+	float flowxmult;
+	float flowymult;
+	vec4 flow_dir;
+	vec4 dsp;
+	float dspmult;
+	float dsp3_noiseatt;
+	vec4 noiseres;
+	float noisedsp3factor;
+	float noisesmoothness;
+	vec4 color_weights_mult;
+	float alpha_threshold;
+};
+
 
 out vec4 FRAG_COLOR;
 in vec3 wpos;
@@ -143,16 +161,14 @@ in vec3 n;
 in vec2 tcc;
 uniform float time;
 void main() {
-	float realTime = time * 1.5;
+float realTime = time * speed;
     vec2 p = tcc.xy * 2.;
-    vec3 sp = vec3(p, 0.)*10.;
+    vec3 sp = vec3(p, 0.)*scale;
 
-    float clip = 80.;
     float yclip = p.y/clip;
     float yclipped = min(yclip, 1.);
     float yclipn = 1.-yclipped;
     float yatt = clamp(1.-yclip, 0., 1.);
-    float xatt = 0.7;//pow(1. - abs(2.*p.x-1.), 2.);
 
     //zoom in
     
@@ -161,55 +177,50 @@ void main() {
 	
     //x-makes fire "go" to the middle
     //y-makes fire "go" upwards
-    vec3 flow = vec3(3.*(0.5-p.x)*pow(yclipn,4.),-2.0*xatt*pow(yclipn,64.0),0.0);
-	vec3 timing = realTime*vec3(0.0, -2.,1.) + flow;
-	vec3 displacePos = vec3(3.0,0.5,2.0)*2.4*position+realTime*vec3(0.01,-0.7,1.3);
-	vec3 displace3 = vec3(noiseStackUV(displacePos,3,0.3),0.0);
-	vec3 noiseCoord = (vec3(3.,1.,2.0)*position+timing+0.4*displace3)/1.;
-    
-    //again, adds details with octaves.
+    vec3 flow = vec3(flowxmult*(0.5-p.x)*pow(yclipn,4.),flowymult*xatt*pow(yclipn,64.0),0.0);
+	vec3 timing = realTime*flow_dir.xyz + flow;
+	vec3 displacePos = dsp.xyz*dspmult*position+realTime*vec3(0.01,-0.7,1.3);
+	vec3 displace3 = vec3(noiseStackUV(displacePos,3,dsp3_noiseatt),0.0);
+	vec3 noiseCoord = (noiseres.xyz* position+timing+noisedsp3factor*displace3)/noisesmoothness;
 	float noise = noiseStack(noiseCoord,3,0.5);
-	float n3 = pow(noise, 2.);
-	float n6 = pow(noise, 3.);
-  
-	float alph = pow(noise, 1.) < 0.45 ? 0. : 1.;
-	if(alph == 0.f) discard;
-
-    FRAG_COLOR =  1.5*vec4(noise, n3, n6 , 1.);
-}
-
-/*
-	float realTime = time * 1.5;
-    vec2 p = tcc.xy * 2.;
-    vec3 sp = vec3(p, 0.)*10.;
-
-    float clip = 80.;
-    float yclip = p.y/clip;
-    float yclipped = min(yclip, 1.);
-    float yclipn = 1.-yclipped;
-    float yatt = clamp(1.-yclip, 0., 1.);
-    float xatt = 0.7;//pow(1. - abs(2.*p.x-1.), 2.);
-
-    //zoom in
-    
-	vec3 position = sp;
-	position.x += time+pow(tcc.y, 2.);
-	
-    //x-makes fire "go" to the middle
-    //y-makes fire "go" upwards
-    vec3 flow = vec3(3.*(0.5-p.x)*pow(yclipn,4.),-2.0*xatt*pow(yclipn,64.0),0.0);
-	vec3 timing = realTime*vec3(0.0, -2.,1.) + flow;
-	vec3 displacePos = vec3(3.0,0.5,2.0)*2.4*position+realTime*vec3(0.01,-0.7,1.3);
-	vec3 displace3 = vec3(noiseStackUV(displacePos,3,0.3),0.0);
-	vec3 noiseCoord = (vec3(2.,1.,2.0)*position+timing+0.4*displace3)/1.;
-    
-    //again, adds details with octaves.
-	float noise = noiseStack(noiseCoord,3,0.5);
-
     float flame = pow(yclipped, 0.32*xatt)*pow(noise, 0.1*xatt);
     flame = yatt*pow(1.-pow(flame, 3.3), 6.5);
 
-    float f = flame, f3 = pow(flame, 5.), f6 = pow(flame, 8.);
+    float f = pow(flame, color_weights_mult.x), f3 = pow(flame, color_weights_mult.y), f6 = pow(flame, color_weights_mult.z);
 	
-    FRAG_COLOR =  1.5*vec4(pow(f,.3), f3, f6, pow(flame, 3.) < 0.45 ? 0. : 1.);
+    FRAG_COLOR =  color_weights_mult.w*vec4(f, f3, f6,noise < alpha_threshold ? 0. : 1.);
+}
+
+/*
+	
+		float realTime = time * speed;
+    vec2 p = tcc.xy;
+    vec3 sp = vec3(p, 0.)*scale * 2.;
+
+    float yclip = p.y/clip;
+    float yclipped = min(yclip, 1.);
+    float yclipn = 1.-yclipped;
+    float yatt = clamp(1.-yclip, 0., 1.);
+
+	vec3 position = sp;
+	position.x += time+pow(tcc.y, 2.);
+	
+    //x-makes fire "go" to the middle
+    //y-makes fire "go" upwards
+    vec3 flow = vec3(flowxmult*(0.5-p.x)*pow(yclipn,4.),flowymult*xatt*pow(yclipn,64.0),0.0);
+	vec3 timing = realTime*flow_dir.xyz + flow;
+	vec3 displacePos = dsp.xyz*dspmult*position+realTime*vec3(0.01,-0.7,1.3);
+	vec3 displace3 = vec3(noiseStackUV(displacePos,3,dsp3_noiseatt),0.0);
+	vec3 noiseCoord = (noiseres.xyz* position+timing+noisedsp3factor*displace3)/noisesmoothness;
+    
+    //again, adds details with octaves.
+	float noise = noiseStack(noiseCoord,3,0.5);
+  
+	float alpha = noise < alpha_threshold ? 0. : 1.;
+	if(alpha == 0.f) discard;
+
+    FRAG_COLOR =  color_weights_mult.w*vec4(
+	pow(noise, color_weights_mult.x),
+	pow(noise, color_weights_mult.y),
+	pow(noise, color_weights_mult.z), 1.);
 */

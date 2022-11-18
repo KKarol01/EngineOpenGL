@@ -5,17 +5,18 @@
 #include "../../renderer/renderer.hpp"
 
 UBO::UBO(std::initializer_list<std::pair<std::string, TS>> init) {
+
     for (auto &[name, type] : init) {
-        BufferEntry entry{0, total_size};
+        BufferEntry entry;
 
-        switch (type.index()) {
-        case 0: entry.size = 4; break;
-        case 1: entry.size = 16; break;
-        case 2: entry.size = 64; break;
-        default: assert(false);
-        }
+        std::visit(
+            [this, &entry](auto &&t) {
+                size_t carry = (sizeof(t) % 16 == 0) ? total_size % 16 : 0;
+                entry        = {.offset = total_size + carry, .size = sizeof(t)};
+                total_size += entry.size + carry;
+            },
+            type);
 
-        total_size += entry.size;
         entries[name] = entry;
     }
 

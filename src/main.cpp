@@ -41,27 +41,32 @@ int main() {
         Camera cam;
         glm::mat4 mat_model = glm::scale(glm::mat4{1.f}, glm::vec3{1.f});
 
-        struct UBO_CLIENTDATA {
-            glm::mat4 p, v, m;
-            glm::vec4 cam_dir, cam_pos, light_dir, light_col;
-            float attenuation;
-            int use_pbr;
-        } client_data;
-        client_data.attenuation = 12.f;
-        client_data.use_pbr     = 1;
-        client_data.light_dir   = glm::vec4{1.f};
-        client_data.light_col   = glm::vec4{1.f};
-        GLBuffer ubo{&client_data,
-                     264,
-                     GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT
-                         | GL_DYNAMIC_STORAGE_BIT};
-        auto ubo_map = (char *)glMapNamedBufferRange(ubo.descriptor.handle,
-                                                     0,
-                                                     sizeof(UBO_CLIENTDATA),
-                                                     GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT
-                                                         | GL_MAP_PERSISTENT_BIT);
-
         UBO u{{{"time", (float)glfwGetTime()}}};
+        UBO pbrubo{{{"p", glm::mat4{1.}},
+                    {"v", glm::mat4{1.}},
+                    {"m", glm::mat4{1.}},
+                    {"cd", glm::vec4{1.f}},
+                    {"cp", glm::vec4{1.f}},
+                    {"lp", glm::vec4{1.f}},
+                    {"lc", glm::vec4{1.f}},
+                    {"att", 1.f},
+                    {"usepbr", 1}}};
+
+        UBO ubo_fire_settings1{{{"clip", 80.f},
+                                {"xatt", .7f},
+                                {"speed", 1.5f},
+                                {"scale", 10.f},
+                                {"flowxmult", 3.f},
+                                {"flowymult", -2.f},
+                                {"flow_dir", glm::vec4{.0f, -2.f, 1.f, .0f}},
+                                {"dsp", glm::vec4{3.f, .5f, 2.f, .0f}},
+                                {"dspmult", 2.f},
+                                {"dsp3_noiseatt", .3f},
+                                {"noiseres", glm::vec4{3.f, 1.f, 2.f, .0f}},
+                                {"noisedsp3factor", .4f},
+                                {"noisesmoothness", 1.f},
+                                {"color_weights_mult", glm::vec4{1.f, 2.f, 3.f, 1.5f}},
+                                {"alpha_threshold", .45f}}};
 
         ModelImporter imp;
         auto sphere = imp.import_model("3dmodels/sphere/sphere.glb",
@@ -71,11 +76,11 @@ int main() {
         glm::vec3 cc{0.3f};
         Camera::LensSettings lens = cam.lens;
         engine.gui_->add_draw([&] {
-            ImGui::SliderFloat3("light position", (float *)(ubo_map + 224), -3.f, 3.f);
-            ImGui::ColorEdit3("light color", (float *)(ubo_map + 240));
+            ImGui::SliderFloat3("light position", pbrubo.get<float>("lp"), -3.f, 3.f);
+            ImGui::ColorEdit3("light color", pbrubo.get<float>("lc"));
             ImGui::ColorEdit3("Background color", &cc.x);
-            ImGui::SliderFloat("light attenuation", (float *)(ubo_map + 256), 0.1f, 1000.f);
-            ImGui::Checkbox("Use physically-based rendering", (bool *)(ubo_map + 260));
+            ImGui::SliderFloat("light attenuation", pbrubo.get<float>("att"), 0.1f, 1000.f);
+            ImGui::Checkbox("Use physically-based rendering", pbrubo.get<bool>("usepbr"));
             if (ImGui::Button("recompile PBR shader")) { pbr_program.recompile(); }
             if (ImGui::Button("recompile def shader")) { default_program.recompile(); }
             if (ImGui::Button("recompile refr shader")) { rect_program.recompile(); }
@@ -84,8 +89,27 @@ int main() {
                 ImGui::SliderFloat("FoV", &lens.fovydeg, 0.f, 90.f);
                 cam.adjust_lens(lens);
             }
-        });
 
+            if (ImGui::CollapsingHeader("fire settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat("clip", ubo_fire_settings1.get<float>("clip"), 0.f, 200.f);
+                ImGui::SliderFloat("xatt", ubo_fire_settings1.get<float>("xatt"), 0.f, 1.f);
+                ImGui::SliderFloat("speed", ubo_fire_settings1.get<float>("speed"), 0.f, 10.f);
+                ImGui::SliderFloat("scale", ubo_fire_settings1.get<float>("scale"), 0.00001f, 3.f);
+                ImGui::SliderFloat("flowxmult", ubo_fire_settings1.get<float>("flowxmult"), 0.f, 5.f);
+                ImGui::SliderFloat("flowymult", ubo_fire_settings1.get<float>("flowymult"), -5.f, 5.f);
+                ImGui::SliderFloat3("flow_dir", ubo_fire_settings1.get<float>("flow_dir"), -3.f, 3.f);
+                ImGui::SliderFloat3("dsp", ubo_fire_settings1.get<float>("dsp"), -5.f, 5.f);
+                ImGui::SliderFloat("dspmult", ubo_fire_settings1.get<float>("dspmult"), 0.f, 5.f);
+                ImGui::SliderFloat("dsp3_noiseatt", ubo_fire_settings1.get<float>("dsp3_noiseatt"), 0.f, 1.f);
+                ImGui::SliderFloat3("noiseres", ubo_fire_settings1.get<float>("noiseres"), -5.f, 5.f);
+                ImGui::SliderFloat("noisedsp3factor", ubo_fire_settings1.get<float>("noisedsp3factor"), 0.f, 2.f);
+                ImGui::SliderFloat("noisesmoothness", ubo_fire_settings1.get<float>("noisesmoothness"), -5.f, 5.f);
+                ImGui::SliderFloat4(
+                    "color_weights_mult", ubo_fire_settings1.get<float>("color_weights_mult"), 0., 10.f);
+                ImGui::SliderFloat("alpha_threshold", ubo_fire_settings1.get<float>("alpha_threshold"), 0.f, 3.f);
+            }
+        });
+        std::cout << *ubo_fire_settings1.get<float>("alpha_threshold");
         auto vbufferid = re.create_buffer(GLBufferDescriptor{GL_DYNAMIC_STORAGE_BIT});
         auto ebufferid = re.create_buffer(GLBufferDescriptor{GL_DYNAMIC_STORAGE_BIT});
         auto vaoid     = re.create_vao(GLVaoDescriptor{{GLVaoBinding{0, vbufferid, 32}},
@@ -123,33 +147,29 @@ int main() {
             eng::Engine::instance().controller()->update();
             cam.update();
 
-            auto p  = cam.perspective_matrix();
-            auto v  = cam.view_matrix();
-            auto m  = mat_model;
-            auto cd = cam.forward_vec();
-            auto cp = cam.position();
-            memcpy((char *)ubo_map + 0, &p, 64);
-            memcpy((char *)ubo_map + 64, &v, 64);
-            memcpy((char *)ubo_map + 128, &m, 64);
-            memcpy((char *)ubo_map + 192, &cd, 16);
-            memcpy((char *)ubo_map + 208, &cp, 16);
+            pbrubo.set("p", cam.perspective_matrix());
+            pbrubo.set("v", cam.view_matrix());
+            pbrubo.set("m", mat_model);
+            pbrubo.set("cd", cam.forward_vec());
+            pbrubo.set("cp", cam.position());
 
-            rect_program.use();
-            *u.get<float>("time") = (float)glfwGetTime();
+            /*rect_program.use();
+            u.set("time", (float)glfwGetTime());
             u.bind(0);
             re.get_vao(rectvao).bind();
             glBindTextureUnit(0, t.handle);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glDrawArrays(GL_TRIANGLES, 0, 6);*/
 
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo.descriptor.handle, 0, sizeof(UBO_CLIENTDATA));
+            pbrubo.bind(2);
+            ubo_fire_settings1.bind(5);
             default_program.use();
             default_program.set("time", time);
             re.get_vao(vaoid).bind();
             glDrawElements(GL_TRIANGLES, sphere.indices.size(), GL_UNSIGNED_INT, 0);
             glDisable(GL_BLEND);
-            // eng::Engine::instance().gui_->draw();
+            eng::Engine::instance().gui_->draw();
             window->swap_buffers();
         }
     } catch (const std::runtime_error &e) { printf("%s\n", e.what()); }
