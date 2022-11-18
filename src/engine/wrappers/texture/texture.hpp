@@ -21,12 +21,6 @@ struct WRAP_SETTINGS {
 };
 
 struct Texture {
-    uint32_t handle{0u};
-    uint32_t mipmaps{0u};
-    uint32_t dimensions{2u};
-
-    FILTER_SETTINGS filter;
-    WRAP_SETTINGS wrap;
 
     Texture() = default;
     Texture(FILTER_SETTINGS &&filter);
@@ -37,11 +31,17 @@ struct Texture {
     Texture &operator=(const Texture &) noexcept;
     ~Texture();
 
-    void build2d(std::string_view path, uint32_t TIME_FORMAT);
+    operator bool() const noexcept { return handle != 0u; }
+
+    void build2d(std::string_view path, uint32_t format);
     void build2d_mips(std::string_view path, uint32_t dimensions);
     void build2d_ms(std::string_view path, uint32_t dimensions, uint32_t samples, bool fixedsamplelocations = true);
 
     void buildcube(std::string *paths, uint32_t TIME_FORMAT);
 
-    operator bool() const noexcept { return handle != 0u; }
+    FILTER_SETTINGS filter;
+    WRAP_SETTINGS wrap;
+    uint32_t handle{0u};
+    uint32_t mipmaps{0u};
+    uint32_t dimensions{2u};
 };

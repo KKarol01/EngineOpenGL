@@ -1,69 +1,49 @@
 #pragma once
 
-#include "pipeline.hpp"
 #include "typedefs.hpp"
+#include "../wrappers/buffer/buffer.hpp"
 #include "../types/types.hpp"
 
-template <typename T, typename COMP_LESS> class REAllocator {
-    struct StorageWrapper {
+template <typename T> class REAllocator {
+    struct TypeWrapper {
+        template <typename... ARGS> TypeWrapper(ARGS &&...args) : type{std::forward<ARGS>(args)...} {}
 
-        bool operator<(const StorageWrapper &other) const noexcept { return id < other.id; }
-        bool operator==(const StorageWrapper &other) const noexcept { return id == other.id; }
+        TypeWrapper(TypeWrapper &&other) noexcept { *this = std::move(other); }
+        TypeWrapper &operator=(TypeWrapper &&other) noexcept {
+            id   = other.id;
+            type = std::move(other.type);
+            return *this;
+        }
 
-        uint32_t id;
-        T value;
+        inline bool operator<(const TypeWrapper &other) const noexcept { return id < other.id; }
+        inline bool operator==(const TypeWrapper &other) const noexcept { return id == other.id; }
+
+        uint32_t id{gid++};
+        T type;
+
+        static inline uint32_t gid{0u};
     };
 
-  public:
     template <typename... ARGS> auto allocate(ARGS &&...args) {
-        auto &e = storage.emplace(gid, T{std::forward<ARGS>(args)...});
-        return gid++;
+        return storage.emplace(std::forward<ARGS>(args)...).id;
     }
-    T &get_resource(uint32_t id) {
-        return storage.find(id, [](auto &&e, auto &&v) { return e.id < v; })->value;
-    }
-    const T &get_resource(uint32_t id) const { return get_resource(id); }
-
-  private:
-    void iterate(std::function<void(T &)> f) {
-        for (auto &v : storage) { f(v.value); }
+    auto &get(uint32_t id) {
+        return *storage.find(id, [](auto &&e, auto &&v) { return e.id < v; });
     }
 
-    uint32_t gid{0u};
-    eng::SortedVectorUnique<StorageWrapper> storage;
+    eng::SortedVectorUnique<TypeWrapper> storage;
 
     friend class RE;
 };
 
 class RE {
-
   public:
-    void render() {
-        pipelines.iterate([](auto &p) { p.render(); });
-    }
-    void allocate_model(PipelineID pid, const Model &m) { pipelines.get_resource(pid).allocate_model(m); }
-    void instance_model(uint32_t model_id, PipelineID pid) { get_pipeline(pid).create_instance(model_id); }
-
-    template <typename... ARGS> auto create_pipeline(ARGS &&...args) {
-        return pipelines.allocate(std::forward<ARGS>(args)...);
-    }
-    template <typename... ARGS> auto create_buffer(ARGS &&...args) {
-        return buffers.allocate(std::forward<ARGS>(args)...);
-    }
-    template <typename... ARGS> auto create_vao(ARGS &&...args) { return vaos.allocate(std::forward<ARGS>(args)...); }
-
-    GLBuffer &get_buffer(BufferID bid) { return buffers.get_resource(bid); }
-    GLVao &get_vao(VaoID vid) { return vaos.get_resource(vid); }
-    RenderingPipeline &get_pipeline(PipelineID vid) { return pipelines.get_resource(vid); }
-    const GLBuffer &get_buffer(BufferID bid) const { return buffers.get_resource(bid); }
-    const GLVao &get_vao(VaoID vid) const { return vaos.get_resource(vid); }
-    const RenderingPipeline &get_pipeline(PipelineID vid) const { return pipelines.get_resource(vid); }
+    BufferID create_buffer(GLBufferDescriptor desc);
+    VaoID create_vao(GLVaoDescriptor desc);
+    GLBuffer &get_buffer(BufferID id);
+    GLVao &get_vao(VaoID id);
 
   private:
-    uint32_t pipeline_id{0u};
-
-    using ALLOC_COMP = decltype([](auto &&a, auto &&b) { return a.handle < b.handle; });
-    REAllocator<GLVao, ALLOC_COMP> vaos;
-    REAllocator<GLBuffer, ALLOC_COMP> buffers;
-    REAllocator<RenderingPipeline, ALLOC_COMP> pipelines;
+    REAllocator<GLBuffer> buffers;
+    REAllocator<GLVao> vaos;
 };

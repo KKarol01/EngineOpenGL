@@ -1,5 +1,6 @@
 #version 460 core
 
+
 vec3 mod289(vec3 x) {
 	return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
@@ -93,20 +94,11 @@ float snoise(vec3 v)
 																dot(p2,x2), dot(p3,x3) ) );
 	}
 
-//////////////////////////////////////////////////////////////
-
-// PRNG
-// From https://www.shadertoy.com/view/4djSRW
 float prng(in vec2 seed) {
 	seed = fract (seed * vec2 (5.3983, 5.4427));
 	seed += dot (seed.yx, seed.xy + vec2 (21.5351, 14.3137));
 	return fract (seed.x * seed.y * 95.4337);
 }
-
-//////////////////////////////////////////////////////////////
-
-float PI = 3.1415926535897932384626433832795;
-
 
 float noiseStack(vec3 pos,int octaves,float falloff){
 	float noise = snoise(vec3(pos));
@@ -135,81 +127,19 @@ vec2 noiseStackUV(vec3 pos,int octaves,float falloff){
 }
 
 
-
-
 out vec4 FRAG_COLOR;
-in vec3 wpos;
-in vec3 n;
-in vec2 tcc;
-uniform float time;
+in vec2 tc;
+layout(binding=0) uniform sampler2D tex;
+
+layout(std140, binding=0) uniform TIMEUBO {
+	float time;
+};
+
+
 void main() {
-	float realTime = time * 1.5;
-    vec2 p = tcc.xy * 2.;
-    vec3 sp = vec3(p, 0.)*10.;
-
-    float clip = 80.;
-    float yclip = p.y/clip;
-    float yclipped = min(yclip, 1.);
-    float yclipn = 1.-yclipped;
-    float yatt = clamp(1.-yclip, 0., 1.);
-    float xatt = 0.7;//pow(1. - abs(2.*p.x-1.), 2.);
-
-    //zoom in
-    
-	vec3 position = sp;
-	position.x += time+pow(tcc.y, 2.);
 	
-    //x-makes fire "go" to the middle
-    //y-makes fire "go" upwards
-    vec3 flow = vec3(3.*(0.5-p.x)*pow(yclipn,4.),-2.0*xatt*pow(yclipn,64.0),0.0);
-	vec3 timing = realTime*vec3(0.0, -2.,1.) + flow;
-	vec3 displacePos = vec3(3.0,0.5,2.0)*2.4*position+realTime*vec3(0.01,-0.7,1.3);
-	vec3 displace3 = vec3(noiseStackUV(displacePos,3,0.3),0.0);
-	vec3 noiseCoord = (vec3(3.,1.,2.0)*position+timing+0.4*displace3)/1.;
-    
-    //again, adds details with octaves.
-	float noise = noiseStack(noiseCoord,3,0.5);
-	float n3 = pow(noise, 2.);
-	float n6 = pow(noise, 3.);
-  
-	float alph = pow(noise, 1.) < 0.45 ? 0. : 1.;
-	if(alph == 0.f) discard;
+	vec2 n = noiseStackUV(vec3(tc, 0.) + time*.1, 1, 0.5);
+	n*=.03;
 
-    FRAG_COLOR =  1.5*vec4(noise, n3, n6 , 1.);
+	FRAG_COLOR = texture(tex, tc+n);
 }
-
-/*
-	float realTime = time * 1.5;
-    vec2 p = tcc.xy * 2.;
-    vec3 sp = vec3(p, 0.)*10.;
-
-    float clip = 80.;
-    float yclip = p.y/clip;
-    float yclipped = min(yclip, 1.);
-    float yclipn = 1.-yclipped;
-    float yatt = clamp(1.-yclip, 0., 1.);
-    float xatt = 0.7;//pow(1. - abs(2.*p.x-1.), 2.);
-
-    //zoom in
-    
-	vec3 position = sp;
-	position.x += time+pow(tcc.y, 2.);
-	
-    //x-makes fire "go" to the middle
-    //y-makes fire "go" upwards
-    vec3 flow = vec3(3.*(0.5-p.x)*pow(yclipn,4.),-2.0*xatt*pow(yclipn,64.0),0.0);
-	vec3 timing = realTime*vec3(0.0, -2.,1.) + flow;
-	vec3 displacePos = vec3(3.0,0.5,2.0)*2.4*position+realTime*vec3(0.01,-0.7,1.3);
-	vec3 displace3 = vec3(noiseStackUV(displacePos,3,0.3),0.0);
-	vec3 noiseCoord = (vec3(2.,1.,2.0)*position+timing+0.4*displace3)/1.;
-    
-    //again, adds details with octaves.
-	float noise = noiseStack(noiseCoord,3,0.5);
-
-    float flame = pow(yclipped, 0.32*xatt)*pow(noise, 0.1*xatt);
-    flame = yatt*pow(1.-pow(flame, 3.3), 6.5);
-
-    float f = flame, f3 = pow(flame, 5.), f6 = pow(flame, 8.);
-	
-    FRAG_COLOR =  1.5*vec4(pow(f,.3), f3, f6, pow(flame, 3.) < 0.45 ? 0. : 1.);
-*/

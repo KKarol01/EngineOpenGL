@@ -57,6 +57,15 @@ void GUI::draw() {
     }
     ImGui::End();
     #endif
+    if(ImGui::BeginMainMenuBar()) {
+    if(ImGui::Button("Load...")) {}
+    if(ImGui::Button("RenderingPP graph")) {}
+    if(ImGui::Button("Performance monitor")) {}
+    if(ImGui::Button("Gpu memory statistics")) {}
+    if(ImGui::Button("Window")) {}
+    if(ImGui::Button("HW info")) {}
+    ImGui::EndMainMenuBar();
+    }
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

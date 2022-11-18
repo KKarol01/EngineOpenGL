@@ -37,12 +37,12 @@ Texture::~Texture() {
     printf("Deleting handle: %u\n", handle);
     glDeleteTextures(1, &handle); }
 
-void Texture::build2d(std::string_view path, uint32_t TIME_FORMAT) {
+void Texture::build2d(std::string_view path, uint32_t format) {
     int x, y, ch;
     auto data = stbi_load(path.data(), &x, &y, &ch, 0);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &handle);
-    glTextureStorage2D(handle, 0, TIME_FORMAT, x, y);
+    glTextureStorage2D(handle, 1, format, x, y);
     glTextureSubImage2D(handle, 0, 0, 0, x, y, ch == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
     glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
     glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);

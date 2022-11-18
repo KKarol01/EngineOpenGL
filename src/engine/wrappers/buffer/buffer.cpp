@@ -1,21 +1,23 @@
 #include "buffer.hpp"
 
+#include "../../engine/engine.hpp"
+#include "../../renderer/renderer.hpp"
+
 #include <stdexcept>
 #include <cassert>
 
 #include <glad/glad.h>
 
-GLBuffer::GLBuffer(uint32_t flags) {
-    descriptor.flags = flags;
-    glCreateBuffers(1, &descriptor.handle);
-}
+GLBuffer::GLBuffer(GLBufferDescriptor desc) : descriptor{desc} { glCreateBuffers(1, &descriptor.handle); }
 
-GLBuffer::GLBuffer(void *data, uint32_t size_bytes, uint32_t flags) : GLBuffer(flags) { push_data(data, size_bytes); }
+GLBuffer::GLBuffer(void *data, uint32_t size_bytes, GLBufferDescriptor desc) : GLBuffer(desc) {
+    push_data(data, size_bytes);
+}
 
 GLBuffer::GLBuffer(GLBuffer &&other) noexcept { *this = std::move(other); }
 
 GLBuffer &GLBuffer::operator=(GLBuffer &&other) noexcept {
-    descriptor = std::move(other.descriptor);
+    descriptor              = std::move(other.descriptor);
     other.descriptor.handle = 0;
     return *this;
 }
@@ -55,7 +57,35 @@ void GLBuffer::resize(size_t required_size) {
 
 GLBuffer::~GLBuffer() { glDeleteBuffers(1, &descriptor.handle); }
 
-GLVao::GLVao() { glCreateVertexArrays(1, &handle); }
+GLVao::GLVao(GLVaoDescriptor desc) {
+    glCreateVertexArrays(1, &handle);
+
+    auto &re = *eng::Engine::instance().renderer_.get();
+
+    for (auto &vbob : desc.vbo_bindings) {
+        auto &buff = re.get_buffer(vbob.buffer).descriptor;
+        configure_binding(vbob.binding, buff.handle, vbob.stride, vbob.offset);
+        buff.on_handle_change.connect([handle = this->handle, vbob, &buff, desc](auto nh) {
+            glVertexArrayVertexBuffer(handle, vbob.binding, nh, vbob.offset, vbob.stride);
+            // configure_binding(vbob.binding, buff.handle, vbob.stride, vbob.offset);
+        });
+    }
+
+    if (auto var = std::get_if<GLVaoAttrCustom>(&desc.formats)) {
+        configure_attr(var->formats);
+    } else if (auto var = std::get_if<GLVaoAttrSameFormat>(&desc.formats)) {
+        configure_attr(var->size, var->type, var->type_size_bytes, var->formats);
+    } else if (auto var = std::get_if<GLVaoAttrSameType>(&desc.formats)) {
+        configure_attr(var->type, var->type_size_bytes, var->formats);
+    }
+
+    if (desc.ebo_set) {
+        auto &ebo = re.get_buffer(desc.ebo_buffer);
+        configure_ebo(ebo.descriptor.handle);
+        ebo.descriptor.on_handle_change.connect(
+            [handle = this->handle, &desc = ebo.descriptor](auto nh) { glVertexArrayElementBuffer(handle, nh); });
+    }
+}
 
 GLVao::GLVao(GLVao &&other) noexcept { *this = std::move(other); }
 
@@ -76,14 +106,11 @@ void GLVao::configure_binding(uint32_t id, uint32_t handle, size_t stride, size_
 
 void GLVao::configure_ebo(uint32_t handle) { glVertexArrayElementBuffer(this->handle, handle); }
 
-void GLVao::configure_attr(std::initializer_list<ATTRCUSTORMFORMAT> formats) {
+void GLVao::configure_attr(std::vector<ATTRCUSTORMFORMAT> formats) {
     for (auto &f : formats) { _configure_impl(f.format_func, f.id, f.buffer, f.size, f.type, f.normalized, f.offset); }
 }
 
-void GLVao::configure_attr(uint32_t size,
-                           uint32_t type,
-                           uint32_t type_size,
-                           std::initializer_list<ATTRSAMEFORMAT> formats) {
+void GLVao::configure_attr(uint32_t size, uint32_t type, uint32_t type_size, std::vector<ATTRSAMEFORMAT> formats) {
     std::map<uint32_t, uint32_t> buff_offsets;
 
     for (auto &f : formats) {
@@ -92,7 +119,7 @@ void GLVao::configure_attr(uint32_t size,
     }
 }
 
-void GLVao::configure_attr(uint32_t type, uint32_t type_size, std::initializer_list<ATTRSAMETYPE> formats) {
+void GLVao::configure_attr(uint32_t type, uint32_t type_size, std::vector<ATTRSAMETYPE> formats) {
     std::map<uint32_t, uint32_t> buff_offsets;
 
     for (auto &f : formats) {
