@@ -52,21 +52,39 @@ int main() {
                     {"att", 1.f},
                     {"usepbr", 1}}};
 
-        UBO ubo_fire_settings1{{{"clip", 80.f},
+        struct FIRE_SETTINGS {
+            glm::vec4 flow_dir{.0f, -2.f, 1.f, .0f};
+            glm::vec4 dsp{3.f, .5f, 2.f, .0f};
+            glm::vec4 noiseres{3.f, 1.f, 2.f, .0f};
+            glm::vec4 color_weights_mult{1.f, 2.f, 3.f, 1.5f};
+            float clip{80.f};
+            float xatt{.7f};
+            float speed{1.5f};
+            float scale{10.f};
+            float flowxmult{3.f};
+            float flowymult{2.f};
+            float dspmult{2.f};
+            float dsp3_noiseatt{.3f};
+            float noisedsp3factor{.4f};
+            float noisesmoothness{1.f};
+            float alpha_threshold{.45f};
+        }f1;
+
+        UBO ubo_fire_settings1{{{"flow_dir", glm::vec4{.0f, -2.f, 1.f, .0f}},
+                                {"dsp", glm::vec4{3.f, .5f, 2.f, .0f}},
+                                {"noiseres", glm::vec4{3.f, 1.f, 2.f, .0f}},
+                                {"color_weights_mult", glm::vec4{1.f, 2.f, 3.f, 1.5f}},
+                                {"clip", 80.f},
                                 {"xatt", .7f},
                                 {"speed", 1.5f},
                                 {"scale", 10.f},
                                 {"flowxmult", 3.f},
                                 {"flowymult", -2.f},
-                                {"flow_dir", glm::vec4{.0f, -2.f, 1.f, .0f}},
-                                {"dsp", glm::vec4{3.f, .5f, 2.f, .0f}},
                                 {"dspmult", 2.f},
                                 {"dsp3_noiseatt", .3f},
-                                {"noiseres", glm::vec4{3.f, 1.f, 2.f, .0f}},
                                 {"noisedsp3factor", .4f},
                                 {"noisesmoothness", 1.f},
-                                {"color_weights_mult", glm::vec4{1.f, 2.f, 3.f, 1.5f}},
-                                {"alpha_threshold", .45f}}};
+                                {"alpha_threshold", .45f}}, {&f1}};
 
         ModelImporter imp;
         auto sphere = imp.import_model("3dmodels/sphere/sphere.glb",

@@ -136,22 +136,26 @@ vec2 noiseStackUV(vec3 pos,int octaves,float falloff){
 
 
 
-layout(std140, binding=5) uniform FIRE_SETTINGS {
+struct FIRE_SETTINGS {
+	vec4 flow_dir;
+	vec4 dsp;
+	vec4 noiseres;
+	vec4 color_weights_mult;
 	float clip;
 	float xatt;
 	float speed;
 	float scale;
 	float flowxmult;
 	float flowymult;
-	vec4 flow_dir;
-	vec4 dsp;
 	float dspmult;
 	float dsp3_noiseatt;
-	vec4 noiseres;
 	float noisedsp3factor;
 	float noisesmoothness;
-	vec4 color_weights_mult;
 	float alpha_threshold;
+};
+
+layout(std140, binding=5) uniform FIRE_SETTINGS_UBO {
+	FIRE_SETTINGS settings[2];
 };
 
 
@@ -172,7 +176,23 @@ in vec3 n;
 in vec2 tcc;
 uniform float time;
 void main() {
-float realTime = time * speed;
+	vec4 flow_dir			= settings[0].flow_dir;
+	vec4 dsp				= settings[0].dsp;
+	vec4 noiseres			= settings[0].noiseres;
+	vec4 color_weights_mult	= settings[0].color_weights_mult;
+	float clip				= settings[0].clip;
+	float xatt				= settings[0].xatt;
+	float speed				= settings[0].speed;
+	float scale				= settings[0].scale;
+	float flowxmult			= settings[0].flowxmult;
+	float flowymult			= settings[0].flowymult;
+	float dspmult			= settings[0].dspmult;
+	float dsp3_noiseatt		= settings[0].dsp3_noiseatt;
+	float noisedsp3factor	= settings[0].noisedsp3factor;
+	float noisesmoothness	= settings[0].noisesmoothness;
+	float alpha_threshold	= settings[0].alpha_threshold;
+
+	float realTime = time * speed;
     vec2 p = tcc.xy * 2.;
     vec3 sp = vec3(p, 0.)*scale;
 
