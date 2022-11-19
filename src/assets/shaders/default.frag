@@ -155,7 +155,7 @@ struct FIRE_SETTINGS {
 };
 
 layout(std140, binding=5) uniform FIRE_SETTINGS_UBO {
-	FIRE_SETTINGS settings[2];
+	FIRE_SETTINGS settings[3];
 };
 
 
@@ -176,22 +176,25 @@ in vec3 n;
 in vec2 tcc;
 uniform float time;
 flat in int instanceid;
+flat in int drawid;
 void main() {
-	vec4 flow_dir			= settings[instanceid].flow_dir;
-	vec4 dsp				= settings[instanceid].dsp;
-	vec4 noiseres			= settings[instanceid].noiseres;
-	vec4 color_weights_mult	= settings[instanceid].color_weights_mult;
-	float clip				= settings[instanceid].clip;
-	float xatt				= settings[instanceid].xatt;
-	float speed				= settings[instanceid].speed;
-	float scale				= settings[instanceid].scale;
-	float flowxmult			= settings[instanceid].flowxmult;
-	float flowymult			= settings[instanceid].flowymult;
-	float dspmult			= settings[instanceid].dspmult;
-	float dsp3_noiseatt		= settings[instanceid].dsp3_noiseatt;
-	float noisedsp3factor	= settings[instanceid].noisedsp3factor;
-	float noisesmoothness	= settings[instanceid].noisesmoothness;
-	float alpha_threshold	= settings[instanceid].alpha_threshold;
+
+
+	vec4 flow_dir			= settings[instanceid + drawid*2].flow_dir;
+	vec4 dsp				= settings[instanceid + drawid*2].dsp;
+	vec4 noiseres			= settings[instanceid + drawid*2].noiseres;
+	vec4 color_weights_mult	= settings[instanceid + drawid*2].color_weights_mult;
+	float clip				= settings[instanceid + drawid*2].clip;
+	float xatt				= settings[instanceid + drawid*2].xatt;
+	float speed				= settings[instanceid + drawid*2].speed;
+	float scale				= settings[instanceid + drawid*2].scale;
+	float flowxmult			= settings[instanceid + drawid*2].flowxmult;
+	float flowymult			= settings[instanceid + drawid*2].flowymult;
+	float dspmult			= settings[instanceid + drawid*2].dspmult;
+	float dsp3_noiseatt		= settings[instanceid + drawid*2].dsp3_noiseatt;
+	float noisedsp3factor	= settings[instanceid + drawid*2].noisedsp3factor;
+	float noisesmoothness	= settings[instanceid + drawid*2].noisesmoothness;
+	float alpha_threshold	= settings[instanceid + drawid*2].alpha_threshold;
 
 	float realTime = time * speed;
     vec2 p = tcc.xy * 2.;

@@ -11,7 +11,7 @@ layout(std140, binding=2) uniform UserSettings {
     int use_pbr;
 };
 layout(std140, binding=4) uniform ModelMats { 
-    mat4 models[2];
+    mat4 models[3];
 };
 
 float prng(in vec2 seed) {
@@ -24,17 +24,21 @@ out vec3 n;
 out vec2 tcc;
 out vec3 wpos;
 flat out int instanceid;
+flat out int drawid;
+
 uniform float time;
 
 void main() {
+    drawid = gl_DrawID;
     instanceid = gl_InstanceID;
     n = norm;
     tcc = tc;
 
     vec4 npos = vec4(pos, 1.);
+    if(gl_DrawID == 1) {npos.x += 3.f;}
 
     if(gl_InstanceID == 0){
-        npos = models[gl_InstanceID] * npos;    
+        npos = models[gl_InstanceID + drawid*2] * npos;    
     }
     else npos = (mat4(1.)*0.9999) * npos;
     npos.w = 1.f;

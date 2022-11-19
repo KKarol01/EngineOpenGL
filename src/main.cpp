@@ -20,6 +20,7 @@
 #include <assimp/postprocess.h>
 #include <stb_image.h>
 #include <imgui/imgui.h>
+#include <glm/gtx/euler_angles.hpp>
 
 #include "engine/subsystems/gui/gui.hpp"
 #include "engine/model/importers.hpp"
@@ -32,7 +33,6 @@ int main() {
     const auto window = engine.window();
     auto &re          = *engine.renderer_.get();
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
 
     try {
         Shader default_program{"default"};
@@ -85,16 +85,24 @@ int main() {
                                 {"noisedsp3factor", .4f},
                                 {"noisesmoothness", 1.f},
                                 {"alpha_threshold", .45f}},
-                               {&f1, &f1}};
+                               {&f1, &f1, &f1}};
 
         ModelImporter imp;
         auto sphere = imp.import_model("3dmodels/sphere/sphere.glb",
                                        aiProcess_Triangulate | aiProcess_DropNormals | aiProcess_GenSmoothNormals
                                            | aiProcess_JoinIdenticalVertices);
+        auto plane  = imp.import_model("3dmodels/sphere/plane.glb",
+                                      aiProcess_Triangulate | aiProcess_DropNormals | aiProcess_GenSmoothNormals
+                                          | aiProcess_JoinIdenticalVertices);
 
         glm::vec3 cc{0.3f};
         glm::vec4 bg_pos_scale{0.f, 0.f, 0.f, 100.f};
         glm::mat4 bg_model;
+
+        glm::vec4 smoke_pos_scale{0.f, 0.f, 0.f, 1.f};
+        glm::vec3 smoke_rot{0.f};
+        glm::mat4 smoke_model{1.f};
+
         Camera::LensSettings lens = cam.lens;
         engine.gui_->add_draw([&] {
             ImGui::SliderFloat3("light position", pbrubo.get<float>("lp"), -3.f, 3.f);
@@ -112,11 +120,18 @@ int main() {
             }
             if (ImGui::CollapsingHeader("background", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::SliderFloat4("bg_pos_scale", &bg_pos_scale.x, -5.f, 5.f);
-                bg_model
-                    = glm::translate(glm::scale(glm::mat4{1.f}, glm::vec3{bg_pos_scale.w}), glm::vec3{bg_pos_scale});
+                bg_model = glm::translate(glm::scale(glm::mat4{1.f}, glm::vec3{bg_pos_scale.w}),
+                                          glm::vec3{bg_pos_scale.x, bg_pos_scale.y, bg_pos_scale.z});
             }
             if (ImGui::CollapsingHeader("fire settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-                for (auto i = 0; i < 2; ++i) {
+                ImGui::SliderFloat4("smoke pos scale", &smoke_pos_scale.x, -5.f, 5.f);
+                ImGui::SliderFloat3("smoke rot", &smoke_rot.x, -180.f, 180.f);
+                smoke_model = glm::translate(
+                    glm::eulerAngleXYZ(glm::radians(smoke_rot.x), glm::radians(smoke_rot.y), glm::radians(smoke_rot.z))*
+                    glm::scale(glm::mat4{1.f}, glm::vec3{smoke_pos_scale.w}),
+                                             glm::vec3{smoke_pos_scale.x, smoke_pos_scale.y, smoke_pos_scale.z});
+
+                for (auto i = 0; i < 3; ++i) {
                     ImGui::PushID(i);
                     ImGui::SliderFloat("clip", ubo_fire_settings1.get<float>("clip", i), 0.f, 200.f);
                     ImGui::SliderFloat("xatt", ubo_fire_settings1.get<float>("xatt", i), 0.f, 1.f);
@@ -141,6 +156,7 @@ int main() {
                 }
                 ImGui::PopID();
                 ImGui::PopID();
+                ImGui::PopID();
             }
         });
         std::cout << *ubo_fire_settings1.get<float>("alpha_threshold");
@@ -159,10 +175,14 @@ int main() {
             vbuffer.push_data(sphere.vertices.data(), sphere.vertices.size() * 4);
             ebuffer.push_data(sphere.indices.data(), sphere.indices.size() * 4);
 
+            vbuffer.push_data(plane.vertices.data(), plane.vertices.size() * 4);
+            ebuffer.push_data(plane.indices.data(), plane.indices.size() * 4);
+
             std::vector<glm::mat4> models;
             models.push_back(glm::mat4{1.f});
             models.push_back(glm::scale(glm::mat4{1.f}, glm::vec3{0.95f}));
-            re.get_buffer(mbufferid).push_data(models.data(), 128);
+            models.push_back(glm::scale(glm::mat4{1.f}, glm::vec3{0.95f}));
+            re.get_buffer(mbufferid).push_data(models.data(), 64 * 3);
         }
 
         Texture t{FILTER_SETTINGS{GL_LINEAR}, WRAP_SETTINGS{GL_CLAMP_TO_EDGE}};
@@ -189,8 +209,11 @@ int main() {
         {
             std::vector<DrawElementsIndirectCommand> fire_cmds;
             fire_cmds.emplace_back(2880, 2, 0, 0, 0);
-            fdb.push_data(fire_cmds.data(), sizeof(DrawElementsIndirectCommand));
+            fire_cmds.emplace_back(6, 1, 2880, 559, 0);
+
+            fdb.push_data(fire_cmds.data(), sizeof(DrawElementsIndirectCommand) * 2);
         }
+
 
         while (!window->should_close()) {
             float time = glfwGetTime();
@@ -200,6 +223,8 @@ int main() {
             eng::Engine::instance().controller()->update();
             cam.update();
 
+        glNamedBufferSubData(
+        re.get_buffer(mbufferid).descriptor.handle,64*2, 64, &smoke_model);
             pbrubo.set("p", cam.perspective_matrix());
             pbrubo.set("v", cam.view_matrix());
             pbrubo.set("m", mat_model);
@@ -222,7 +247,7 @@ int main() {
             re.get_vao(vaoid).bind();
             glBindBuffer(GL_DRAW_INDIRECT_BUFFER, fdb.descriptor.handle);
             glBindBufferBase(GL_UNIFORM_BUFFER, 4, re.get_buffer(mbufferid).descriptor.handle);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 1, 0);
+            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 2, 0);
             glDisable(GL_BLEND);
             eng::Engine::instance().gui_->draw();
             window->swap_buffers();
