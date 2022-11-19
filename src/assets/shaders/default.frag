@@ -175,22 +175,23 @@ in vec3 wpos;
 in vec3 n;
 in vec2 tcc;
 uniform float time;
+flat in int instanceid;
 void main() {
-	vec4 flow_dir			= settings[0].flow_dir;
-	vec4 dsp				= settings[0].dsp;
-	vec4 noiseres			= settings[0].noiseres;
-	vec4 color_weights_mult	= settings[0].color_weights_mult;
-	float clip				= settings[0].clip;
-	float xatt				= settings[0].xatt;
-	float speed				= settings[0].speed;
-	float scale				= settings[0].scale;
-	float flowxmult			= settings[0].flowxmult;
-	float flowymult			= settings[0].flowymult;
-	float dspmult			= settings[0].dspmult;
-	float dsp3_noiseatt		= settings[0].dsp3_noiseatt;
-	float noisedsp3factor	= settings[0].noisedsp3factor;
-	float noisesmoothness	= settings[0].noisesmoothness;
-	float alpha_threshold	= settings[0].alpha_threshold;
+	vec4 flow_dir			= settings[instanceid].flow_dir;
+	vec4 dsp				= settings[instanceid].dsp;
+	vec4 noiseres			= settings[instanceid].noiseres;
+	vec4 color_weights_mult	= settings[instanceid].color_weights_mult;
+	float clip				= settings[instanceid].clip;
+	float xatt				= settings[instanceid].xatt;
+	float speed				= settings[instanceid].speed;
+	float scale				= settings[instanceid].scale;
+	float flowxmult			= settings[instanceid].flowxmult;
+	float flowymult			= settings[instanceid].flowymult;
+	float dspmult			= settings[instanceid].dspmult;
+	float dsp3_noiseatt		= settings[instanceid].dsp3_noiseatt;
+	float noisedsp3factor	= settings[instanceid].noisedsp3factor;
+	float noisesmoothness	= settings[instanceid].noisesmoothness;
+	float alpha_threshold	= settings[instanceid].alpha_threshold;
 
 	float realTime = time * speed;
     vec2 p = tcc.xy * 2.;
@@ -219,7 +220,9 @@ void main() {
 
     float f = pow(flame, color_weights_mult.x), f3 = pow(flame, color_weights_mult.y), f6 = pow(flame, color_weights_mult.z);
 	
-    FRAG_COLOR =  color_weights_mult.w*vec4(aces_approx(vec3(f, f3, f6)), flame< alpha_threshold ? 0. : 1.);
+	if(flame < alpha_threshold) discard;
+
+    FRAG_COLOR =  vec4(color_weights_mult.www, 1.f)*vec4(aces_approx(vec3(f, f3, f6)), 1.f);
 }
 
 /*

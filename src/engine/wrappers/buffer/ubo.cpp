@@ -81,7 +81,6 @@ void UBO::fill_entries(const INIT_LIST &list, size_t num_entries) {
 
     stride     = total_size;
     num_elems  = num_entries;
-    total_size = stride * num_elems;
 }
 
 size_t UBO::get_data_size(const TS &t) {
