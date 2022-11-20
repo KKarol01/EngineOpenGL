@@ -39,10 +39,11 @@ void main() {
 
     if(gl_InstanceID == 0){
         npos = models[gl_InstanceID + drawid*2] * npos;    
+
     }
     else npos = (mat4(1.)*0.9999) * npos;
+    npos = npos + normalize(vec4(norm*prng(tc), 1.)) * pow(tc.y, 2.) * (sin(time*(5.*prng(vec2(dot(norm.xy, tc), dot(tc, norm.xy)))))*.5+.5)*.1;
     npos.w = 1.f;
-    //npos = npos + normalize(vec4(norm*prng(tc), 1.)) * pow(tc.y, 2.) * (sin(time*(5.*prng(vec2(dot(norm.xy, tc), dot(tc, norm.xy)))))*.5+.5)*.1;
 
 	gl_Position = p * v * npos;
 }

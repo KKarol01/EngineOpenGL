@@ -199,7 +199,7 @@ void main() {
 	float realTime = time * speed;
     vec2 p = tcc.xy * 2.;
     vec3 sp = vec3(p, 0.)*scale;
-
+	if(instanceid == 1) sp.y = 1.-sp.y;
     float yclip = p.y/clip;
     float yclipped = min(yclip, 1.);
     float yclipn = 1.-yclipped;
@@ -222,10 +222,13 @@ void main() {
     flame = yatt*pow(1.-pow(flame, 3.3), 6.5);
 
     float f = pow(flame, color_weights_mult.x), f3 = pow(flame, color_weights_mult.y), f6 = pow(flame, color_weights_mult.z);
-	
+
+	if(flame >0.4 && flame < .8 && instanceid==1) discard;
+	if(flame < alpha_threshold && drawid ==1) discard;
 	if(flame < alpha_threshold) discard;
 
     FRAG_COLOR =  vec4(color_weights_mult.www, 1.f)*vec4(aces_approx(vec3(f, f3, f6)), 1.f);
+
 }
 
 /*
