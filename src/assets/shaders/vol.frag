@@ -182,35 +182,30 @@ layout(binding=0) uniform sampler3D tex;
 void main() {
 	vec4 cam_bmin = vec4(0.f.xxx, 1.f);
 	vec4 cam_bmax = vec4(1.f.xxx, 1.f);
-
-	cam_bmin /= cam_bmin.w;
-	cam_bmax /= cam_bmax.w;
-
+	
 	Ray r;
 	RayHitInfo info;
 
-	r.o = vec3(0.f);
 
 	vec2 ppos = vpos;
 
 	float cx = ppos.x * (1920./1080.)*tan(45./180.*3.14);
 	float cy = (ppos.y *tan(45./180.*3.14));
 	mat4 cam2world = inverse(view);
-	r.o = (cam2world * vec4(r.o, 1.)).xyz;
+	r.o = (cam2world * vec4(0.f.xxx, 1.)).xyz;
 	r.d = (cam2world*vec4(cx, cy, -1., 1.)).xyz ;
 	r.d = r.d - r.o;
 	r.d = normalize(r.d);
 
 
 	ray_box(r, cam_bmin.xyz, cam_bmax.xyz, info);
-
-	if(!info.hit) {discard;return;}
+	if(!info.hit) {discard;}
 
 
 	vec3 a = r.o + info.tmin*r.d;
 	vec3 b = r.o + info.tmax*r.d;
 	vec3 acc = vec3(0.);
-	int samples = 5;
+	int samples = 7;
 	vec3 p = a;
 	vec3 ds = (b-a) / float(samples);
 	float dsl = length(ds);
@@ -218,23 +213,22 @@ void main() {
 		vec3 tc = a + ds*i;
 		tc = tc*2.-1.;
 		
-		vec3 nc = tc*1.1;
-		nc*=1.2;
-		nc.xz *= 1.2*(exp(nc.y*.5+0.5));
-		nc.xz += 
-		noiseStackUV(nc, 1, .2, 1.).xz*.01;
+		vec3 nc = tc*3.5;
+		nc.y+=.3;
+		nc.xz *= clamp((exp(nc.y*.5+0.5)), .1, 3.);
+		nc.xz += snoise(nc + time*vec3(0., -2., 1.)) * smoothstep(0., 1., tc.y+.2)*5.;
 
 		vec3 snc = nc*nc;
-		float n = smoothstep(1., 0., pow(snc.x+snc.y+snc.z, 1.3));
-		n *= (snoise(nc*vec3(2., 3., 2.)*1.2+2.*time*vec3(1., -2., 1.))+3.28)*1.;
-		n -= 0.2;
+		float n = smoothstep(1., 0., pow(snc.x+snc.y+snc.z, 1.3))
+		* (snoise(nc*vec3(3.,5.,5.)*0.45 + 2.*time*vec3(.2, -2., .3)) + 1.15)
+		;
 
-		acc += n * dsl * 5.* clamp(length(r.o- p), 2., 1000.);
+		acc += n * dsl * 35.;
 	}
 
 	acc /= samples;
 
-	acc = 1.5*pow(acc, vec3(1., 2., 4.));
+	acc = 2.5*pow(acc, vec3(1., 2., 4.));
 
 	FRAG_COL = vec4(acc, length(acc));
 }
