@@ -1,5 +1,7 @@
 #include "window.hpp"
 
+#include "../../engine/engine.hpp"
+
 #include <stdexcept>
 
 #include <glad/glad.h>
@@ -35,6 +37,10 @@ Window::Window(std::string_view window_name, unsigned window_width, unsigned win
     toggle_vsync();
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) { throw std::runtime_error{"Could not initialize glad."}; }
+
+    glfwSetFramebufferSizeCallback(
+        glfw_window,
+        (GLFWframebuffersizefun)[](auto a, auto b, auto c) { eng::Engine::instance().window()->resize(b, c); });
 
     glViewport(0, 0, window_width, window_height);
 }

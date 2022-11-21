@@ -59,6 +59,9 @@ Shader::Shader(const std::string &file_name) : file_name{file_name} {
             }
 
             link_program(shader_handles);
+        } else if (present_shaders & (uint32_t)(COMPUTE)) {
+            link_program(
+                {compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".comp"), GL_COMPUTE_SHADER)});
         }
     } catch (std::runtime_error err) { std::cout << err.what() << "\n"; }
 }
@@ -91,7 +94,7 @@ void Shader::feed_uniforms(const ShaderStorage &data) {
 }
 
 void Shader::recompile() {
-    
+
     glFinish();
     glUseProgram(0);
     *this = Shader{file_name};

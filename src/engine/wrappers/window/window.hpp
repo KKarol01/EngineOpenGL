@@ -31,8 +31,14 @@ class Window {
     void close();
 
     bool should_close() const;
+
     inline auto glfwptr() const { return glfw_window; }
     inline auto title() const { return window_name; }
+    inline void resize(int w, int h) {
+        window_width  = w;
+        window_height = h;
+        adjust_glviewport();
+    }
     inline auto width() const { return window_height; }
     inline auto height() const { return window_width; }
     inline auto aspect() const { return (float)(window_width) / (float)(window_height); }
