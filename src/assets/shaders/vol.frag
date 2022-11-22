@@ -163,18 +163,19 @@ void ray_box(const in Ray r,
 			 const in vec3 bmax,
 			 out RayHitInfo info) 
 {
-	float tmin = 0.f, tmax = 1e20;
-
 	vec3 invdir = 1./r.d;
-	for(int i=0; i< 3; ++i) {
-		float t1 = (bmin[i] - r.o[i]) * invdir[i];
-		float t2 = (bmax[i] - r.o[i]) * invdir[i];
 
-		tmin = max(tmin, min(t1, t2));
-		tmax = min(tmax, max(t1, t2));
-	}
+    float tmin = 0.0, tmax = 1e20;
 
-	info.hit  = tmin < tmax;
+    for (int i = 0; i < 3; ++i) {
+        float t1 = (bmin[i] - r.o[i]) * invdir[i];
+        float t2 = (bmax[i] - r.o[i]) * invdir[i];
+
+        tmin = min(max(t1, tmin), max(t2, tmin));
+        tmax = max(min(t1, tmax), min(t2, tmax));
+    }
+
+	info.hit = tmin <= tmax;
 	info.tmin = tmin;
 	info.tmax = tmax;
 }
@@ -210,6 +211,14 @@ void main() {
 	vec3 a = r.o + info.tmin*r.d;
 	vec3 b = r.o + info.tmax*r.d;
 	vec3 acc = vec3(0.);
+	if(
+	(abs(a.x) > .95 || abs(a.z) > .95)
+	&& abs(a.y) > .95
+	) acc += 100.;
+	if(
+	(abs(b.x) > .95 || abs(b.z) > .95)
+	&& abs(b.y) > .95
+	) acc += 100.;
 	int samples = 7;
 	vec3 p = a;
 	vec3 ds = (b-a) / float(samples);
@@ -221,7 +230,7 @@ void main() {
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
 		float yatt =  smoothstep(1., .1,tc.y*.5+.5);
-		float xatt = smoothstep(1., 0.1, length(tc.xz + (1.-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.1)*3.);
+		float xatt = smoothstep(1., 0.1, length(tc.xz + (1.-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.05)*3.);
 		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 1.4);
@@ -230,14 +239,6 @@ void main() {
 
 	acc /= samples;
 
-	if(
-	(abs(a.x) > .95 || abs(a.z) > .95)
-	&& abs(a.y) > .95
-	) acc += 100.;
-	if(
-	(abs(b.x) > .95 || abs(b.z) > .95)
-	&& abs(b.y) > .95
-	) acc += 100.;
 
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
