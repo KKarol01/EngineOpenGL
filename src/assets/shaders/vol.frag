@@ -186,8 +186,8 @@ void main() {
 	vec4 cam_bmin = vec4(-1.f.xxx, 1.f);
 	vec4 cam_bmax = vec4(1.f.xxx, 1.f);
 	
-	cam_bmin = model * cam_bmin;
-	cam_bmax = model * cam_bmax;
+	cam_bmin = cam_bmin;
+	cam_bmax = cam_bmax;
 
 	Ray r;
 	RayHitInfo info;
@@ -197,9 +197,9 @@ void main() {
 
 	float cx = ppos.x * (1920./1080.)*tan(45./180.*3.14);
 	float cy = (ppos.y *tan(45./180.*3.14));
-	mat4 cam2world = inverse(view);
+	mat4 cam2world = model * inverse(view);
 	r.o = (cam2world * vec4(0.f.xxx, 1.)).xyz;
-	r.d = (cam2world*vec4(cx, cy, -1., 1.)).xyz ;
+	r.d = (cam2world * vec4(cx, cy, -1., 1.)).xyz ;
 	r.d = r.d - r.o;
 	r.d = normalize(r.d);
 
@@ -211,6 +211,7 @@ void main() {
 	vec3 a = r.o + info.tmin*r.d;
 	vec3 b = r.o + info.tmax*r.d;
 	vec3 acc = vec3(0.);
+
 	if(
 	(abs(a.x) > .95 || abs(a.z) > .95)
 	&& abs(a.y) > .95
@@ -219,6 +220,7 @@ void main() {
 	(abs(b.x) > .95 || abs(b.z) > .95)
 	&& abs(b.y) > .95
 	) acc += 100.;
+
 	int samples = 7;
 	vec3 p = a;
 	vec3 ds = (b-a) / float(samples);
