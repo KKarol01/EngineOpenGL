@@ -13,12 +13,15 @@
 #include "../renderer/typedefs.hpp"
 
 struct Model {
+    using texture_path_t = std::string;
+
     struct Mesh {
-        enum TEXTURE_IDX { DIFFUSE = 1, NORMAL = 2, METALNESS = 4, ROUGHNESS = 8, EMISSIVE = 16 };
+        enum TEXTURE_IDX { DIFFUSE, NORMAL, METALNESS, ROUGHNESS, EMISSIVE };
         static inline constexpr uint32_t MAX_TEXTURES = 5u;
 
         size_t vertex_offset, index_offset;
         size_t vertex_count, index_count;
+        size_t stride;
         uint32_t present_textures = 0;
         std::array<size_t, MAX_TEXTURES> textures;
     };
@@ -26,10 +29,10 @@ struct Model {
     std::vector<Mesh> meshes;
     std::vector<float> vertices;
     std::vector<unsigned> indices;
-    std::vector<std::string> textures;
+    std::vector<texture_path_t> textures;
 
   private:
-    uint32_t gid{0u};
+    static inline uint32_t gid{0u};
 };
 
 class ModelImporter {

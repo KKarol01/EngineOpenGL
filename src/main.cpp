@@ -42,6 +42,10 @@ int main() {
     glm::vec3 transform{0.f}, scale{1.f};
     glm::mat4 model{1.f};
 
+    Model katana = ModelImporter{}.import_model("3dmodels/katana/scene.gltf",
+                                                aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+
+
     engine.gui_->add_draw([&] {
         if (ImGui::Button("recompile shader")) { vol.recompile(); }
         if (ImGui::Button("recompile comp shader")) { volfill.recompile(); }
@@ -68,14 +72,6 @@ int main() {
     auto rectvao = re.create_vao(GLVaoDescriptor{
         {GLVaoBinding{0, rectvbo, 8, 0}}, GLVaoAttrSameFormat{2, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}}}, rectebo});
 
-    uint32_t tex;
-    glCreateTextures(GL_TEXTURE_3D, 1, &tex);
-    glTextureStorage3D(tex, 1, GL_R32F, 128, 128, 128);
-    glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(tex, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
@@ -84,13 +80,12 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-
-        //volfill.use();
-        //volfill.set("time", time);
-        //glBindImageTexture(0, tex, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
-        //glDispatchCompute(8, 8, 32);
-        //glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        //glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
+        // volfill.use();
+        // volfill.set("time", time);
+        // glBindImageTexture(0, tex, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
+        // glDispatchCompute(8, 8, 32);
+        // glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        // glBindImageTexture(0, 0, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
         //
 
         glEnable(GL_BLEND);
@@ -103,7 +98,6 @@ int main() {
         vol.set("cam_pos", cam.position());
         vol.set("model", model);
         re.get_vao(rectvao).bind();
-        glBindTextureUnit(0, tex);
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
         glDisable(GL_BLEND);
 

@@ -238,7 +238,7 @@ void main() {
 		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.05)*3.);
 		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
-		n = pow(n, 1.4);
+		n = pow(n, 1.);
 		acc += n * dsl * 8. * samples;
 	}
 
