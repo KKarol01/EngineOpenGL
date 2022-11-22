@@ -247,6 +247,9 @@ void main() {
 
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
+	vec4 fd = projection * view * vec4(0.f.xxx, 1.);
+	fd/=fd.w;
+	gl_FragDepth = fd.z;
 	FRAG_COL = vec4(acc, length(acc));
 }
 

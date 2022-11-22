@@ -21,20 +21,27 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
             Model::Mesh msh;
 
             msh.stride = 3;
+            if (nmsh->HasNormals()) msh.stride += 3;
+            if (nmsh->HasTangentsAndBitangents()) msh.stride += 6;
+            if (nmsh->HasTextureCoords(0)) msh.stride += 2;
+
+            msh.vertex_count  = nmsh->mNumVertices;
+            msh.vertex_offset = m.vertices.size() / msh.stride;
+            msh.index_offset  = m.indices.size();
+            msh.index_count   = nmsh->mNumFaces * 3;
+
             for (auto j = 0u; j < nmsh->mNumVertices; ++j) {
                 m.vertices.push_back(nmsh->mVertices[j].x);
                 m.vertices.push_back(nmsh->mVertices[j].y);
                 m.vertices.push_back(nmsh->mVertices[j].z);
 
                 if (nmsh->HasNormals()) {
-                    msh.stride += 3;
                     m.vertices.push_back(nmsh->mNormals[j].x);
                     m.vertices.push_back(nmsh->mNormals[j].y);
                     m.vertices.push_back(nmsh->mNormals[j].z);
                 }
 
                 if (nmsh->HasTangentsAndBitangents()) {
-                    msh.stride += 6;
                     m.vertices.push_back(nmsh->mTangents[j].x);
                     m.vertices.push_back(nmsh->mTangents[j].y);
                     m.vertices.push_back(nmsh->mTangents[j].z);
@@ -44,16 +51,10 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
                 }
 
                 if (nmsh->HasTextureCoords(0)) {
-                    msh.stride += 2;
                     m.vertices.push_back(nmsh->mTextureCoords[0][j].x);
                     m.vertices.push_back(nmsh->mTextureCoords[0][j].y);
                 }
             }
-
-            msh.vertex_count  = nmsh->mNumVertices;
-            msh.vertex_offset = m.vertices.size() / msh.stride;
-            msh.index_offset  = m.indices.size();
-            msh.index_count   = nmsh->mNumFaces * 3;
 
             for (auto j = 0u; j < nmsh->mNumFaces; ++j) {
                 const auto nf = nmsh->mFaces[j];
@@ -67,13 +68,20 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
 
                 const auto load_texture = [&](aiTextureType type, Model::Mesh::TEXTURE_IDX idx) {
                     if (nmat->GetTextureCount(type) == 0) return;
-                    aiString path;
-                    nmat->GetTexture(aiTextureType_DIFFUSE, 0, &path);
+                    aiString aipath;
+                    nmat->GetTexture(type, 0, &aipath);
 
-                    auto it      = std::find(m.textures.begin(), m.textures.end(), path.C_Str());
+                    auto it = std::find_if(
+                        m.textures.begin(), m.textures.end(), [p = aipath.C_Str()](auto &&e) { return e.path == p; });
                     auto itfound = it != m.textures.end();
 
-                    if (!itfound) { it = m.textures.insert(m.textures.end(), path.C_Str()); }
+                    if (!itfound) {
+                        auto txtpath = std::string{path.begin(), path.begin() + path.rfind("/") + 1};
+                        txtpath.append(aipath.C_Str());
+                        Model::Texture txt{txtpath, GL_LINEAR_MIPMAP_LINEAR, GL_CLAMP_TO_EDGE};
+                        txt.build2d();
+                        it = m.textures.emplace(m.textures.end(), std::move(txt));
+                    }
 
                     msh.present_textures |= (uint32_t)std::pow(2., (double)idx);
                     msh.textures[idx] = std::distance(m.textures.begin(), it);
@@ -95,4 +103,30 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
     if (scene) parse_node(scene, scene->mRootNode);
 
     return m;
+}
+
+Model::Texture::Texture(std::string_view path, uint32_t filter_minmag, uint32_t wrap_str) {
+    this->path = path.data();
+    filter_min = filter_mag = filter_minmag;
+    wrap_s = wrap_t = wrap_r = wrap_str;
+}
+
+void Model::Texture::build2d() {
+    auto data = stbi_load(path.data(), &width, &height, &channels, 0);
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+    glTextureStorage2D(handle, 4, GL_RGBA8, width, height);
+    glTextureSubImage2D(handle, 0, 0, 0, width, height, channels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter_min);
+    glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter_mag);
+    glTextureParameteri(handle, GL_TEXTURE_WRAP_S, wrap_s);
+    glTextureParameteri(handle, GL_TEXTURE_WRAP_T, wrap_t);
+    glGenerateTextureMipmap(handle);
+
+#ifdef USE_BINDLESS_TEXTURES
+    bindless_handle = glGetTextureHandleARB(handle);
+    glMakeTextureHandleResidentARB(bindless_handle);
+#endif // USE_BINDLESS_TEXTURES
+
+    stbi_image_free(data);
 }

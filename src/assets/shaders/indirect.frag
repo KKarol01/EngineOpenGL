@@ -10,6 +10,7 @@ in vec3 vn;
 in vec2 vtc;
 flat in int draw_id;
 in mat3 tbn;
+uniform float time;
 
 layout(std140, binding=2) uniform UserSettings {
     mat4 p, v, m;
@@ -68,7 +69,7 @@ vec4 pbrr() {
     vec4 albedo         = texture(sampler2D(handles[draw_id + 0]), vtc.xy).rgba;
 	vec3 normal         = texture(sampler2D(handles[draw_id + 1]), vtc.xy).rgb;
 	float metalicness   = texture(sampler2D(handles[draw_id + 2]), vtc.xy).r;
-	float roughness     = texture(sampler2D(handles[draw_id + 3]), vtc.xy).g;
+	float roughness     = texture(sampler2D(handles[draw_id + 2]), vtc.xy).g;
 
 
 	vec3 ldir = normalize(lpos.xyz - fragpos);
@@ -87,7 +88,7 @@ vec4 pbrr() {
         vec3 H = normalize(view_dir + L);
 
         float distance = length(lpos.xyz - fragpos);
-        vec3 radiance = lcol.xyz * attenuation;
+        vec3 radiance = lcol.xyz * attenuation * (sin(time*3.)*.5+.5);
 
         float NDF = DistributionGGX(normal, H, roughness);
         float G = GeometrySmith(normal, view_dir, L, roughness);
