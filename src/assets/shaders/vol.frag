@@ -140,6 +140,7 @@ vec3 noiseStackUV(vec3 pos,int octaves,float falloff,float diff){
 out vec4 FRAG_COL;
 in vec2 vpos;
 
+uniform mat4 model;
 uniform vec3 cam_view;
 uniform vec3 cam_pos;
 uniform float time;
@@ -164,9 +165,10 @@ void ray_box(const in Ray r,
 {
 	float tmin = 0.f, tmax = 1e20;
 
+	vec3 invdir = 1./r.d;
 	for(int i=0; i< 3; ++i) {
-		float t1 = (bmin[i] - r.o[i]) / r.d[i];
-		float t2 = (bmax[i] - r.o[i]) / r.d[i];
+		float t1 = (bmin[i] - r.o[i]) * invdir[i];
+		float t2 = (bmax[i] - r.o[i]) * invdir[i];
 
 		tmin = max(tmin, min(t1, t2));
 		tmax = min(tmax, max(t1, t2));
@@ -180,9 +182,12 @@ void ray_box(const in Ray r,
 layout(binding=0) uniform sampler3D tex;
 
 void main() {
-	vec4 cam_bmin = vec4(0.f.xxx, 1.f);
+	vec4 cam_bmin = vec4(-1.f.xxx, 1.f);
 	vec4 cam_bmax = vec4(1.f.xxx, 1.f);
 	
+	cam_bmin = model * cam_bmin;
+	cam_bmax = model * cam_bmax;
+
 	Ray r;
 	RayHitInfo info;
 
@@ -208,27 +213,33 @@ void main() {
 	int samples = 7;
 	vec3 p = a;
 	vec3 ds = (b-a) / float(samples);
-	float dsl = length(ds);
+	float dsl =length(ds);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
-		tc = tc*2.-1.;
-		
-		vec3 nc = tc*3.5;
-		nc.y+=.3;
-		nc.xz *= clamp((exp(nc.y*.5+0.5)), .1, 3.);
-		nc.xz += snoise(nc + time*vec3(0., -2., 1.)) * smoothstep(0., 1., tc.y+.2)*5.;
 
-		vec3 snc = nc*nc;
-		float n = smoothstep(1., 0., pow(snc.x+snc.y+snc.z, 1.3))
-		* (snoise(nc*vec3(3.,5.,5.)*0.45 + 2.*time*vec3(.2, -2., .3)) + 1.15)
-		;
-
-		acc += n * dsl * 35.;
+		vec3 nc = tc*2.;
+		vec3 nc2 = nc*nc;
+		float lnc2 = nc2.x+nc2.y+nc2.z;
+		float yatt =  smoothstep(1., .1,tc.y*.5+.5);
+		float xatt = smoothstep(1., 0.1, length(tc.xz + (1.-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.1)*3.);
+		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
+		n*= yatt * xatt;
+		n = pow(n, 1.4);
+		acc += n * dsl * 61.;
 	}
 
 	acc /= samples;
 
-	acc = 2.5*pow(acc, vec3(1., 2., 4.));
+	if(
+	(abs(a.x) > .95 || abs(a.z) > .95)
+	&& abs(a.y) > .95
+	) acc += 100.;
+	if(
+	(abs(b.x) > .95 || abs(b.z) > .95)
+	&& abs(b.y) > .95
+	) acc += 100.;
+
+	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
 	FRAG_COL = vec4(acc, length(acc));
 }

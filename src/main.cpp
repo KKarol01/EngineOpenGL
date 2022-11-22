@@ -39,9 +39,17 @@ int main() {
     glm::vec3 cc{0.4f};
     Shader vol{"vol"};
     Shader volfill{"volfill"};
+    glm::vec3 transform{0.f}, scale{1.f};
+    glm::mat4 model{1.f};
+
     engine.gui_->add_draw([&] {
         if (ImGui::Button("recompile shader")) { vol.recompile(); }
         if (ImGui::Button("recompile comp shader")) { volfill.recompile(); }
+
+        ImGui::SliderFloat3("t", &transform.x, -5.f, 5.f);
+        ImGui::SliderFloat3("s", &scale.x, 0.01f, 5.f);
+        model = glm::translate(glm::scale(glm::mat4{1.f}, scale), transform);
+
         ImGui::ColorEdit3("background color", &cc.x);
     });
 
@@ -93,6 +101,7 @@ int main() {
         vol.set("view", cam.view_matrix());
         vol.set("cam_view", cam.forward_vec());
         vol.set("cam_pos", cam.position());
+        vol.set("model", model);
         re.get_vao(rectvao).bind();
         glBindTextureUnit(0, tex);
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
