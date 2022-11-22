@@ -196,13 +196,11 @@ void main() {
 	RayHitInfo info;
 
 
-	vec2 ppos = vpos;
+	vec2 ppos = (inverse(projection) * vec4( vpos, -1., 1.)).xy;
 
-	float cx = ppos.x * (1920./1080.)*tan(45./180.*3.14);
-	float cy = (ppos.y *tan(45./180.*3.14));
 	mat4 cam2world = model * inverse(view);
 	r.o = (cam2world * vec4(0.f.xxx, 1.)).xyz;
-	r.d = (cam2world * vec4(cx, cy, -1., 1.)).xyz ;
+	r.d = (cam2world * vec4(ppos, -1., 1.)).xyz ;
 	r.d = r.d - r.o;
 	r.d = normalize(r.d);
 
