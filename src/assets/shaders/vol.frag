@@ -182,6 +182,9 @@ void ray_box(const in Ray r,
 
 layout(binding=0) uniform sampler3D tex;
 
+
+
+
 void main() {
 	vec4 cam_bmin = vec4(-1.f.xxx, 1.f);
 	vec4 cam_bmax = vec4(1.f.xxx, 1.f);
@@ -221,9 +224,9 @@ void main() {
 	&& abs(b.y) > .95
 	) acc += 100.;
 
-	int samples = 7;
+	int samples = 5; // with 11 it look quite when looking through corners
 	vec3 p = a;
-	vec3 ds = (b-a) / float(samples);
+	vec3 ds = 0.6*(b-a) / float(samples); //0.6 makes it look almost as good as more samples
 	float dsl =length(ds);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
@@ -232,11 +235,11 @@ void main() {
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
 		float yatt =  smoothstep(1., .1,tc.y*.5+.5);
-		float xatt = smoothstep(1., 0.1, length(tc.xz + (1.-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.05)*3.);
+		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.05)*3.);
 		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 1.4);
-		acc += n * dsl * 61.;
+		acc += n * dsl * 8. * samples;
 	}
 
 	acc /= samples;
