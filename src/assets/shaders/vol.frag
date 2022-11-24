@@ -214,13 +214,12 @@ void main() {
 		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
-		float yatt =  smoothstep(.6, .1, tc.y*.5+.5) + snoise(tc*3.1+time*vec3(1., -5., 1.))*.46;
-		float xatt = smoothstep(1., 0.5, length(tc.xz + (1.2-yatt)*snoise(tc+time*vec3(0., -2., 0.))*.13)*3.3);
-		
-		float n = smoothstep(.8 + snoise(nc*vec3(1., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
+		float yatt = .4;
+		float xatt = smoothstep(1., 0.1, length(nc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -2., 0.))*.13)*1.);
+		float n = smoothstep(.8 + snoise(nc*vec3(1., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0.1, lnc2);
 		n*= yatt * xatt;
-		n = pow(n, 1.);
-		acc += n * dsl * 8. * samples;
+		n = pow(n, 2.);
+		acc += n * dsl * 18. * samples;
 
 	}
 	acc /= samples;
