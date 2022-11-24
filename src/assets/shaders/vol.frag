@@ -184,9 +184,6 @@ void ray_box(const in Ray r,
 
 layout(binding=0) uniform sampler3D tex;
 
-
-
-
 void main() {
 	vec4 bmin = vec4(-1.f.xxx, 1.f);
 	vec4 bmax = vec4(1.f.xxx, 1.f);
@@ -202,8 +199,7 @@ void main() {
 	ray_box(r, bmin.xyz, bmax.xyz, info); //Tavian Barnes 
 									//branchless ray/bb intersection alg.
 
-	FRAG_COL = vec4(0.2);
-	if(!info.hit) {return;}
+	if(!info.hit) {discard;}
 	vec3 a = r.o + info.tmin*r.d;
 	vec3 b = r.o + info.tmax*r.d;
 
@@ -218,9 +214,10 @@ void main() {
 		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
-		float yatt =  smoothstep(1., .1, tc.y*.5+.5);
-		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.03)*3.);
-		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
+		float yatt =  smoothstep(.6, .1, tc.y*.5+.5) + snoise(tc*3.1+time*vec3(1., -5., 1.))*.46;
+		float xatt = smoothstep(1., 0.5, length(tc.xz + (1.2-yatt)*snoise(tc+time*vec3(0., -2., 0.))*.13)*3.3);
+		
+		float n = smoothstep(.8 + snoise(nc*vec3(1., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 1.);
 		acc += n * dsl * 8. * samples;
@@ -228,5 +225,5 @@ void main() {
 	}
 	acc /= samples;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
-	FRAG_COL += vec4(acc, acc.x);
+	FRAG_COL = vec4(acc, acc.x);
 }
