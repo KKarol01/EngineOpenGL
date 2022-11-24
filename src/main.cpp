@@ -34,7 +34,6 @@ int main() {
     auto &re          = *engine.renderer_.get();
     Camera cam;
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
 
     glm::vec3 cc{0.4f};
     Shader pbr{"indirect"};
@@ -131,6 +130,20 @@ int main() {
         rebo.push_data(inds, sizeof(inds));
     }
 
+    /*
+        f = cam_forward
+        p = cam_pos
+        n = vec3(0,0,1)
+        u = vec3(0,1,0)
+
+        axis = normalize(cross(-p, n))
+        angle= acos(dot(-p, n))
+        quat = angleaxis(angle, axis)
+
+    */
+
+    auto orthoproj = glm::ortho(-100.f, 100.f, -100.f, 100.f, 0.01f, 100.f);
+
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
@@ -139,32 +152,43 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
         pbr.use();
         pbr.set("time", (float)glfwGetTime());
+        pbr_ubo.set("p", cam.perspective_matrix());
+        pbr_ubo.set("v", cam.view_matrix());
+        pbr_ubo.set("cam_dir", cam.forward_vec());
+        pbr_ubo.set("cam_pos", cam.position());
         pbr_ubo.bind(2);
         re.get_vao(kv).bind();
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, re.get_buffer(kc).descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, re.get_buffer(kt).descriptor.handle);
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 1, 0);
 
+        auto n       = glm::vec3{0, 0, 1};
+        auto f       = cam.forward_vec();
+        glm::vec3 yc = glm::normalize(cam.position());
+        auto r       = glm::cross(cam.up, yc);
+        auto u       = glm::cross(yc, r);
+        glm::mat4 rotmat{1.f};
+        rotmat[0] = glm::vec4{r, 0.f};
+        rotmat[1] = glm::vec4{u, 0.f};
+        rotmat[2] = glm::vec4{yc, 0.f};
+        
+
+
+            glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         vol.use();
+        vol.set("ortho", orthoproj);
         vol.set("projection", cam.perspective_matrix());
         vol.set("time", time);
         vol.set("view", cam.view_matrix());
         vol.set("cam_view", cam.forward_vec());
         vol.set("cam_pos", cam.position());
         vol.set("model", model);
+        vol.set("rotmat", rotmat);
         re.get_vao(rectvao).bind();
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
-
-        pbr_ubo.set("p", cam.perspective_matrix());
-        pbr_ubo.set("v", cam.view_matrix());
-        pbr_ubo.set("cam_dir", cam.forward_vec());
-        pbr_ubo.set("cam_pos", cam.position());
-
         glDisable(GL_BLEND);
 
         eng::Engine::instance().gui_->draw();

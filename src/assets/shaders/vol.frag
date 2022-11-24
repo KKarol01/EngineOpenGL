@@ -141,6 +141,7 @@ out vec4 FRAG_COL;
 in vec2 vpos;
 
 uniform mat4 model;
+uniform mat4 ortho;
 uniform vec3 cam_view;
 uniform vec3 cam_pos;
 uniform float time;
@@ -186,69 +187,60 @@ layout(binding=0) uniform sampler3D tex;
 
 
 void main() {
-	vec4 cam_bmin = vec4(-1.f.xxx, 1.f);
-	vec4 cam_bmax = vec4(1.f.xxx, 1.f);
-	
-	cam_bmin = cam_bmin;
-	cam_bmax = cam_bmax;
-
-	Ray r;
+	//aabb of box in world space
+	vec4 bmin = vec4(-1.f.xxx, 1.f);
+	vec4 bmax = vec4(1.f.xxx, 1.f);
+	Ray r; //struct {vec3 r,d; float tmin, tmax; bool hit;}
 	RayHitInfo info;
+	//			vpos is fullscreen rect with coords in NDC [-1, 1]
+	vec4 rd = vec4(vpos, -1., 1.);
+	rd = inverse(projection) * rd;
+	rd/=rd.w;
+	rd = inverse(mat4(mat3(view))) * rd;
+	r.o = normalize(cam_pos)*1.;
+	r.d = normalize(rd.xyz );
 
+	ray_box(r, bmin.xyz, bmax.xyz, info); //Tavian Barnes 
+									//branchless ray/bb intersection alg.
 
-	vec2 ppos = (inverse(projection) * vec4( vpos, -1., 1.)).xy;
+	if(!info.hit) {return;}
 
-	mat4 cam2world = model * inverse(view);
-	r.o = (cam2world * vec4(0.f.xxx, 1.)).xyz;
-	r.d = (cam2world * vec4(ppos, -1., 1.)).xyz ;
-	r.d = r.d - r.o;
-	r.d = normalize(r.d);
+	vec3 a = r.o + info.tmin*r.d; //box enter ray pos
+	vec3 b = r.o + info.tmax*r.d; //box exit ray pos
 
-
-	ray_box(r, cam_bmin.xyz, cam_bmax.xyz, info);
-	if(!info.hit) {discard;}
-
-
-	vec3 a = r.o + info.tmin*r.d;
-	vec3 b = r.o + info.tmax*r.d;
+	a = (vec4(a, 1.)).xyz;
+	b = (vec4(b, 1.)).xyz;
 	vec3 acc = vec3(0.);
+//	if(
+//	(abs(a.x) > .95 || abs(a.z) > .95)
+//	&& abs(a.y) > .95
+//	) acc += 100.;
+//	if(
+//	(abs(b.x) > .95 || abs(b.z) > .95)
+//	&& abs(b.y) > .95
+//	) acc += 100.;
 
-	if(
-	(abs(a.x) > .95 || abs(a.z) > .95)
-	&& abs(a.y) > .95
-	) acc += 100.;
-	if(
-	(abs(b.x) > .95 || abs(b.z) > .95)
-	&& abs(b.y) > .95
-	) acc += 100.;
-
-	int samples = 5; // with 11 it look quite when looking through corners
-	vec3 p = a;
+	int samples = 5; // with 11 it looks quite good when looking through the corners
 	vec3 ds = 0.6*(b-a) / float(samples); //0.6 makes it look almost as good as more samples
 	float dsl =length(ds);
+
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
-		vec3 nc = tc*2.;
+		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
 		float yatt =  smoothstep(1., .1,tc.y*.5+.5);
-		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.05)*3.);
+		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.03)*3.);
 		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 1.);
 		acc += n * dsl * 8. * samples;
+
 	}
-
 	acc /= samples;
-
-
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
-
-	vec4 fd = projection * view * vec4(0.f.xxx, 1.);
-	fd/=fd.w;
-	gl_FragDepth = fd.z;
-	FRAG_COL = vec4(acc, length(acc));
+	FRAG_COL = vec4(acc, acc.x);
 }
 
 /*

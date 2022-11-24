@@ -33,6 +33,7 @@ class Camera {
     glm::mat4 view_matrix() const;
     glm::mat4 perspective_matrix() const { return projection; };
     glm::vec3 forward_vec() const { return glm::normalize(m_position + look_forward); }
+    glm::vec3 right_vec() const { return glm::normalize(glm::cross(forward_vec(), up)); }
     glm::vec3 position() const { return m_position; }
     glm::vec3 &position() { return m_position; }
 };
