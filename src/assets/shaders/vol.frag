@@ -141,6 +141,7 @@ out vec4 FRAG_COL;
 in vec2 vpos;
 
 uniform mat4 model;
+uniform mat4 rotmat;
 uniform mat4 ortho;
 uniform vec3 cam_view;
 uniform vec3 cam_pos;
@@ -187,50 +188,37 @@ layout(binding=0) uniform sampler3D tex;
 
 
 void main() {
-	//aabb of box in world space
 	vec4 bmin = vec4(-1.f.xxx, 1.f);
 	vec4 bmax = vec4(1.f.xxx, 1.f);
-	Ray r; //struct {vec3 r,d; float tmin, tmax; bool hit;}
+	Ray r;
 	RayHitInfo info;
-	//			vpos is fullscreen rect with coords in NDC [-1, 1]
 	vec4 rd = vec4(vpos, -1., 1.);
 	rd = inverse(projection) * rd;
 	rd/=rd.w;
-	rd = inverse(mat4(mat3(view))) * rd;
-	r.o = normalize(cam_pos)*1.;
-	r.d = normalize(rd.xyz );
+	rd = rotmat * rd;
+	r.o = normalize(cam_pos)*2.;
+	r.d = normalize(rd.xyz);
 
 	ray_box(r, bmin.xyz, bmax.xyz, info); //Tavian Barnes 
 									//branchless ray/bb intersection alg.
 
+	FRAG_COL = vec4(0.2);
 	if(!info.hit) {return;}
+	vec3 a = r.o + info.tmin*r.d;
+	vec3 b = r.o + info.tmax*r.d;
 
-	vec3 a = r.o + info.tmin*r.d; //box enter ray pos
-	vec3 b = r.o + info.tmax*r.d; //box exit ray pos
 
-	a = (vec4(a, 1.)).xyz;
-	b = (vec4(b, 1.)).xyz;
-	vec3 acc = vec3(0.);
-//	if(
-//	(abs(a.x) > .95 || abs(a.z) > .95)
-//	&& abs(a.y) > .95
-//	) acc += 100.;
-//	if(
-//	(abs(b.x) > .95 || abs(b.z) > .95)
-//	&& abs(b.y) > .95
-//	) acc += 100.;
-
-	int samples = 5; // with 11 it looks quite good when looking through the corners
-	vec3 ds = 0.6*(b-a) / float(samples); //0.6 makes it look almost as good as more samples
+	int samples = 5;
+	vec3 ds = 0.6*(b-a) / float(samples);
 	float dsl =length(ds);
-
+	vec3 acc = vec3(0.);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
 		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
-		float yatt =  smoothstep(1., .1,tc.y*.5+.5);
+		float yatt =  smoothstep(1., .1, tc.y*.5+.5);
 		float xatt = smoothstep(1., 0.05, length(tc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -1., 0.))*.03)*3.);
 		float n = smoothstep(.8 + snoise(nc*vec3(3., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0., lnc2);
 		n*= yatt * xatt;
@@ -240,38 +228,5 @@ void main() {
 	}
 	acc /= samples;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
-	FRAG_COL = vec4(acc, acc.x);
+	FRAG_COL += vec4(acc, acc.x);
 }
-
-/*
-		float xpart = tc.x;
-		float ypart = tc.y;
-		//
-		float clip = 210.0;
-		float ypartClip = tc.y/clip;
-		float ypartClippedFalloff = clamp(2.0-ypartClip,0.0,1.0);
-		float ypartClipped = min(ypartClip,1.0);
-		float ypartClippedn = 1.0-ypartClipped;
-		//
-		float xfuel =.7; 1.0-abs(2.0*xpart-1.0);//pow(1.0-abs(2.0*xpart-1.0),0.5);
-		//
-		float timeSpeed = 0.5;
-		float realTime = timeSpeed*time;
-		//
-		vec3 coordScaled = 0.01*tc;
-		vec3 position = vec3(coordScaled) + vec3(1223.0,6434.0,8425.0);
-		vec3 flow = vec3(4.1*(0.5-xpart)*pow(ypartClippedn,4.0),-2.0*xfuel*pow(ypartClippedn,64.0),0.0);
-		vec3 timing = realTime*vec3(0.0,1.7,1.1) + flow;
-		//
-		vec3 displacePos = vec3(1.0,0.5,1.0)*2.4*position+realTime*vec3(0.01,-0.7,1.3);
-		vec3 displace3 = vec3(noiseStackUV(displacePos,2,0.4,0.1));
-		//
-		vec3 noiseCoord = (vec3(2.0,1.0,1.0)*position+timing+0.4*displace3)/1.0;
-		float noise = noiseStack(noiseCoord,3,0.4);
-		//
-		float flames = pow(ypartClipped,0.3*xfuel)*pow(noise,0.3*xfuel);
-		//
-		float f = ypartClippedFalloff*pow(1.0-flames*flames*flames,8.0);
-		float fff = f*f*f;
-		vec3 fire = 1.5*vec3(f, fff, fff*fff);
-*/

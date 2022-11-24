@@ -167,8 +167,8 @@ int main() {
         auto n       = glm::vec3{0, 0, 1};
         auto f       = cam.forward_vec();
         glm::vec3 yc = glm::normalize(cam.position());
-        auto r       = glm::cross(cam.up, yc);
-        auto u       = glm::cross(yc, r);
+        auto r       = glm::normalize(glm::cross(cam.up, yc));
+        auto u       = glm::normalize(glm::cross(yc, r));
         glm::mat4 rotmat{1.f};
         rotmat[0] = glm::vec4{r, 0.f};
         rotmat[1] = glm::vec4{u, 0.f};
