@@ -58,9 +58,9 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
 
             for (auto j = 0u; j < nmsh->mNumFaces; ++j) {
                 const auto nf = nmsh->mFaces[j];
-                m.indices.push_back(nf.mIndices[0] + msh.vertex_offset);
-                m.indices.push_back(nf.mIndices[1] + msh.vertex_offset);
-                m.indices.push_back(nf.mIndices[2] + msh.vertex_offset);
+                m.indices.push_back(nf.mIndices[0]);
+                m.indices.push_back(nf.mIndices[1]);
+                m.indices.push_back(nf.mIndices[2]);
             }
 
             auto nmat = scene->mMaterials[nmsh->mMaterialIndex];
@@ -70,14 +70,15 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
                     if (nmat->GetTextureCount(type) == 0) return;
                     aiString aipath;
                     nmat->GetTexture(type, 0, &aipath);
+                    auto txtpath = std::string{path.begin(), path.begin() + path.rfind("/") + 1};
+                    txtpath.append(aipath.C_Str());
 
-                    auto it = std::find_if(
-                        m.textures.begin(), m.textures.end(), [p = aipath.C_Str()](auto &&e) { return e.path == p; });
+                    auto it      = std::find_if(m.textures.begin(),
+                                           m.textures.end(),
+                                           [&txtpath](auto &&e) { return e.path == txtpath; });
                     auto itfound = it != m.textures.end();
 
                     if (!itfound) {
-                        auto txtpath = std::string{path.begin(), path.begin() + path.rfind("/") + 1};
-                        txtpath.append(aipath.C_Str());
                         Model::Texture txt{txtpath, GL_LINEAR_MIPMAP_LINEAR, GL_CLAMP_TO_EDGE};
                         txt.build2d();
                         it = m.textures.emplace(m.textures.end(), std::move(txt));

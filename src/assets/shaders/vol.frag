@@ -205,24 +205,24 @@ void main() {
 
 
 	int samples = 5;
-	vec3 ds = 0.6*(b-a) / float(samples);
+	vec3 ds = 0.65*(b-a) / float(samples);
 	float dsl =length(ds);
 	vec3 acc = vec3(0.);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
-		vec3 nc = tc*1.2;
+		vec3 nc = tc*1.5;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
-		float yatt = .4;
-		float xatt = smoothstep(1., 0.1, length(nc.xz + (1.2-yatt)*snoise(nc+time*vec3(0., -2., 0.))*.13)*1.);
-		float n = smoothstep(.8 + snoise(nc*vec3(1., 5., 3.)*(1.-yatt)+time*vec3(1., -4., 0.2))*.07, 0.1, lnc2);
+		float yatt = snoise(nc*1.9+time*vec3(0., -3., 0.))*.2+.5;
+		float xatt = smoothstep(1., 0.1, length(nc.xz*.2 + (.7-yatt)*snoise(nc+time*vec3(0., -2., 0.))*.13));
+		float n = smoothstep(.8 + snoise(nc*3.*vec3(1., 8., 3.)*(.7-yatt)+time*vec3(1., -6., 0.2))*.07, 0.1, lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 2.);
-		acc += n * dsl * 18. * samples;
+		acc += n * dsl * 9. * samples;
 
 	}
-	acc /= samples;
-	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
+	acc /= samples*1.3;
+	acc = 1.5*pow(acc, vec3(1.2, 2., 4.));	
 	FRAG_COL = vec4(acc, acc.x);
 }

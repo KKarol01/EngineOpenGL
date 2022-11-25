@@ -42,7 +42,7 @@ int main() {
     glm::vec3 transform{0.f}, scale{1.f};
     glm::mat4 model{1.f};
 
-    Model katana = ModelImporter{}.import_model("3dmodels/katana/scene.gltf",
+    Model katana = ModelImporter{}.import_model("3dmodels/torch/scene.gltf",
                                                 aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
 
     typedef struct {
@@ -77,8 +77,13 @@ int main() {
         re.get_buffer(kt).push_data(bindless_handles.data(), bindless_handles.size() * sizeof(size_t));
 
         std::vector<DrawElementsIndirectCommand> katana_commands;
-        const auto &k = katana.meshes[0];
-        katana_commands.emplace_back(k.index_count, 1, k.index_offset, k.vertex_offset, 0);
+
+        auto boff{0u}, ioff{0u};
+        for (auto i = 0; i < katana.meshes.size(); ++i) {
+            const auto &k = katana.meshes[i];
+            katana_commands.emplace_back(k.index_count, 1, k.index_offset, k.vertex_offset, 0);
+            //zle offsety sa liczone
+        }
 
         re.get_buffer(kc).push_data(katana_commands.data(),
                                     sizeof(DrawElementsIndirectCommand) * katana_commands.size());
@@ -162,7 +167,7 @@ int main() {
         re.get_vao(kv).bind();
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, re.get_buffer(kc).descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, re.get_buffer(kt).descriptor.handle);
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 1, 0);
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 2, 0);
 
         auto n       = glm::vec3{0, 0, 1};
         auto f       = cam.forward_vec();
@@ -173,10 +178,8 @@ int main() {
         rotmat[0] = glm::vec4{r, 0.f};
         rotmat[1] = glm::vec4{u, 0.f};
         rotmat[2] = glm::vec4{yc, 0.f};
-        
 
-
-            glEnable(GL_BLEND);
+        glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         vol.use();
         vol.set("ortho", orthoproj);

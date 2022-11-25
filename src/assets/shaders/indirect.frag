@@ -66,10 +66,10 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 }
 
 vec4 pbrr() {
-    vec4 albedo         = texture(sampler2D(handles[draw_id + 0]), vtc.xy).rgba;
-	vec3 normal         = texture(sampler2D(handles[draw_id + 1]), vtc.xy).rgb;
-	float metalicness   = texture(sampler2D(handles[draw_id + 2]), vtc.xy).r;
-	float roughness     = texture(sampler2D(handles[draw_id + 2]), vtc.xy).g;
+    vec4 albedo         = texture(sampler2D(handles[ 0]), vtc.xy).rgba;
+	vec3 normal         = texture(sampler2D(handles[ 1]), vtc.xy).rgb;
+	float metalicness   = texture(sampler2D(handles[ 2]), vtc.xy).r;
+	float roughness     = texture(sampler2D(handles[ 2]), vtc.xy).g;
 
 
 	vec3 ldir = normalize(lpos.xyz - fragpos);
@@ -115,6 +115,7 @@ vec4 pbrr() {
 }
 
 void main() {
+
 	if(use_pbr==1) FRAG_COLOR = pbrr();
     else {
         vec4 albedo =0.f.xxxx;// texture(sampler2D(handles[0]), vtc.xy).rgba;
