@@ -199,7 +199,8 @@ void main() {
 	ray_box(r, bmin.xyz, bmax.xyz, info); //Tavian Barnes 
 									//branchless ray/bb intersection alg.
 
-	if(!info.hit) {discard;}
+									FRAG_COL = vec4(.2);
+	if(!info.hit) {return;}
 	vec3 a = r.o + info.tmin*r.d;
 	vec3 b = r.o + info.tmax*r.d;
 
@@ -207,16 +208,16 @@ void main() {
 	int samples = 5;
 	vec3 ds = 0.65*(b-a) / float(samples);
 	float dsl =length(ds);
-	vec3 acc = vec3(0.);
+	vec3 acc = vec3(1.);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
-		vec3 nc = tc*1.5;
+		vec3 nc = tc*0.005;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
 		float yatt = snoise(nc*1.9+time*vec3(0., -3., 0.))*.2+.5;
 		float xatt = smoothstep(1., 0.1, length(nc.xz*.2 + (.7-yatt)*snoise(nc+time*vec3(0., -2., 0.))*.13));
-		float n = smoothstep(.8 + snoise(nc*3.*vec3(1., 8., 3.)*(.7-yatt)+time*vec3(1., -6., 0.2))*.07, 0.1, lnc2);
+		float n = smoothstep(.8 + snoise(nc*1.*vec3(10., 15., 10.)*(.7-yatt)+time*vec3(1., -6., 0.2))*.17, 0.1, lnc2);
 		n*= yatt * xatt;
 		n = pow(n, 2.);
 		acc += n * dsl * 9. * samples;
@@ -224,5 +225,5 @@ void main() {
 	}
 	acc /= samples*1.3;
 	acc = 1.5*pow(acc, vec3(1.2, 2., 4.));	
-	FRAG_COL = vec4(acc, acc.x);
+	FRAG_COL += vec4(acc, acc.x);
 }

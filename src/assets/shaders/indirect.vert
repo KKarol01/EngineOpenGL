@@ -20,9 +20,12 @@ layout(std140, binding=2) uniform UserSettings {
     float attenuation;
     int use_pbr;
 };
+layout(std430, binding=1) buffer ModelMats {
+    mat4 models[];
+};
 
 void main() {
-	vec4 wpos = m * vec4(pos.xyz + vec3(0.f, 0.f, 3.f)*gl_InstanceID, 1.f);
+	vec4 wpos = models[gl_DrawID/2] * vec4(pos.xyz + vec3(0.f, 0.f, 3.f)*gl_InstanceID, 1.f);
 
 	fragpos = wpos.xyz;
 	vn = n;

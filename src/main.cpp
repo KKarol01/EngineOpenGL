@@ -42,8 +42,12 @@ int main() {
     glm::vec3 transform{0.f}, scale{1.f};
     glm::mat4 model{1.f};
 
-    Model katana = ModelImporter{}.import_model("3dmodels/torch/scene.gltf",
+    glm::mat4 katanamat{1.f}, holdermat{1.f};
+
+    Model katana  = ModelImporter{}.import_model("3dmodels/torch/scene.gltf",
                                                 aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    Model katana2 = ModelImporter{}.import_model(
+        "3dmodels/katana/scene.gltf", aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
 
     typedef struct {
         uint32_t count;
@@ -55,6 +59,8 @@ int main() {
 
     auto kc = re.create_buffer({GL_DYNAMIC_STORAGE_BIT});
     auto kt = re.create_buffer({GL_DYNAMIC_STORAGE_BIT});
+    auto km = re.create_buffer(
+        {GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT});
     VaoID kv;
     {
         auto kb = re.create_buffer({GL_DYNAMIC_STORAGE_BIT});
@@ -62,8 +68,10 @@ int main() {
 
         re.get_buffer(kb).push_data(katana.vertices.data(), katana.vertices.size() * 4);
         re.get_buffer(ke).push_data(katana.indices.data(), katana.indices.size() * 4);
+        re.get_buffer(kb).push_data(katana2.vertices.data(), katana2.vertices.size() * 4);
+        re.get_buffer(ke).push_data(katana2.indices.data(), katana2.indices.size() * 4);
 
-        kv = re.create_vao(GLVaoDescriptor{{GLVaoBinding{0, kb, katana.meshes[0].stride * 4, 0}},
+        kv = re.create_vao(GLVaoDescriptor{{GLVaoBinding{0, kb, 14 * 4, 0}},
                                            GLVaoAttrSameType{GL_FLOAT,
                                                              4,
                                                              {ATTRSAMETYPE{0, 0, 3},
@@ -73,7 +81,20 @@ int main() {
                                                               ATTRSAMETYPE{4, 0, 2}}},
                                            ke});
         std::vector<size_t> bindless_handles;
-        for (auto &t : katana.textures) { bindless_handles.push_back(t.bindless_handle); }
+
+        for (auto &t : katana.meshes) {
+            bindless_handles.push_back(katana.textures[t.textures[t.DIFFUSE]].bindless_handle);
+            bindless_handles.push_back(katana.textures[t.textures[t.NORMAL]].bindless_handle);
+            bindless_handles.push_back(katana.textures[t.textures[t.METALNESS]].bindless_handle);
+            bindless_handles.push_back(katana.textures[t.textures[t.ROUGHNESS]].bindless_handle);
+        }
+        for (auto &t : katana2.meshes) {
+            bindless_handles.push_back(katana2.textures[t.textures[t.DIFFUSE]].bindless_handle);
+            bindless_handles.push_back(katana2.textures[t.textures[t.NORMAL]].bindless_handle);
+            bindless_handles.push_back(katana2.textures[t.textures[t.METALNESS]].bindless_handle);
+            bindless_handles.push_back(katana2.textures[t.textures[t.ROUGHNESS]].bindless_handle);
+        }
+
         re.get_buffer(kt).push_data(bindless_handles.data(), bindless_handles.size() * sizeof(size_t));
 
         std::vector<DrawElementsIndirectCommand> katana_commands;
@@ -82,7 +103,14 @@ int main() {
         for (auto i = 0; i < katana.meshes.size(); ++i) {
             const auto &k = katana.meshes[i];
             katana_commands.emplace_back(k.index_count, 1, k.index_offset, k.vertex_offset, 0);
-            //zle offsety sa liczone
+            // zle offsety sa liczone
+            boff += k.vertex_count;
+            ioff += k.index_count;
+        }
+        for (auto i = 0; i < katana2.meshes.size(); ++i) {
+            const auto &k = katana2.meshes[i];
+            katana_commands.emplace_back(k.index_count, 1, ioff + k.index_offset, boff + k.vertex_offset, 0);
+            // zle offsety sa liczone
         }
 
         re.get_buffer(kc).push_data(katana_commands.data(),
@@ -100,7 +128,9 @@ int main() {
         {"use_pbr", 1},
     }};
 
-    glm::vec3 katana_translate{0.f}, katana_scale{1.f};
+    re.get_buffer(km).push_data(0, 64 * 2);
+    auto kmptr = glMapNamedBufferRange(
+        re.get_buffer(km).descriptor.handle, 0, 128, GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
 
     engine.gui_->add_draw([&] {
         if (ImGui::Button("recompile shader")) { vol.recompile(); }
@@ -113,13 +143,20 @@ int main() {
         ImGui::SliderFloat("attenuation", pbr_ubo.get<float>("attenuation"), .0f, 32.f);
         ImGui::SliderFloat3("light_pos", pbr_ubo.get<float>("lpos"), -.5, 5.f);
         ImGui::ColorPicker3("light_color", pbr_ubo.get<float>("lcol"));
-        ImGui::SliderFloat3("katana pos", &katana_translate.x, -.5, 5.f);
-        ImGui::SliderFloat("katana scale", &katana_scale.x, -.5, 5.f);
-        pbr_ubo.set("m", glm::translate(glm::scale(glm::mat4{1.f}, glm::vec3{katana_scale.x}), katana_translate));
+        ImGui::SliderFloat3("holder pos", &holdermat[3].x, -.5, 5.f);
+        ImGui::SliderFloat("holder scale", &holdermat[0].x, -5., 5.f);
+        ImGui::SliderFloat3("katana pos", &katanamat[3].x, -5., 5.f);
+        ImGui::SliderFloat("katana scale", &katanamat[0].x, -.5, 5.f);
+        katanamat[1].y = katanamat[0].x;
+        katanamat[2].z = katanamat[0].x;
+        holdermat[1].y = holdermat[0].x;
+        holdermat[2].z = holdermat[0].x;
+
+        memcpy(kmptr, &holdermat, 64);
+        memcpy((char *)kmptr + 64, &katanamat, 64);
 
         ImGui::ColorEdit3("background color", &cc.x);
     });
-
     auto rectvbo = re.create_buffer({0});
     auto rectebo = re.create_buffer({0});
     auto rectvao = re.create_vao(GLVaoDescriptor{
@@ -134,18 +171,6 @@ int main() {
         rvbo.push_data(verts, sizeof(verts));
         rebo.push_data(inds, sizeof(inds));
     }
-
-    /*
-        f = cam_forward
-        p = cam_pos
-        n = vec3(0,0,1)
-        u = vec3(0,1,0)
-
-        axis = normalize(cross(-p, n))
-        angle= acos(dot(-p, n))
-        quat = angleaxis(angle, axis)
-
-    */
 
     auto orthoproj = glm::ortho(-100.f, 100.f, -100.f, 100.f, 0.01f, 100.f);
 
@@ -167,7 +192,8 @@ int main() {
         re.get_vao(kv).bind();
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, re.get_buffer(kc).descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, re.get_buffer(kt).descriptor.handle);
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 2, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, re.get_buffer(km).descriptor.handle);
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 3, 0);
 
         auto n       = glm::vec3{0, 0, 1};
         auto f       = cam.forward_vec();
