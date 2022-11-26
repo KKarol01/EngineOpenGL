@@ -227,9 +227,9 @@ void main() {
 		acc += n * dsl * 6. * samples;
 
 		vec3 sc = nc;
-		sc.y*=.5;
-		sc.y-=.6;
-		smoke += 3.*smoothstep(1., 0., length(sc))*snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
+		sc.y*=.7;
+		sc.y-=.9;
+		smoke += 3.*smoothstep(0.7, 0., length(sc))*snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
 	}
 	acc /= samples*2.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
