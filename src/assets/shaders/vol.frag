@@ -224,7 +224,7 @@ void main() {
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
-		vec3 nc = tc*2.2;
+		vec3 nc = tc*2.6;
 		nc.y*=.7;
 		vec3 nc2 = nc * nc;
 		float nc2l = nc2.x + nc2.y + nc2.z;
@@ -246,7 +246,7 @@ void main() {
 		dist += 3.*smoothstep(0.7, 0., lsc*.3)*snoise((sc*1.3) + time*vec3(0., -1., 0.))*xatt*yatt;;
 
 	}
-	acc /= samples*2.3;
+	acc /= samples*1.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
 

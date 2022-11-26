@@ -175,6 +175,7 @@ int main() {
     engine.gui_->add_draw([&] {
         if (ImGui::Button("recompile shader")) { vol.recompile(); }
         if (ImGui::Button("recompile def shader")) { def.recompile(); }
+        if (ImGui::Button("recompile pbr shader")) { pbr.recompile(); }
 
         ImGui::SliderFloat3("t", &transform.x, -5.f, 5.f);
         ImGui::SliderFloat3("s", &scale.x, 0.01f, 5.f);
