@@ -38,7 +38,7 @@ int main() {
     glm::vec3 cc{0.4f};
     Shader pbr{"indirect"};
     Shader vol{"vol"};
-    Shader volfill{"volfill"};
+    Shader def{"default"};
     glm::vec3 transform{0.f}, scale{1.f};
     glm::mat4 model{1.f};
 
@@ -132,9 +132,47 @@ int main() {
     auto kmptr = glMapNamedBufferRange(
         re.get_buffer(km).descriptor.handle, 0, 128, GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
 
+    auto rectvbo = re.create_buffer({0});
+    auto rectebo = re.create_buffer({0});
+    auto rectvao = re.create_vao(GLVaoDescriptor{
+        {GLVaoBinding{0, rectvbo, 8, 0}}, GLVaoAttrSameFormat{2, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}}}, rectebo});
+    {
+        float verts[]{0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f};
+        unsigned inds[]{0, 1, 2, 3};
+
+        auto &rvbo = re.get_buffer(rectvbo);
+        auto &rebo = re.get_buffer(rectebo);
+
+        rvbo.push_data(verts, sizeof(verts));
+        rebo.push_data(inds, sizeof(inds));
+    }
+
+    GLuint flame_fbo, ee_fbo;
+    Texture flame_alb, flame_depth, flame_dist;
+    Texture ee_alb, ee_depth;
+    glCreateFramebuffers(1, &flame_fbo);
+    glCreateFramebuffers(1, &ee_fbo);
+
+    flame_alb.buildattachment(GL_RGBA8, 1920, 1080);
+    flame_dist.buildattachment(GL_RGBA16F, 1920, 1080);
+    flame_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
+    ee_alb.buildattachment(GL_RGBA8, 1920, 1080);
+    ee_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
+    glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT0, flame_alb.handle, 0);
+    glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT1, flame_dist.handle, 0);
+    glNamedFramebufferTexture(flame_fbo, GL_DEPTH_STENCIL_ATTACHMENT, flame_depth.handle, 0);
+    uint32_t drawbuffs[]{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glNamedFramebufferDrawBuffers(flame_fbo, 2, drawbuffs);
+
+    glNamedFramebufferTexture(ee_fbo, GL_COLOR_ATTACHMENT0, ee_alb.handle, 0);
+    glNamedFramebufferTexture(ee_fbo, GL_DEPTH_STENCIL_ATTACHMENT, ee_depth.handle, 0);
+
+    assert(glCheckNamedFramebufferStatus(flame_fbo, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    assert(glCheckNamedFramebufferStatus(ee_fbo, GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
     engine.gui_->add_draw([&] {
         if (ImGui::Button("recompile shader")) { vol.recompile(); }
-        if (ImGui::Button("recompile comp shader")) { volfill.recompile(); }
+        if (ImGui::Button("recompile def shader")) { def.recompile(); }
 
         ImGui::SliderFloat3("t", &transform.x, -5.f, 5.f);
         ImGui::SliderFloat3("s", &scale.x, 0.01f, 5.f);
@@ -156,29 +194,15 @@ int main() {
         memcpy((char *)kmptr + 64, &katanamat, 64);
 
         ImGui::ColorEdit3("background color", &cc.x);
+
+        ImGui::Separator();
+        ImGui::Image((void *)(int *)(ee_alb.handle), ImVec2(350, 350));
     });
-    auto rectvbo = re.create_buffer({0});
-    auto rectebo = re.create_buffer({0});
-    auto rectvao = re.create_vao(GLVaoDescriptor{
-        {GLVaoBinding{0, rectvbo, 8, 0}}, GLVaoAttrSameFormat{2, GL_FLOAT, 4, {ATTRSAMEFORMAT{0, 0}}}, rectebo});
-    {
-        float verts[]{0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f};
-        unsigned inds[]{0, 1, 2, 3};
-
-        auto &rvbo = re.get_buffer(rectvbo);
-        auto &rebo = re.get_buffer(rectebo);
-
-        rvbo.push_data(verts, sizeof(verts));
-        rebo.push_data(inds, sizeof(inds));
-    }
-
-    auto orthoproj = glm::ortho(-100.f, 100.f, -100.f, 100.f, 0.01f, 100.f);
 
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
-        glClearColor(cc.x, cc.y, cc.z, 1.);
-        window->clear_framebuffer();
+        glClearColor(0., 0., 0., 1.);
         eng::Engine::instance().controller()->update();
         cam.update();
 
@@ -193,6 +217,8 @@ int main() {
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, re.get_buffer(kc).descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, re.get_buffer(kt).descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, re.get_buffer(km).descriptor.handle);
+        glBindFramebuffer(GL_FRAMEBUFFER, ee_fbo);
+        window->clear_framebuffer();
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, 3, 0);
 
         auto n       = glm::vec3{0, 0, 1};
@@ -205,10 +231,11 @@ int main() {
         rotmat[1] = glm::vec4{u, 0.f};
         rotmat[2] = glm::vec4{yc, 0.f};
 
+        glBindFramebuffer(GL_FRAMEBUFFER, flame_fbo);
+        window->clear_framebuffer();
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         vol.use();
-        vol.set("ortho", orthoproj);
         vol.set("projection", cam.perspective_matrix());
         vol.set("time", time);
         vol.set("view", cam.view_matrix());
@@ -219,6 +246,19 @@ int main() {
         re.get_vao(rectvao).bind();
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
         glDisable(GL_BLEND);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(cc.x, cc.y, cc.z, 1.);
+        window->clear_framebuffer();
+
+        def.use();
+        glBindTextureUnit(0, ee_alb.handle);
+        glBindTextureUnit(1, ee_depth.handle);
+        glBindTextureUnit(2, flame_alb.handle);
+        glBindTextureUnit(3, flame_depth.handle);
+        glBindTextureUnit(4, flame_dist.handle);
+        re.get_vao(rectvao).bind();
+        glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();

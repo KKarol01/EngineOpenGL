@@ -137,7 +137,8 @@ vec3 noiseStackUV(vec3 pos,int octaves,float falloff,float diff){
 	return vec3(displaceA,displaceB,displaceC);
 }
 
-out vec4 FRAG_COL;
+layout(location=0) out vec4 FRAG_COL;
+layout(location=1) out vec4 FRAG_DIST;
 in vec2 vpos;
 
 uniform mat4 model;
@@ -158,7 +159,16 @@ struct RayHitInfo {
 	float tmin, tmax;
 };
 
-
+vec3 aces_approx(vec3 v)
+{
+    v *= 0.6f;
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0.0f, 1.0f);
+}
 
 void ray_box(const in Ray r,
 			 const in vec3 bmin,
@@ -181,8 +191,6 @@ void ray_box(const in Ray r,
 	info.tmin = tmin;
 	info.tmax = tmax;
 }
-
-layout(binding=0) uniform sampler3D tex;
 
 void main() {
 	mat4 bm = mat4(1.);
@@ -211,6 +219,7 @@ void main() {
 	float dsl =length(ds);
 	vec3 acc = vec3(0.);
 	vec3 smoke = vec3(0.);
+	vec3 dist = vec3(0.);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
@@ -229,30 +238,19 @@ void main() {
 		vec3 sc = nc;
 		sc.y*=.7;
 		sc.y-=.9;
-		smoke += 3.*smoothstep(0.7, 0., length(sc))*snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
+
+		float lsc = length(sc);
+		float sdnoise = snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
+		smoke += 3.*smoothstep(0.7, 0., lsc)  *sdnoise;
+		dist += 3.*smoothstep(0.7, 0., lsc*.3)*sdnoise;
+
 	}
 	acc /= samples*2.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
 
-	FRAG_COL = vec4(acc, acc.x);
+	FRAG_COL = vec4(aces_approx(acc), acc.x);
 	FRAG_COL += vec4(0.f.xxx, smoke.x*.3);
+	FRAG_DIST = vec4(noiseStackUV(dist, 1, .2, 1.), dist.y);
+
 }
-
-
-/*
-
-	for(int i=0; i<samples;++i) {
-		vec3 tc = a + ds*i;
-
-		vec3 nc = tc*1.2;
-		vec3 nc2 = nc*nc;
-		float lnc2 = nc2.x+nc2.y+nc2.z;
-		float yatt = snoise(nc*1.9+time*vec3(0., -3., 0.))*.2+.5;
-		float xatt = smoothstep(1., 0.1, length(nc.xz*.2 + (.7-yatt)*snoise(nc+time*vec3(0., -2., 0.))*.13));
-		float n = smoothstep(.8 + snoise(nc*1.*vec3(10., 15., 10.)*(.7-yatt)+time*vec3(1., -6., 0.2))*.17, 0.1, lnc2);
-		n*= yatt * xatt;
-		n = pow(n, 2.);
-		acc += n * dsl * 9. * samples;
-
-	}*/

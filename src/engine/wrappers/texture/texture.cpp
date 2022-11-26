@@ -8,7 +8,7 @@
 constexpr FILTER_SETTINGS::FILTER_SETTINGS() : FILTER_SETTINGS(GL_LINEAR) {}
 constexpr FILTER_SETTINGS::FILTER_SETTINGS(uint32_t minmag) : min{minmag}, mag{minmag} {}
 constexpr FILTER_SETTINGS::FILTER_SETTINGS(uint32_t min, uint32_t mag) : min{min}, mag{mag} {}
-constexpr WRAP_SETTINGS::WRAP_SETTINGS() : WRAP_SETTINGS(GL_REPEAT) {}
+constexpr WRAP_SETTINGS::WRAP_SETTINGS() : WRAP_SETTINGS(GL_CLAMP_TO_EDGE) {}
 constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t str) : s{str}, t{str}, r{str} {}
 constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t s, uint32_t t) : s{s}, t{t}, r{0u} {}
 constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t s, uint32_t t, uint32_t r) : s{s}, t{t}, r{r} {}
@@ -72,4 +72,14 @@ void Texture::buildcube(std::string *path, uint32_t TIME_FORMAT) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, TIME_FORMAT, x, y, 0, ch == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, data);
         stbi_image_free(data);
     }
+}
+
+void Texture::buildattachment(uint32_t int_format, size_t width, size_t height) {
+    glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+    glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
+    glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);
+    glTextureParameteri(handle, GL_TEXTURE_WRAP_S, wrap.s);
+    glTextureParameteri(handle, GL_TEXTURE_WRAP_T, wrap.t);
+    glTextureStorage2D(handle, 4, int_format, width, height);
+    glGenerateTextureMipmap(handle);
 }

@@ -36,8 +36,8 @@ struct Texture {
     void build2d(std::string_view path, uint32_t format);
     void build2d_mips(std::string_view path, uint32_t dimensions);
     void build2d_ms(std::string_view path, uint32_t dimensions, uint32_t samples, bool fixedsamplelocations = true);
-
     void buildcube(std::string *paths, uint32_t TIME_FORMAT);
+    void buildattachment(uint32_t int_format, size_t width, size_t height);
 
     FILTER_SETTINGS filter;
     WRAP_SETTINGS wrap;
