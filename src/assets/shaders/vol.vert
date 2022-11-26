@@ -11,5 +11,8 @@ uniform mat4 projection;
 
 void main() {
 	vpos = ( vec4(pos*2.f-1.f, 0., 1.)).xy;
-	gl_Position = projection * view * rotmat * vec4(vec2(pos*2.f-1.f), 0.f, 1.f);
+	mat4 m = mat4(1.);
+	m[1][1] = 2.;
+
+	gl_Position = projection * view * rotmat * m * vec4(vpos, 0., 1.);
 }

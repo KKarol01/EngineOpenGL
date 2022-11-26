@@ -212,7 +212,7 @@ void main() {
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
-		vec3 nc = tc*0.005;
+		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
 		float yatt = snoise(nc*1.9+time*vec3(0., -3., 0.))*.2+.5;
