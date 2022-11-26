@@ -208,6 +208,7 @@ void main() {
 	vec3 ds = 0.65*(b-a) / float(samples);
 	float dsl =length(ds);
 	vec3 acc = vec3(0.);
+	vec3 smoke = vec3(0.);
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
@@ -221,18 +222,18 @@ void main() {
 		float xatt = snoise(nc*(snoise(tc*1.4+time*vec3(1.0,-3., 0.)*0.9+.3)) + time*vec3(.0,-1., 0.)) + 2.*(1.-(tc.y*.5+.5));
 		n*= xatt*yatt;
 		n = pow(n, 2.);
-
-
 		acc += n * dsl * 6. * samples;
-		acc +=	smoothstep(1., 0., nc2l);
 
+		vec3 sc = nc;
+		sc.y-=.6;
+		smoke += 3.*smoothstep(1., 0., length(sc))*snoise(sc*0.3 + time*vec3(0., -1., 0.))*xatt*yatt;
 	}
 	acc /= samples*2.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
 
 	FRAG_COL = vec4(acc, acc.x);
-	FRAG_COL += acc.x * vec4(0.f.xxx, .4);
+	FRAG_COL += vec4(0.f.xxx, smoke.x*.3);
 }
 
 
