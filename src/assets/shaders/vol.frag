@@ -212,6 +212,30 @@ void main() {
 	for(int i=0; i<samples;++i) {
 		vec3 tc = a + ds*i;
 
+		vec3 nc = tc*2.2;
+		nc.y*=.7;
+		vec3 nc2 = nc * nc;
+		float nc2l = nc2.x + nc2.y + nc2.z;
+		float n = smoothstep(1., 0., nc2l); 
+
+		float yatt = 1.;snoise(nc*0.8+time*vec3(.0,-2., 0.))*1.5+.5;
+		float xatt = snoise(nc*(snoise(tc*1.4+time*vec3(1.0,-3., 0.)*0.9+.3)) + time*vec3(.0,-1., 0.)) + 2.*(1.-(tc.y*.5+.5));
+		n*= xatt*yatt;
+		n = pow(n, 2.);
+		acc += n * dsl * 3. * samples;
+
+	}
+	acc /= samples*1.3;
+	acc = 1.5*pow(acc, vec3(1.2, 2., 4.));	
+	FRAG_COL += vec4(acc, acc.x);
+}
+
+
+/*
+
+	for(int i=0; i<samples;++i) {
+		vec3 tc = a + ds*i;
+
 		vec3 nc = tc*1.2;
 		vec3 nc2 = nc*nc;
 		float lnc2 = nc2.x+nc2.y+nc2.z;
@@ -222,8 +246,4 @@ void main() {
 		n = pow(n, 2.);
 		acc += n * dsl * 9. * samples;
 
-	}
-	acc /= samples*1.3;
-	acc = 1.5*pow(acc, vec3(1.2, 2., 4.));	
-	FRAG_COL += vec4(acc, acc.x);
-}
+	}*/
