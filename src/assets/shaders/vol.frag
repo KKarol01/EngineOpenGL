@@ -185,8 +185,10 @@ void ray_box(const in Ray r,
 layout(binding=0) uniform sampler3D tex;
 
 void main() {
-	vec4 bmin = vec4(-1.f.xxx, 1.f);
-	vec4 bmax = vec4(1.f.xxx, 1.f);
+	mat4 bm = mat4(1.);
+	bm[1][1] = 3.;
+	vec4 bmin = bm * vec4(-1.f.xxx, 1.f);
+	vec4 bmax = bm * vec4(1.f.xxx, 1.f);
 	Ray r;
 	RayHitInfo info;
 	vec4 rd = vec4(vpos, -1., 1.);
@@ -225,8 +227,9 @@ void main() {
 		acc += n * dsl * 6. * samples;
 
 		vec3 sc = nc;
+		sc.y*=.5;
 		sc.y-=.6;
-		smoke += 3.*smoothstep(1., 0., length(sc))*snoise(sc*0.3 + time*vec3(0., -1., 0.))*xatt*yatt;
+		smoke += 3.*smoothstep(1., 0., length(sc))*snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
 	}
 	acc /= samples*2.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
