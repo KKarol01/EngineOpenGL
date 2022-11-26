@@ -139,6 +139,7 @@ vec3 noiseStackUV(vec3 pos,int octaves,float falloff,float diff){
 
 layout(location=0) out vec4 FRAG_COL;
 layout(location=1) out vec4 FRAG_DIST;
+layout(location=2) out vec4 FRAG_SMOKE;
 in vec2 vpos;
 
 uniform mat4 model;
@@ -237,20 +238,20 @@ void main() {
 
 		vec3 sc = nc;
 		sc.y*=.7;
-		sc.y-=.9;
+		sc.y-=1.6;
 
 		float lsc = length(sc);
 		float sdnoise = snoise(sc*1.3 + time*vec3(0., -1., 0.))*xatt*yatt;
-		smoke += 3.*smoothstep(0.7, 0., lsc)  *sdnoise;
-		dist += 3.*smoothstep(0.7, 0., lsc*.3)*sdnoise;
+		smoke += 3.*smoothstep(0.7, 0., length(sc + vec3(0., 0.9, 0.)))  *sdnoise;
+		dist += 3.*smoothstep(0.7, 0., lsc*.3)*snoise((sc*1.3) + time*vec3(0., -1., 0.))*xatt*yatt;;
 
 	}
 	acc /= samples*2.3;
 	acc = 1.5*pow(acc, vec3(1., 2., 4.));	
 
 
-	FRAG_COL = vec4(aces_approx(acc), acc.x);
-	FRAG_COL += vec4(0.f.xxx, smoke.x*.3);
+	FRAG_COL	= vec4((acc), acc.x);
+	FRAG_SMOKE = vec4(smoke.x);
 	FRAG_DIST = vec4(noiseStackUV(dist, 1, .2, 1.), dist.y);
 
 }

@@ -148,21 +148,23 @@ int main() {
     }
 
     GLuint flame_fbo, ee_fbo;
-    Texture flame_alb, flame_depth, flame_dist;
+    Texture flame_alb, flame_depth, flame_dist, flame_smoke;
     Texture ee_alb, ee_depth;
     glCreateFramebuffers(1, &flame_fbo);
     glCreateFramebuffers(1, &ee_fbo);
 
     flame_alb.buildattachment(GL_RGBA8, 1920, 1080);
     flame_dist.buildattachment(GL_RGBA16F, 1920, 1080);
+    flame_smoke.buildattachment(GL_RGBA8, 1920, 1080);
     flame_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
     ee_alb.buildattachment(GL_RGBA8, 1920, 1080);
     ee_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
     glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT0, flame_alb.handle, 0);
     glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT1, flame_dist.handle, 0);
+    glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT2, flame_smoke.handle, 0);
     glNamedFramebufferTexture(flame_fbo, GL_DEPTH_STENCIL_ATTACHMENT, flame_depth.handle, 0);
-    uint32_t drawbuffs[]{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    glNamedFramebufferDrawBuffers(flame_fbo, 2, drawbuffs);
+    uint32_t drawbuffs[]{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glNamedFramebufferDrawBuffers(flame_fbo, 3, drawbuffs);
 
     glNamedFramebufferTexture(ee_fbo, GL_COLOR_ATTACHMENT0, ee_alb.handle, 0);
     glNamedFramebufferTexture(ee_fbo, GL_DEPTH_STENCIL_ATTACHMENT, ee_depth.handle, 0);
@@ -196,7 +198,7 @@ int main() {
         ImGui::ColorEdit3("background color", &cc.x);
 
         ImGui::Separator();
-        ImGui::Image((void *)(int *)(ee_alb.handle), ImVec2(350, 350));
+        ImGui::Image((void *)(int *)(flame_smoke.handle), ImVec2(350, 350));
     });
 
     while (!window->should_close()) {
@@ -245,7 +247,6 @@ int main() {
         vol.set("rotmat", rotmat);
         re.get_vao(rectvao).bind();
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
-        glDisable(GL_BLEND);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(cc.x, cc.y, cc.z, 1.);
@@ -257,8 +258,10 @@ int main() {
         glBindTextureUnit(2, flame_alb.handle);
         glBindTextureUnit(3, flame_depth.handle);
         glBindTextureUnit(4, flame_dist.handle);
+        glBindTextureUnit(5, flame_smoke.handle);
         re.get_vao(rectvao).bind();
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0);
+        glDisable(GL_BLEND);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();

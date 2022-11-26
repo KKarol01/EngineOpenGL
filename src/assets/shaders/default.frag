@@ -8,6 +8,7 @@ layout(binding=1) uniform sampler2D pbrdepth;
 layout(binding=2) uniform sampler2D flamealb;
 layout(binding=3) uniform sampler2D flamedepth;
 layout(binding=4) uniform sampler2D flamedist;
+layout(binding=5) uniform sampler2D flamesmoke;
 
 void main() {
 	vec2 tc = vec2(vpos*.5+.5);
@@ -20,14 +21,18 @@ void main() {
 		dtc += texture(flamedist, tc).rb*0.01;
 		pbrd = texture(pbrdepth, dtc).x;
 		flamed = texture(flamedepth, dtc).x;
-		if(flamed > pbrd)  { dtc = tc;}
-		pbrd = texture(pbrdepth, dtc).x;
-		flamed = texture(flamedepth, dtc).x;
 	}
 
-	FRAG_COLOR = texture(pbralb,dtc);
+	
+	vec4 alb = texture(pbralb,dtc);
+	if(length(alb.xyz) != 0.) FRAG_COLOR = alb;
 
-	if(flamed < pbrd)  {
-		FRAG_COLOR += texture(flamealb, tc);
+	alb = texture(flamealb, tc);
+	if(flamed < pbrd )  {
+		FRAG_COLOR += vec4(alb.xyz, alb.x);
+
+		vec4 smoke = texture(flamesmoke, tc);
+		FRAG_COLOR += vec4(0.f.xxx, smoke.x);
 	}
+
 }
