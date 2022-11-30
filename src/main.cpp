@@ -33,6 +33,9 @@ int main() {
     const auto window = engine.window();
     auto &re          = *engine.renderer_.get();
     Camera cam;
+      Camera::LensSettings lens= cam.lens;
+      lens.fovydeg = 60.f;
+    cam.adjust_lens(lens);
     glEnable(GL_DEPTH_TEST);
 
     glm::vec3 cc{0.4f};
@@ -44,8 +47,6 @@ int main() {
 
     glm::mat4 katanamat{1.f}, holdermat{1.f};
 
-    Model katana  = ModelImporter{}.import_model("3dmodels/torch/scene.gltf",
-                                                aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
     Model katana2 = ModelImporter{}.import_model(
         "3dmodels/katana/scene.gltf", aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
 
@@ -66,8 +67,6 @@ int main() {
         auto kb = re.create_buffer({GL_DYNAMIC_STORAGE_BIT});
         auto ke = re.create_buffer({GL_DYNAMIC_STORAGE_BIT});
 
-        re.get_buffer(kb).push_data(katana.vertices.data(), katana.vertices.size() * 4);
-        re.get_buffer(ke).push_data(katana.indices.data(), katana.indices.size() * 4);
         re.get_buffer(kb).push_data(katana2.vertices.data(), katana2.vertices.size() * 4);
         re.get_buffer(ke).push_data(katana2.indices.data(), katana2.indices.size() * 4);
 
@@ -82,12 +81,7 @@ int main() {
                                            ke});
         std::vector<size_t> bindless_handles;
 
-        for (auto &t : katana.meshes) {
-            bindless_handles.push_back(katana.textures[t.textures[t.DIFFUSE]].bindless_handle);
-            bindless_handles.push_back(katana.textures[t.textures[t.NORMAL]].bindless_handle);
-            bindless_handles.push_back(katana.textures[t.textures[t.METALNESS]].bindless_handle);
-            bindless_handles.push_back(katana.textures[t.textures[t.ROUGHNESS]].bindless_handle);
-        }
+
         for (auto &t : katana2.meshes) {
             bindless_handles.push_back(katana2.textures[t.textures[t.DIFFUSE]].bindless_handle);
             bindless_handles.push_back(katana2.textures[t.textures[t.NORMAL]].bindless_handle);
@@ -100,13 +94,6 @@ int main() {
         std::vector<DrawElementsIndirectCommand> katana_commands;
 
         auto boff{0u}, ioff{0u};
-        for (auto i = 0; i < katana.meshes.size(); ++i) {
-            const auto &k = katana.meshes[i];
-            katana_commands.emplace_back(k.index_count, 1, k.index_offset, k.vertex_offset, 0);
-            // zle offsety sa liczone
-            boff += k.vertex_count;
-            ioff += k.index_count;
-        }
         for (auto i = 0; i < katana2.meshes.size(); ++i) {
             const auto &k = katana2.meshes[i];
             katana_commands.emplace_back(k.index_count, 1, ioff + k.index_offset, boff + k.vertex_offset, 0);
@@ -153,11 +140,11 @@ int main() {
     glCreateFramebuffers(1, &flame_fbo);
     glCreateFramebuffers(1, &ee_fbo);
 
-    flame_alb.buildattachment(GL_RGBA8, 1920, 1080);
+    flame_alb.buildattachment(GL_RGBA16F, 1920, 1080);
     flame_dist.buildattachment(GL_RGBA16F, 1920, 1080);
-    flame_smoke.buildattachment(GL_RGBA8, 1920, 1080);
+    flame_smoke.buildattachment(GL_RGBA16F, 1920, 1080);
     flame_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
-    ee_alb.buildattachment(GL_RGBA8, 1920, 1080);
+    ee_alb.buildattachment(GL_RGBA16F, 1920, 1080);
     ee_depth.buildattachment(GL_DEPTH24_STENCIL8, 1920, 1080);
     glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT0, flame_alb.handle, 0);
     glNamedFramebufferTexture(flame_fbo, GL_COLOR_ATTACHMENT1, flame_dist.handle, 0);
@@ -179,6 +166,9 @@ int main() {
 
         ImGui::SliderFloat3("t", &transform.x, -5.f, 5.f);
         ImGui::SliderFloat3("s", &scale.x, 0.01f, 5.f);
+        static float exposure = 1.f;
+        ImGui::SliderFloat("exposure", &exposure, .0f, 5.f);
+        def.set("exposure", exposure);
         model = glm::translate(glm::scale(glm::mat4{1.f}, scale), transform);
 
         ImGui::SliderFloat("attenuation", pbr_ubo.get<float>("attenuation"), .0f, 32.f);

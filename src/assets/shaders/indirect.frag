@@ -223,7 +223,7 @@ vec4 pbrr() {
         vec3 H = normalize(view_dir + L);
 
         float distance = length(lpos.xyz - fragpos);
-        vec3 radiance = lcol.xyz * attenuation * (snoise(vec3(124.1,2315.,1234.)+time*2.11)*.8+1.);
+        vec3 radiance = lcol.xyz * attenuation * (snoise(vec3(124.1,2315.,1234.)+time*2.11)*.8+2.);
 
         float NDF = DistributionGGX(normal, H, roughness);
         float G = GeometrySmith(normal, view_dir, L, roughness);
