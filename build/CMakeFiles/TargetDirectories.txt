@@ -1,0 +1,3 @@
+C:/Users/k/Desktop/gfx_engine/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/k/Desktop/gfx_engine/build/CMakeFiles/ZERO_CHECK.dir
+C:/Users/k/Desktop/gfx_engine/build/src/CMakeFiles/opengl_engine.dir
