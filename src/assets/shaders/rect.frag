@@ -3,10 +3,12 @@
 out vec4 FRAG_COL;
 in vec3 vpos;
 
-uniform mat4 proj;
-uniform mat4 view;
-uniform vec3 pos;
-uniform vec3 dir;
+layout(std140, binding=0) uniform CAM_DATA {
+	mat4 proj;
+	mat4 view;
+	vec4 pos;
+	vec4 dir;
+};
 
 
 
@@ -15,7 +17,7 @@ void main() {
 	vec4 cam_ray = inverse(proj) * (vec4(vpos.xy*2.-1., -1,1.));
 	cam_ray/=cam_ray.w;
 	cam_ray = inverse(view) * cam_ray;
-	cam_ray = normalize(cam_ray.xyz - pos).xyzz;
+	cam_ray = normalize(cam_ray.xyz - pos.xyz).xyzz;
 
 	bool hit = false;
 
@@ -25,12 +27,12 @@ void main() {
 	float t = 0.f;
 	float d = dot(n, cam_ray.xyz);
 	if(d > 1e-6) {
-		vec3 p = -pos;
+		vec3 p = -pos.xyz;
 		t = dot(p, n) / d;
 		hit = t>=0.f;
 	}
 	if(hit) {
-		vec3 h = pos + t * cam_ray.xyz;
+		vec3 h = pos.xyz + t * cam_ray.xyz;
 
 		if(
 			(h.x > a.x  && h.z < a.z

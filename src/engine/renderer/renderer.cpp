@@ -9,9 +9,9 @@ void eng::Renderer::render() {
 void eng::Pipeline::render() {
     auto &r = *eng::Engine::instance().renderer_.get();
     for (auto &s : stages) {
-     //   r.programs[s.program].use();
+        r.programs[s.program].use();
         r.vaos[s.vao].bind();
-        for(auto&b : s.bufferbinders)b->bind();
+        for (auto &b : s.bufferbinders) b->bind();
         s.draw_cmd->draw();
     }
 }

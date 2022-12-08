@@ -61,15 +61,15 @@ int main() {
     UBO u{{
         {"proj", glm::mat4{1.f}},
         {"view", glm::mat4{1.f}},
-        {"cam_pos", glm::vec4{1.f}},
-        {"cam_dir", glm::vec4{1.f}},
+        {"pos", glm::vec4{1.f}},
+        {"dir", glm::vec4{1.f}},
     }};
 
     Pipeline pp;
     PipelineStage pps1{.vao           = vaoid,
                        .program       = rectid,
                        .draw_cmd      = std::make_shared<DrawElementsCMD>(eboid),
-                       .bufferbinders = {/*std::make_shared<BufferBasedBinder>(GL_UNIFORM_BUFFER, u.get_bufferid(), 0)}*/}};
+                       .bufferbinders = {std::make_shared<BufferBasedBinder>(GL_UNIFORM_BUFFER, u.get_bufferid(), 0)}};
     pp.stages = {pps1};
     auto ppid = r.pipelines[pp];
 
@@ -81,11 +81,10 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-        r.programs[rectid].use();
-        r.programs[rectid].set("proj", cam.perspective_matrix());
-        r.programs[rectid].set("view", cam.view_matrix());
-        r.programs[rectid].set("dir", cam.forward_vec());
-        r.programs[rectid].set("pos", cam.position());
+        u.set("proj", cam.perspective_matrix());
+        u.set("view", cam.view_matrix());
+        u.set("dir", cam.forward_vec());
+        u.set("pos", cam.position());
         r.render();
 
         eng::Engine::instance().gui_->draw();
