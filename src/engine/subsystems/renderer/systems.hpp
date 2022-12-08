@@ -3,10 +3,10 @@
 #include "../ecs/ecs.hpp"
 #include "../../engine.hpp"
 
-class Shader;
+class ShaderProgram;
 
 class RenderSystem : public eng::SystemBase {
-    std::map<Shader *, eng::SortedVectorUnique<eng::EntityID>> entities;
+    std::map<ShaderProgram *, eng::SortedVectorUnique<eng::EntityID>> entities;
     std::map<eng::EntityID, eng::SortedVectorUnique<eng::EntityID> *> ent_vec;
 
   public:

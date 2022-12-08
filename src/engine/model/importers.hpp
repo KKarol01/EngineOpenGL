@@ -10,8 +10,6 @@
 #include <assimp/mesh.h>
 #include <assimp/scene.h>
 
-#include "../renderer/typedefs.hpp"
-
 #define USE_BINDLESS_TEXTURES
 
 struct Model {

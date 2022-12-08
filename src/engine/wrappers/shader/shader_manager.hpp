@@ -6,9 +6,9 @@
 #include <optional>
 
 class ShaderManager {
-    std::map<std::string, Shader> shaders;
+    std::map<std::string, ShaderProgram> shaders;
 
   public:
-    Shader *get_shader(const std::string &name);
-    std::optional<const Shader *>get_shader(const std::string &name) const;
+    ShaderProgram *get_shader(const std::string &name);
+    std::optional<const ShaderProgram *>get_shader(const std::string &name) const;
 };

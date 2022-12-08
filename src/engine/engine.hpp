@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "subsystems/ecs/ecs.hpp"
 #include "./types/types.hpp"
@@ -9,16 +10,16 @@ class Window;
 class Controller;
 class ShaderManager;
 class ECS;
-class RE;
 class GUI;
+namespace eng {
+    class Renderer;
+}
 
 namespace eng {
 
     class Engine {
       public:
         Engine() = default;
-        Engine(Window &&) noexcept;
-        Engine &operator=(Window &&) noexcept;
         ~Engine();
 
         void update();
@@ -29,18 +30,18 @@ namespace eng {
         inline ECS *ecs() { return ecs_.get(); }
         inline double deltatime() { return dt; }
 
-        static void initialise(Window &&w);
-        static Engine &instance() { return _instance; }
+        static void initialise(std::string_view window_name, uint32_t size_x, uint32_t size_y);
+        static Engine &instance() { return *_instance; }
 
         double time{0.f}, dt{0.f};
         std::unique_ptr<Window> window_;
         std::unique_ptr<Controller> controller_;
         std::unique_ptr<ShaderManager> shader_manager_;
         std::unique_ptr<eng::ECS> ecs_;
-        std::unique_ptr<RE> renderer_;
+        std::unique_ptr<eng::Renderer> renderer_;
         std::unique_ptr<GUI> gui_;
 
       private:
-        static Engine _instance;
+        inline static std::unique_ptr<Engine> _instance;
     };
 } // namespace eng

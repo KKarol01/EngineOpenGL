@@ -191,6 +191,7 @@ enum ImPlotLegendFlags_ {
     ImPlotLegendFlags_NoMenus         = 1 << 3, // the user will not be able to open context menus with right-click
     ImPlotLegendFlags_Outside         = 1 << 4, // legend will be rendered outside of the plot area
     ImPlotLegendFlags_Horizontal      = 1 << 5, // legend entries will be displayed horizontally
+    ImPlotLegendFlags_Sort            = 1 << 6, // legend entries will be displayed in alphabetical order
 };
 
 // Options for mouse hover text (see SetupMouseText)
@@ -542,28 +543,34 @@ struct ImPlotStyle {
     IMPLOT_API ImPlotStyle();
 };
 
+// Support for legacy versions
 #if (IMGUI_VERSION_NUM < 18716) // Renamed in 1.88
-#define ImGuiModFlags       ImGuiKeyModFlags
-#define ImGuiModFlags_None  ImGuiKeyModFlags_None
-#define ImGuiModFlags_Ctrl  ImGuiKeyModFlags_Ctrl
-#define ImGuiModFlags_Shift ImGuiKeyModFlags_Shift
-#define ImGuiModFlags_Alt   ImGuiKeyModFlags_Alt
-#define ImGuiModFlags_Super ImGuiKeyModFlags_Super
+#define ImGuiMod_None       0
+#define ImGuiMod_Ctrl       ImGuiKeyModFlags_Ctrl
+#define ImGuiMod_Shift      ImGuiKeyModFlags_Shift
+#define ImGuiMod_Alt        ImGuiKeyModFlags_Alt
+#define ImGuiMod_Super      ImGuiKeyModFlags_Super
+#elif (IMGUI_VERSION_NUM < 18823) // Renamed in 1.89, sorry
+#define ImGuiMod_None       0
+#define ImGuiMod_Ctrl       ImGuiModFlags_Ctrl
+#define ImGuiMod_Shift      ImGuiModFlags_Shift
+#define ImGuiMod_Alt        ImGuiModFlags_Alt
+#define ImGuiMod_Super      ImGuiModFlags_Super
 #endif
 
 // Input mapping structure. Default values listed. See also MapInputDefault, MapInputReverse.
 struct ImPlotInputMap {
     ImGuiMouseButton Pan;           // LMB    enables panning when held,
-    ImGuiModFlags    PanMod;        // none   optional modifier that must be held for panning/fitting
+    int              PanMod;        // none   optional modifier that must be held for panning/fitting
     ImGuiMouseButton Fit;           // LMB    initiates fit when double clicked
     ImGuiMouseButton Select;        // RMB    begins box selection when pressed and confirms selection when released
     ImGuiMouseButton SelectCancel;  // LMB    cancels active box selection when pressed; cannot be same as Select
-    ImGuiModFlags    SelectMod;     // none   optional modifier that must be held for box selection
-    ImGuiModFlags    SelectHorzMod; // Alt    expands active box selection horizontally to plot edge when held
-    ImGuiModFlags    SelectVertMod; // Shift  expands active box selection vertically to plot edge when held
+    int              SelectMod;     // none   optional modifier that must be held for box selection
+    int              SelectHorzMod; // Alt    expands active box selection horizontally to plot edge when held
+    int              SelectVertMod; // Shift  expands active box selection vertically to plot edge when held
     ImGuiMouseButton Menu;          // RMB    opens context menus (if enabled) when clicked
-    ImGuiModFlags    OverrideMod;   // Ctrl   when held, all input is ignored; used to enable axis/plots as DND sources
-    ImGuiModFlags    ZoomMod;       // none   optional modifier that must be held for scroll wheel zooming
+    int              OverrideMod;   // Ctrl   when held, all input is ignored; used to enable axis/plots as DND sources
+    int              ZoomMod;       // none   optional modifier that must be held for scroll wheel zooming
     float            ZoomRate;      // 0.1f   zoom rate for scroll (e.g. 0.1f = 10% plot range every scroll click); make negative to invert
     IMPLOT_API ImPlotInputMap();
 };
@@ -573,7 +580,7 @@ struct ImPlotInputMap {
 //-----------------------------------------------------------------------------
 
 // Callback signature for axis tick label formatter.
-typedef int (*ImPlotFormatter)(double value, char* buff, int vertices_size_bytes, void* user_data);
+typedef int (*ImPlotFormatter)(double value, char* buff, int size, void* user_data);
 
 // Callback signature for data getter.
 typedef ImPlotPoint (*ImPlotGetter)(int idx, void* user_data);
@@ -622,7 +629,7 @@ IMPLOT_API void SetImGuiContext(ImGuiContext* ctx);
 //   (e.g. "MyPlot##HiddenIdText" or "##NoTitle").
 // - #size is the **frame** size of the plot widget, not the plot area. The default
 //   size of plots (i.e. when ImVec2(0,0)) can be modified in your ImPlotStyle.
-IMPLOT_API bool BeginPlot(const char* title_id, const ImVec2& vertices_size_bytes=ImVec2(-1,0), ImPlotFlags flags=0);
+IMPLOT_API bool BeginPlot(const char* title_id, const ImVec2& size=ImVec2(-1,0), ImPlotFlags flags=0);
 
 // Only call EndPlot() if BeginPlot() returns true! Typically called at the end
 // of an if statement conditioned on BeginPlot(). See example above.
@@ -681,7 +688,7 @@ IMPLOT_API void EndPlot();
 IMPLOT_API bool BeginSubplots(const char* title_id,
                              int rows,
                              int cols,
-                             const ImVec2& vertices_size_bytes,
+                             const ImVec2& size,
                              ImPlotSubplotFlags flags = 0,
                              float* row_ratios        = NULL,
                              float* col_ratios        = NULL);
@@ -919,7 +926,7 @@ IMPLOT_API void PlotDummy(const char* label_id, ImPlotDummyFlags flags=0);
 // axes, which can be changed with `SetAxis/SetAxes`.
 
 // Shows a draggable point at x,y. #col defaults to ImGuiCol_Text.
-IMPLOT_API bool DragPoint(int id, double* x, double* y, const ImVec4& col, float vertices_size_bytes = 4, ImPlotDragToolFlags flags=0);
+IMPLOT_API bool DragPoint(int id, double* x, double* y, const ImVec4& col, float size = 4, ImPlotDragToolFlags flags=0);
 // Shows a draggable vertical guide line at an x-value. #col defaults to ImGuiCol_Text.
 IMPLOT_API bool DragLineX(int id, double* x, const ImVec4& col, float thickness = 1, ImPlotDragToolFlags flags=0);
 // Shows a draggable horizontal guide line at a y-value. #col defaults to ImGuiCol_Text.
@@ -1022,7 +1029,7 @@ IMPLOT_API bool BeginDragDropTargetLegend();
 IMPLOT_API void EndDragDropTarget();
 
 // NB: By default, plot and axes drag and drop *sources* require holding the Ctrl modifier to initiate the drag.
-// You can change the modifier if desired. If ImGuiModFlags_None is provided, the axes will be locked from panning.
+// You can change the modifier if desired. If ImGuiMod_None is provided, the axes will be locked from panning.
 
 // Turns the current plot's plotting area into a drag and drop source. You must hold Ctrl. Don't forget to call EndDragDropSource!
 IMPLOT_API bool BeginDragDropSourcePlot(ImGuiDragDropFlags flags=0);
@@ -1107,9 +1114,9 @@ IMPLOT_API void SetNextLineStyle(const ImVec4& col = IMPLOT_AUTO_COL, float weig
 // Set the fill color for the next item only.
 IMPLOT_API void SetNextFillStyle(const ImVec4& col = IMPLOT_AUTO_COL, float alpha_mod = IMPLOT_AUTO);
 // Set the marker style for the next item only.
-IMPLOT_API void SetNextMarkerStyle(ImPlotMarker marker = IMPLOT_AUTO, float vertices_size_bytes = IMPLOT_AUTO, const ImVec4& fill = IMPLOT_AUTO_COL, float weight = IMPLOT_AUTO, const ImVec4& outline = IMPLOT_AUTO_COL);
+IMPLOT_API void SetNextMarkerStyle(ImPlotMarker marker = IMPLOT_AUTO, float size = IMPLOT_AUTO, const ImVec4& fill = IMPLOT_AUTO_COL, float weight = IMPLOT_AUTO, const ImVec4& outline = IMPLOT_AUTO_COL);
 // Set the error bar style for the next item only.
-IMPLOT_API void SetNextErrorBarStyle(const ImVec4& col = IMPLOT_AUTO_COL, float vertices_size_bytes = IMPLOT_AUTO, float weight = IMPLOT_AUTO);
+IMPLOT_API void SetNextErrorBarStyle(const ImVec4& col = IMPLOT_AUTO_COL, float size = IMPLOT_AUTO, float weight = IMPLOT_AUTO);
 
 // Gets the last item primary color (i.e. its legend icon color)
 IMPLOT_API ImVec4 GetLastItemColor();
@@ -1138,8 +1145,8 @@ IMPLOT_API const char* GetMarkerName(ImPlotMarker idx);
 // an assert otherwise! By default colormaps are considered to be qualitative (i.e. discrete). If you want to create a
 // continuous colormap, set #qual=false. This will treat the colors you provide as keys, and ImPlot will build a linearly
 // interpolated lookup table. The memory footprint of this table will be exactly ((size-1)*255+1)*4 bytes.
-IMPLOT_API ImPlotColormap AddColormap(const char* name, const ImVec4* cols, int vertices_size_bytes, bool qual=true);
-IMPLOT_API ImPlotColormap AddColormap(const char* name, const ImU32*  cols, int vertices_size_bytes, bool qual=true);
+IMPLOT_API ImPlotColormap AddColormap(const char* name, const ImVec4* cols, int size, bool qual=true);
+IMPLOT_API ImPlotColormap AddColormap(const char* name, const ImU32*  cols, int size, bool qual=true);
 
 // Returns the number of available colormaps (i.e. the built-in + user-added count).
 IMPLOT_API int GetColormapCount();
@@ -1170,11 +1177,11 @@ IMPLOT_API ImVec4 GetColormapColor(int idx, ImPlotColormap cmap = IMPLOT_AUTO);
 IMPLOT_API ImVec4 SampleColormap(float t, ImPlotColormap cmap = IMPLOT_AUTO);
 
 // Shows a vertical color scale with linear spaced ticks using the specified color map. Use double hashes to hide label (e.g. "##NoLabel"). If scale_min > scale_max, the scale to color mapping will be reversed.
-IMPLOT_API void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& vertices_size_bytes = ImVec2(0,0), const char* TIME_FORMAT = "%g", ImPlotColormapScaleFlags flags = 0, ImPlotColormap cmap = IMPLOT_AUTO);
+IMPLOT_API void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& size = ImVec2(0,0), const char* format = "%g", ImPlotColormapScaleFlags flags = 0, ImPlotColormap cmap = IMPLOT_AUTO);
 // Shows a horizontal slider with a colormap gradient background. Optionally returns the color sampled at t in [0 1].
-IMPLOT_API bool ColormapSlider(const char* label, float* t, ImVec4* out = NULL, const char* TIME_FORMAT = "", ImPlotColormap cmap = IMPLOT_AUTO);
+IMPLOT_API bool ColormapSlider(const char* label, float* t, ImVec4* out = NULL, const char* format = "", ImPlotColormap cmap = IMPLOT_AUTO);
 // Shows a button with a colormap gradient brackground.
-IMPLOT_API bool ColormapButton(const char* label, const ImVec2& vertices_size_bytes = ImVec2(0,0), ImPlotColormap cmap = IMPLOT_AUTO);
+IMPLOT_API bool ColormapButton(const char* label, const ImVec2& size = ImVec2(0,0), ImPlotColormap cmap = IMPLOT_AUTO);
 
 // When items in a plot sample their color from a colormap, the color is cached and does not change
 // unless explicitly overriden. Therefore, if you change the colormap after the item has already been plotted,
@@ -1271,7 +1278,7 @@ namespace ImPlot {
 IMPLOT_DEPRECATED( IMPLOT_API bool BeginPlot(const char* title_id,
                                              const char* x_label,  // = NULL,
                                              const char* y_label,  // = NULL,
-                                             const ImVec2& vertices_size_bytes       = ImVec2(-1,0),
+                                             const ImVec2& size       = ImVec2(-1,0),
                                              ImPlotFlags flags        = ImPlotFlags_None,
                                              ImPlotAxisFlags x_flags  = 0,
                                              ImPlotAxisFlags y_flags  = 0,

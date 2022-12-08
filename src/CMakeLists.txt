@@ -5,7 +5,7 @@ add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"
  "engine/controller/keyboard/keyboard.cpp" 
  "engine/subsystems/ecs/ecs.cpp"
  "engine/subsystems/gui/gui.cpp"
-  
+ "engine/renderer/renderer.cpp"
  "engine/subsystems/renderer/systems.cpp"
  "engine/wrappers/buffer/buffer.cpp" 
  "engine/wrappers/shader/shader.cpp"
@@ -17,7 +17,8 @@ add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"
  "engine/scene/scene.cpp"
  "3rdparty/include/assimp/config.h"
  "engine/model/importers.cpp"
- "engine/renderer/renderer.cpp" "engine/wrappers/buffer/ubo.cpp")
+  "engine/wrappers/buffer/ubo.cpp"
+)
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 
 target_link_directories(opengl_engine PRIVATE "3rdparty/lib")

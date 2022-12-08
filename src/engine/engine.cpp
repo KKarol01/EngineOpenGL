@@ -4,6 +4,8 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <stdint.h>
+#include <string_view>
 
 #include "camera/camera.hpp"
 #include "subsystems/gui/gui.hpp"
@@ -12,20 +14,6 @@
 #include "subsystems/ecs/ecs.d.hpp"
 #include "wrappers/include_all.hpp"
 #include "./renderer/renderer.hpp"
-
-eng::Engine::Engine(Window &&window) noexcept { *this = std::move(window); }
-
-eng::Engine &eng::Engine::operator=(Window &&window) noexcept {
-    Engine::window_         = std::make_unique<Window>(std::move(window));
-    Engine::controller_     = std::make_unique<Keyboard>();
-    Engine::shader_manager_ = std::make_unique<ShaderManager>();
-    Engine::ecs_            = std::make_unique<ECS>();
-    Engine::renderer_       = std::make_unique<RE>();
-    Engine::gui_            = std::make_unique<GUI>();
-
-    time = dt = glfwGetTime();
-    return *this;
-}
 
 eng::Engine::~Engine() {
     window_->close();
@@ -45,6 +33,15 @@ void eng::Engine::update() {
     window_->swap_buffers();
 }
 
-void eng::Engine::initialise(Window &&w) { _instance = std::move(w); }
+void eng::Engine::initialise(std::string_view window_name, uint32_t size_x, uint32_t size_y) {
+    eng::Engine::_instance = std::make_unique<eng::Engine>();
+    auto this_             = eng::Engine::_instance.get();
 
-eng::Engine eng::Engine::_instance = Engine{};
+    this_->window_         = std::make_unique<Window>(window_name, size_x, size_y);
+    this_->controller_     = std::make_unique<Keyboard>();
+    this_->shader_manager_ = std::make_unique<ShaderManager>();
+    this_->ecs_            = std::make_unique<ECS>();
+    this_->renderer_       = std::make_unique<Renderer>();
+    this_->gui_            = std::make_unique<GUI>();
+    this_->time = this_->dt = glfwGetTime();
+}

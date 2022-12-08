@@ -12,7 +12,7 @@
 
 static unsigned compile_shader(const std::string &path, unsigned type);
 
-Shader::Shader(const std::string &file_name) : file_name{file_name} {
+ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name} {
     auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto &entry) {
                      auto fname  = entry.path().filename().string();
                      auto substr = fname.substr(0, fname.rfind('.'));
@@ -66,38 +66,34 @@ Shader::Shader(const std::string &file_name) : file_name{file_name} {
     } catch (std::runtime_error err) { std::cout << err.what() << "\n"; }
 }
 
-Shader::Shader(const Shader &s) noexcept { *this = s; }
+ShaderProgram::ShaderProgram(const ShaderProgram &s) noexcept { *this = s; }
 
-Shader::Shader(Shader &&s) noexcept { *this = std::move(s); }
+ShaderProgram::ShaderProgram(ShaderProgram &&s) noexcept { *this = std::move(s); }
 
-Shader &Shader::operator=(const Shader &s) noexcept {
+ShaderProgram &ShaderProgram::operator=(const ShaderProgram &s) noexcept {
     program_id = s.program_id;
     file_name  = s.file_name;
     return *this;
 }
 
-Shader &Shader::operator=(Shader &&s) noexcept {
+ShaderProgram &ShaderProgram::operator=(ShaderProgram &&s) noexcept {
     program_id   = s.program_id;
     s.program_id = 0;
     file_name    = std::move(s.file_name);
     return *this;
 }
 
-Shader::~Shader() { glDeleteProgram(program_id); }
+ShaderProgram::~ShaderProgram() { glDeleteProgram(program_id); }
 
-void Shader::use() { glUseProgram(program_id); }
+void ShaderProgram::use() { glUseProgram(program_id); }
 
-void Shader::feed_uniforms(const ShaderStorage &data) {
-    for (const auto &[name, get_var] : data.data) {
-        std::visit([&name, this](auto &&val) { set(name, val.get()); }, get_var());
-    }
-}
 
-void Shader::recompile() {
+
+void ShaderProgram::recompile() {
 
     glFinish();
     glUseProgram(0);
-    *this = Shader{file_name};
+    *this = ShaderProgram{file_name};
 }
 
 static unsigned compile_shader(const std::string &path, unsigned type) {

@@ -580,8 +580,8 @@ ImVec2 CalcLegendSize(ImPlotItemGroup& items, const ImVec2& pad, const ImVec2& s
     return legend_size;
 }
 
-int LegendSortingComp(void* _items, const void* _a, const void* _b) {
-    ImPlotItemGroup* items = (ImPlotItemGroup*)_items;
+int LegendSortingComp(const void* _a, const void* _b) {
+    ImPlotItemGroup* items = GImPlot->SortItems;
     const int a = *(const int*)_a;
     const int b = *(const int*)_b;
     const char* label_a = items->GetLegendLabel(a);
@@ -603,18 +603,18 @@ bool ShowLegendEntries(ImPlotItemGroup& items, const ImRect& legend_bb, bool hov
     const int num_items = items.GetLegendCount();
     if (num_items < 1)
         return hovered;
-    // ImVector<int>& indices = GImPlot->TempInt1;
-    // indices.resize(num_items);
-    // // bool sort = true;
-    // // if (sort && num_items > 1) {
-    // //     qsort_s(indices.Data, num_items, sizeof(int), LegendSortingComp, &items);
-    // // }
-    // // else {
-    // //     for (int i = 0; i < num_items; ++i)
-    // //         indices[i] = i;
-    // // }
+    // build render order
+    ImVector<int>& indices = GImPlot->TempInt1;
+    indices.resize(num_items);
+    for (int i = 0; i < num_items; ++i)
+        indices[i] = i;
+    if (ImHasFlag(items.Legend.Flags, ImPlotLegendFlags_Sort) && num_items > 1) {
+        GImPlot->SortItems = &items;
+        qsort(indices.Data, num_items, sizeof(int), LegendSortingComp);
+    }
+    // render
     for (int i = 0; i < num_items; ++i) {
-        const int idx           = i; //indices[i];
+        const int idx           = indices[i];
         ImPlotItem* item        = items.GetLegendItem(idx);
         const char* label       = items.GetLegendLabel(idx);
         const float label_width = ImGui::CalcTextSize(label, NULL, true).x;
@@ -836,14 +836,14 @@ inline ImPlotTimeUnit GetUnitForRange(double range) {
     return ImPlotTimeUnit_Yr;
 }
 
-inline int LowerBoundStep(int max_divs, const int* divs, const int* step, int vertices_size_bytes) {
+inline int LowerBoundStep(int max_divs, const int* divs, const int* step, int size) {
     if (max_divs < divs[0])
         return 0;
-    for (int i = 1; i < vertices_size_bytes; ++i) {
+    for (int i = 1; i < size; ++i) {
         if (max_divs < divs[i])
             return step[i-1];
     }
-    return step[vertices_size_bytes-1];
+    return step[size-1];
 }
 
 inline int GetTimeStep(int max_divs, ImPlotTimeUnit unit) {
@@ -1041,7 +1041,7 @@ static const char* MONTH_NAMES[]  = {"January","February","March","April","May",
 static const char* WD_ABRVS[]     = {"Su","Mo","Tu","We","Th","Fr","Sa"};
 static const char* MONTH_ABRVS[]  = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
 
-int FormatTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotTimeFmt fmt, bool use_24_hr_clk) {
+int FormatTime(const ImPlotTime& t, char* buffer, int size, ImPlotTimeFmt fmt, bool use_24_hr_clk) {
     tm& Tm = GImPlot->Tm;
     GetTime(t, &Tm);
     const int us   = t.Us % 1000;
@@ -1051,14 +1051,15 @@ int FormatTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlo
     if (use_24_hr_clk) {
         const int hr   = Tm.tm_hour;
         switch(fmt) {
-            case ImPlotTimeFmt_Us:        return ImFormatString(buffer, vertices_size_bytes, ".%03d %03d", ms, us);
-            case ImPlotTimeFmt_SUs:       return ImFormatString(buffer, vertices_size_bytes, ":%02d.%03d %03d", sec, ms, us);
-            case ImPlotTimeFmt_SMs:       return ImFormatString(buffer, vertices_size_bytes, ":%02d.%03d", sec, ms);
-            case ImPlotTimeFmt_S:         return ImFormatString(buffer, vertices_size_bytes, ":%02d", sec);
-            case ImPlotTimeFmt_HrMinSMs:  return ImFormatString(buffer, vertices_size_bytes, "%02d:%02d:%02d.%03d", hr, min, sec, ms);
-            case ImPlotTimeFmt_HrMinS:    return ImFormatString(buffer, vertices_size_bytes, "%02d:%02d:%02d", hr, min, sec);
-            case ImPlotTimeFmt_HrMin:     return ImFormatString(buffer, vertices_size_bytes, "%02d:%02d", hr, min);
-            case ImPlotTimeFmt_Hr:        return ImFormatString(buffer, vertices_size_bytes, "%02d:00", hr);
+            case ImPlotTimeFmt_Us:        return ImFormatString(buffer, size, ".%03d %03d", ms, us);
+            case ImPlotTimeFmt_SUs:       return ImFormatString(buffer, size, ":%02d.%03d %03d", sec, ms, us);
+            case ImPlotTimeFmt_SMs:       return ImFormatString(buffer, size, ":%02d.%03d", sec, ms);
+            case ImPlotTimeFmt_S:         return ImFormatString(buffer, size, ":%02d", sec);
+            case ImPlotTimeFmt_MinSMs:    return ImFormatString(buffer, size, ":%02d:%02d.%03d", min, sec, ms);
+            case ImPlotTimeFmt_HrMinSMs:  return ImFormatString(buffer, size, "%02d:%02d:%02d.%03d", hr, min, sec, ms);
+            case ImPlotTimeFmt_HrMinS:    return ImFormatString(buffer, size, "%02d:%02d:%02d", hr, min, sec);
+            case ImPlotTimeFmt_HrMin:     return ImFormatString(buffer, size, "%02d:%02d", hr, min);
+            case ImPlotTimeFmt_Hr:        return ImFormatString(buffer, size, "%02d:00", hr);
             default:                      return 0;
         }
     }
@@ -1066,20 +1067,21 @@ int FormatTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlo
         const char* ap = Tm.tm_hour < 12 ? "am" : "pm";
         const int hr   = (Tm.tm_hour == 0 || Tm.tm_hour == 12) ? 12 : Tm.tm_hour % 12;
         switch(fmt) {
-            case ImPlotTimeFmt_Us:        return ImFormatString(buffer, vertices_size_bytes, ".%03d %03d", ms, us);
-            case ImPlotTimeFmt_SUs:       return ImFormatString(buffer, vertices_size_bytes, ":%02d.%03d %03d", sec, ms, us);
-            case ImPlotTimeFmt_SMs:       return ImFormatString(buffer, vertices_size_bytes, ":%02d.%03d", sec, ms);
-            case ImPlotTimeFmt_S:         return ImFormatString(buffer, vertices_size_bytes, ":%02d", sec);
-            case ImPlotTimeFmt_HrMinSMs:  return ImFormatString(buffer, vertices_size_bytes, "%d:%02d:%02d.%03d%s", hr, min, sec, ms, ap);
-            case ImPlotTimeFmt_HrMinS:    return ImFormatString(buffer, vertices_size_bytes, "%d:%02d:%02d%s", hr, min, sec, ap);
-            case ImPlotTimeFmt_HrMin:     return ImFormatString(buffer, vertices_size_bytes, "%d:%02d%s", hr, min, ap);
-            case ImPlotTimeFmt_Hr:        return ImFormatString(buffer, vertices_size_bytes, "%d%s", hr, ap);
+            case ImPlotTimeFmt_Us:        return ImFormatString(buffer, size, ".%03d %03d", ms, us);
+            case ImPlotTimeFmt_SUs:       return ImFormatString(buffer, size, ":%02d.%03d %03d", sec, ms, us);
+            case ImPlotTimeFmt_SMs:       return ImFormatString(buffer, size, ":%02d.%03d", sec, ms);
+            case ImPlotTimeFmt_S:         return ImFormatString(buffer, size, ":%02d", sec);
+            case ImPlotTimeFmt_MinSMs:    return ImFormatString(buffer, size, ":%02d:%02d.%03d", min, sec, ms);
+            case ImPlotTimeFmt_HrMinSMs:  return ImFormatString(buffer, size, "%d:%02d:%02d.%03d%s", hr, min, sec, ms, ap);
+            case ImPlotTimeFmt_HrMinS:    return ImFormatString(buffer, size, "%d:%02d:%02d%s", hr, min, sec, ap);
+            case ImPlotTimeFmt_HrMin:     return ImFormatString(buffer, size, "%d:%02d%s", hr, min, ap);
+            case ImPlotTimeFmt_Hr:        return ImFormatString(buffer, size, "%d%s", hr, ap);
             default:                      return 0;
         }
     }
 }
 
-int FormatDate(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotDateFmt fmt, bool use_iso_8601) {
+int FormatDate(const ImPlotTime& t, char* buffer, int size, ImPlotDateFmt fmt, bool use_iso_8601) {
     tm& Tm = GImPlot->Tm;
     GetTime(t, &Tm);
     const int day  = Tm.tm_mday;
@@ -1088,34 +1090,34 @@ int FormatDate(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlo
     const int yr   = year % 100;
     if (use_iso_8601) {
         switch (fmt) {
-            case ImPlotDateFmt_DayMo:   return ImFormatString(buffer, vertices_size_bytes, "--%02d-%02d", mon, day);
-            case ImPlotDateFmt_DayMoYr: return ImFormatString(buffer, vertices_size_bytes, "%d-%02d-%02d", year, mon, day);
-            case ImPlotDateFmt_MoYr:    return ImFormatString(buffer, vertices_size_bytes, "%d-%02d", year, mon);
-            case ImPlotDateFmt_Mo:      return ImFormatString(buffer, vertices_size_bytes, "--%02d", mon);
-            case ImPlotDateFmt_Yr:      return ImFormatString(buffer, vertices_size_bytes, "%d", year);
+            case ImPlotDateFmt_DayMo:   return ImFormatString(buffer, size, "--%02d-%02d", mon, day);
+            case ImPlotDateFmt_DayMoYr: return ImFormatString(buffer, size, "%d-%02d-%02d", year, mon, day);
+            case ImPlotDateFmt_MoYr:    return ImFormatString(buffer, size, "%d-%02d", year, mon);
+            case ImPlotDateFmt_Mo:      return ImFormatString(buffer, size, "--%02d", mon);
+            case ImPlotDateFmt_Yr:      return ImFormatString(buffer, size, "%d", year);
             default:                    return 0;
         }
     }
     else {
         switch (fmt) {
-            case ImPlotDateFmt_DayMo:   return ImFormatString(buffer, vertices_size_bytes, "%d/%d", mon, day);
-            case ImPlotDateFmt_DayMoYr: return ImFormatString(buffer, vertices_size_bytes, "%d/%d/%02d", mon, day, yr);
-            case ImPlotDateFmt_MoYr:    return ImFormatString(buffer, vertices_size_bytes, "%s %d", MONTH_ABRVS[Tm.tm_mon], year);
-            case ImPlotDateFmt_Mo:      return ImFormatString(buffer, vertices_size_bytes, "%s", MONTH_ABRVS[Tm.tm_mon]);
-            case ImPlotDateFmt_Yr:      return ImFormatString(buffer, vertices_size_bytes, "%d", year);
+            case ImPlotDateFmt_DayMo:   return ImFormatString(buffer, size, "%d/%d", mon, day);
+            case ImPlotDateFmt_DayMoYr: return ImFormatString(buffer, size, "%d/%d/%02d", mon, day, yr);
+            case ImPlotDateFmt_MoYr:    return ImFormatString(buffer, size, "%s %d", MONTH_ABRVS[Tm.tm_mon], year);
+            case ImPlotDateFmt_Mo:      return ImFormatString(buffer, size, "%s", MONTH_ABRVS[Tm.tm_mon]);
+            case ImPlotDateFmt_Yr:      return ImFormatString(buffer, size, "%d", year);
             default:                    return 0;
         }
     }
  }
 
-int FormatDateTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotDateTimeSpec fmt) {
+int FormatDateTime(const ImPlotTime& t, char* buffer, int size, ImPlotDateTimeSpec fmt) {
     int written = 0;
     if (fmt.Date != ImPlotDateFmt_None)
-        written += FormatDate(t, buffer, vertices_size_bytes, fmt.Date, fmt.UseISO8601);
+        written += FormatDate(t, buffer, size, fmt.Date, fmt.UseISO8601);
     if (fmt.Time != ImPlotTimeFmt_None) {
         if (fmt.Date != ImPlotDateFmt_None)
             buffer[written++] = ' ';
-        written += FormatTime(t, &buffer[written], vertices_size_bytes - written, fmt.Time, fmt.Use24HourClock);
+        written += FormatTime(t, &buffer[written], size - written, fmt.Time, fmt.Use24HourClock);
     }
     return written;
 }
@@ -1191,7 +1193,7 @@ void Locator_Time(ImPlotTicker& ticker, const ImPlotRange& range, float pixels, 
     (void)vertical;
     // get units for level 0 and level 1 labels
     const ImPlotTimeUnit unit0 = GetUnitForRange(range.Size() / (pixels / 100)); // level = 0 (top)
-    const ImPlotTimeUnit unit1 = unit0 + 1;                                          // level = 1 (bottom)
+    const ImPlotTimeUnit unit1 = ImClamp(unit0 + 1, 0, ImPlotTimeUnit_COUNT-1);  // level = 1 (bottom)
     // get time format specs
     const ImPlotDateTimeSpec fmt0 = GetDateTimeFmt(TimeFormatLevel0, unit0);
     const ImPlotDateTimeSpec fmt1 = GetDateTimeFmt(TimeFormatLevel1, unit1);
@@ -1562,7 +1564,7 @@ static inline double RoundAxisValue(const ImPlotAxis& axis, double value) {
     return RoundTo(value, AxisPrecision(axis));
 }
 
-void LabelAxisValue(const ImPlotAxis& axis, double value, char* buff, int vertices_size_bytes, bool round) {
+void LabelAxisValue(const ImPlotAxis& axis, double value, char* buff, int size, bool round) {
     ImPlotContext& gp = *GImPlot;
     // TODO: We shouldn't explicitly check that the axis is Time here. Ideally,
     // Formatter_Time would handle the formatting for us, but the code below
@@ -1571,12 +1573,12 @@ void LabelAxisValue(const ImPlotAxis& axis, double value, char* buff, int vertic
         ImPlotTimeUnit unit = axis.Vertical
                             ? GetUnitForRange(axis.Range.Size() / (gp.CurrentPlot->PlotRect.GetHeight() / 100)) // TODO: magic value!
                             : GetUnitForRange(axis.Range.Size() / (gp.CurrentPlot->PlotRect.GetWidth() / 100)); // TODO: magic value!
-        FormatDateTime(ImPlotTime::FromDouble(value), buff, vertices_size_bytes, GetDateTimeFmt(TimeFormatMouseCursor, unit));
+        FormatDateTime(ImPlotTime::FromDouble(value), buff, size, GetDateTimeFmt(TimeFormatMouseCursor, unit));
     }
     else {
         if (round)
             value = RoundAxisValue(axis, value);
-        axis.Formatter(value, buff, vertices_size_bytes, axis.FormatterData);
+        axis.Formatter(value, buff, size, axis.FormatterData);
     }
 }
 
@@ -2160,7 +2162,7 @@ void SetupAxisTicks(ImAxis idx, const double* values, int n_ticks, const char* c
 void SetupAxisTicks(ImAxis idx, double v_min, double v_max, int n_ticks, const char* const labels[], bool show_default) {
     IM_ASSERT_USER_ERROR(GImPlot->CurrentPlot != NULL && !GImPlot->CurrentPlot->SetupLocked,
                          "Setup needs to be called after BeginPlot and before any setup locking functions (e.g. PlotX)!");
-    IM_ASSERT_USER_ERROR(n_ticks > 1, "The number of ticks must be greater than 1");
+    n_ticks = n_ticks < 2 ? 2 : n_ticks;
     FillRange(GImPlot->TempDouble1, n_ticks, v_min, v_max);
     SetupAxisTicks(idx, GImPlot->TempDouble1.Data, n_ticks, labels, show_default);
 }
@@ -2312,7 +2314,7 @@ void SetNextAxesToFit() {
 // BeginPlot
 //-----------------------------------------------------------------------------
 
-bool BeginPlot(const char* title_id, const ImVec2& vertices_size_bytes, ImPlotFlags flags) {
+bool BeginPlot(const char* title_id, const ImVec2& size, ImPlotFlags flags) {
     IM_ASSERT_USER_ERROR(GImPlot != NULL, "No current context. Did you call ImPlot::CreateContext() or ImPlot::SetCurrentContext()?");
     IM_ASSERT_USER_ERROR(GImPlot->CurrentPlot == NULL, "Mismatched BeginPlot()/EndPlot()!");
 
@@ -2378,7 +2380,7 @@ bool BeginPlot(const char* title_id, const ImVec2& vertices_size_bytes, ImPlotFl
         if (gp.CurrentSubplot != NULL)
             child_size = gp.CurrentSubplot->CellSize;
         else
-            child_size = ImVec2(vertices_size_bytes.x == 0 ? gp.Style.PlotDefaultSize.x : vertices_size_bytes.x, vertices_size_bytes.y == 0 ? gp.Style.PlotDefaultSize.y : vertices_size_bytes.y);
+            child_size = ImVec2(size.x == 0 ? gp.Style.PlotDefaultSize.x : size.x, size.y == 0 ? gp.Style.PlotDefaultSize.y : size.y);
         ImGui::BeginChild(title_id, child_size, false, ImGuiWindowFlags_NoScrollbar);
         Window = ImGui::GetCurrentWindow();
         Window->ScrollMax.y = 1.0f;
@@ -2397,11 +2399,11 @@ bool BeginPlot(const char* title_id, const ImVec2& vertices_size_bytes, ImPlotFl
     if (gp.CurrentSubplot != NULL)
         frame_size = gp.CurrentSubplot->CellSize;
     else
-        frame_size = ImGui::CalcItemSize(vertices_size_bytes, gp.Style.PlotDefaultSize.x, gp.Style.PlotDefaultSize.y);
+        frame_size = ImGui::CalcItemSize(size, gp.Style.PlotDefaultSize.x, gp.Style.PlotDefaultSize.y);
 
-    if (frame_size.x < gp.Style.PlotMinSize.x && (vertices_size_bytes.x < 0.0f || gp.CurrentSubplot != NULL))
+    if (frame_size.x < gp.Style.PlotMinSize.x && (size.x < 0.0f || gp.CurrentSubplot != NULL))
         frame_size.x = gp.Style.PlotMinSize.x;
-    if (frame_size.y < gp.Style.PlotMinSize.y && (vertices_size_bytes.y < 0.0f || gp.CurrentSubplot != NULL))
+    if (frame_size.y < gp.Style.PlotMinSize.y && (size.y < 0.0f || gp.CurrentSubplot != NULL))
         frame_size.y = gp.Style.PlotMinSize.y;
 
     plot.FrameRect = ImRect(Window->DC.CursorPos, Window->DC.CursorPos + frame_size);
@@ -2823,23 +2825,23 @@ void EndPlot() {
         const char* txt       = gp.Annotations.GetText(i);
         ImPlotAnnotation& an  = gp.Annotations.Annotations[i];
         const ImVec2 txt_size = ImGui::CalcTextSize(txt);
-        const ImVec2 vertices_size_bytes     = txt_size + gp.Style.AnnotationPadding * 2;
+        const ImVec2 size     = txt_size + gp.Style.AnnotationPadding * 2;
         ImVec2 pos            = an.Pos;
         if (an.Offset.x == 0)
-            pos.x -= vertices_size_bytes.x / 2;
+            pos.x -= size.x / 2;
         else if (an.Offset.x > 0)
             pos.x += an.Offset.x;
         else
-            pos.x -= vertices_size_bytes.x - an.Offset.x;
+            pos.x -= size.x - an.Offset.x;
         if (an.Offset.y == 0)
-            pos.y -= vertices_size_bytes.y / 2;
+            pos.y -= size.y / 2;
         else if (an.Offset.y > 0)
             pos.y += an.Offset.y;
         else
-            pos.y -= vertices_size_bytes.y - an.Offset.y;
+            pos.y -= size.y - an.Offset.y;
         if (an.Clamp)
-            pos = ClampLabelPos(pos, vertices_size_bytes, plot.PlotRect.Min, plot.PlotRect.Max);
-        ImRect rect(pos,pos+vertices_size_bytes);
+            pos = ClampLabelPos(pos, size, plot.PlotRect.Min, plot.PlotRect.Max);
+        ImRect rect(pos,pos+size);
         if (an.Offset.x != 0 || an.Offset.y != 0) {
             ImVec2 corners[4] = {rect.GetTL(), rect.GetTR(), rect.GetBR(), rect.GetBL()};
             int min_corner = 0;
@@ -2925,8 +2927,8 @@ void EndPlot() {
         }
 
         if (!builder.empty()) {
-            const ImVec2 vertices_size_bytes = ImGui::CalcTextSize(builder.c_str());
-            const ImVec2 pos = GetLocationPos(plot.PlotRect, vertices_size_bytes, plot.MouseTextLocation, gp.Style.MousePosPadding);
+            const ImVec2 size = ImGui::CalcTextSize(builder.c_str());
+            const ImVec2 pos = GetLocationPos(plot.PlotRect, size, plot.MouseTextLocation, gp.Style.MousePosPadding);
             DrawList.AddText(pos, GetStyleColorU32(ImPlotCol_InlayText), builder.c_str());
         }
     }
@@ -3043,31 +3045,31 @@ void EndPlot() {
             continue;
         const char* txt = gp.Tags.GetText(i);
         ImVec2 text_size = ImGui::CalcTextSize(txt);
-        ImVec2 vertices_size_bytes = text_size + gp.Style.AnnotationPadding * 2;
+        ImVec2 size = text_size + gp.Style.AnnotationPadding * 2;
         ImVec2 pos;
-        axis.Ticker.OverrideSizeLate(vertices_size_bytes);
+        axis.Ticker.OverrideSizeLate(size);
         float pix = IM_ROUND(axis.PlotToPixels(tag.Value));
         if (axis.Vertical) {
             if (axis.IsOpposite()) {
-                pos = ImVec2(axis.Datum1 + gp.Style.LabelPadding.x, pix - vertices_size_bytes.y * 0.5f);
-                DrawList.AddTriangleFilled(ImVec2(axis.Datum1,pix), pos, pos + ImVec2(0,vertices_size_bytes.y), tag.ColorBg);
+                pos = ImVec2(axis.Datum1 + gp.Style.LabelPadding.x, pix - size.y * 0.5f);
+                DrawList.AddTriangleFilled(ImVec2(axis.Datum1,pix), pos, pos + ImVec2(0,size.y), tag.ColorBg);
             }
             else {
-                pos = ImVec2(axis.Datum1 - vertices_size_bytes.x - gp.Style.LabelPadding.x, pix - vertices_size_bytes.y * 0.5f);
-                DrawList.AddTriangleFilled(pos + ImVec2(vertices_size_bytes.x,0), ImVec2(axis.Datum1,pix), pos+vertices_size_bytes, tag.ColorBg);
+                pos = ImVec2(axis.Datum1 - size.x - gp.Style.LabelPadding.x, pix - size.y * 0.5f);
+                DrawList.AddTriangleFilled(pos + ImVec2(size.x,0), ImVec2(axis.Datum1,pix), pos+size, tag.ColorBg);
             }
         }
         else {
             if (axis.IsOpposite()) {
-                pos = ImVec2(pix - vertices_size_bytes.x * 0.5f, axis.Datum1 - vertices_size_bytes.y - gp.Style.LabelPadding.y );
-                DrawList.AddTriangleFilled(pos + ImVec2(0,vertices_size_bytes.y), pos + vertices_size_bytes, ImVec2(pix,axis.Datum1), tag.ColorBg);
+                pos = ImVec2(pix - size.x * 0.5f, axis.Datum1 - size.y - gp.Style.LabelPadding.y );
+                DrawList.AddTriangleFilled(pos + ImVec2(0,size.y), pos + size, ImVec2(pix,axis.Datum1), tag.ColorBg);
             }
             else {
-                pos = ImVec2(pix - vertices_size_bytes.x * 0.5f, axis.Datum1 + gp.Style.LabelPadding.y);
-                DrawList.AddTriangleFilled(pos, ImVec2(pix,axis.Datum1), pos + ImVec2(vertices_size_bytes.x, 0), tag.ColorBg);
+                pos = ImVec2(pix - size.x * 0.5f, axis.Datum1 + gp.Style.LabelPadding.y);
+                DrawList.AddTriangleFilled(pos, ImVec2(pix,axis.Datum1), pos + ImVec2(size.x, 0), tag.ColorBg);
             }
         }
-        DrawList.AddRectFilled(pos,pos+vertices_size_bytes,tag.ColorBg);
+        DrawList.AddRectFilled(pos,pos+size,tag.ColorBg);
         DrawList.AddText(pos+gp.Style.AnnotationPadding,tag.ColorFg,txt);
     }
 
@@ -3260,7 +3262,7 @@ void SubplotNextCell() {
     SubplotSetCell(++subplot.CurrentIdx);
 }
 
-bool BeginSubplots(const char* title, int rows, int cols, const ImVec2& vertices_size_bytes, ImPlotSubplotFlags flags, float* row_sizes, float* col_sizes) {
+bool BeginSubplots(const char* title, int rows, int cols, const ImVec2& size, ImPlotSubplotFlags flags, float* row_sizes, float* col_sizes) {
     IM_ASSERT_USER_ERROR(rows > 0 && cols > 0, "Invalid sizing arguments!");
     IM_ASSERT_USER_ERROR(GImPlot != NULL, "No current context. Did you call ImPlot::CreateContext() or ImPlot::SetCurrentContext()?");
     IM_ASSERT_USER_ERROR(GImPlot->CurrentSubplot == NULL, "Mismatched BeginSubplots()/EndSubplots()!");
@@ -3325,7 +3327,7 @@ bool BeginSubplots(const char* title, int rows, int cols, const ImVec2& vertices
          title_size = ImGui::CalcTextSize(title, NULL, true);
     const float pad_top = title_size.x > 0.0f ? title_size.y + gp.Style.LabelPadding.y : 0;
     const ImVec2 half_pad = gp.Style.PlotPadding/2;
-    const ImVec2 frame_size = ImGui::CalcItemSize(vertices_size_bytes, gp.Style.PlotDefaultSize.x, gp.Style.PlotDefaultSize.y);
+    const ImVec2 frame_size = ImGui::CalcItemSize(size, gp.Style.PlotDefaultSize.x, gp.Style.PlotDefaultSize.y);
     subplot.FrameRect = ImRect(Window->DC.CursorPos, Window->DC.CursorPos + frame_size);
     subplot.GridRect.Min = subplot.FrameRect.Min + half_pad + ImVec2(0,pad_top);
     subplot.GridRect.Max = subplot.FrameRect.Max - half_pad;
@@ -4085,7 +4087,7 @@ void EndLegendPopup() {
     ImGui::EndPopup();
 }
 
-void ShowAltLegend(const char* title_id, bool vertical, const ImVec2 vertices_size_bytes, bool interactable) {
+void ShowAltLegend(const char* title_id, bool vertical, const ImVec2 size, bool interactable) {
     ImPlotContext& gp    = *GImPlot;
     ImGuiContext &G      = *GImGui;
     ImGuiWindow * Window = G.CurrentWindow;
@@ -4099,7 +4101,7 @@ void ShowAltLegend(const char* title_id, bool vertical, const ImVec2 vertices_si
         legend_size  = CalcLegendSize(plot->Items, gp.Style.LegendInnerPadding, gp.Style.LegendSpacing, vertical);
         default_size = legend_size + gp.Style.LegendPadding * 2;
     }
-    ImVec2 frame_size = ImGui::CalcItemSize(vertices_size_bytes, default_size.x, default_size.y);
+    ImVec2 frame_size = ImGui::CalcItemSize(size, default_size.x, default_size.y);
     ImRect bb_frame = ImRect(Window->DC.CursorPos, Window->DC.CursorPos + frame_size);
     ImGui::ItemSize(bb_frame);
     if (!ImGui::ItemAdd(bb_frame, 0, &bb_frame))
@@ -4233,7 +4235,7 @@ ImPlotStyle& GetStyle() {
 void PushStyleColor(ImPlotCol idx, ImU32 col) {
     ImPlotContext& gp = *GImPlot;
     ImGuiColorMod backup;
-    backup.Col = idx;
+    backup.Col = (ImGuiCol)idx;
     backup.BackupValue = gp.Style.Colors[idx];
     gp.ColorModifiers.push_back(backup);
     gp.Style.Colors[idx] = ImGui::ColorConvertU32ToFloat4(col);
@@ -4242,7 +4244,7 @@ void PushStyleColor(ImPlotCol idx, ImU32 col) {
 void PushStyleColor(ImPlotCol idx, const ImVec4& col) {
     ImPlotContext& gp = *GImPlot;
     ImGuiColorMod backup;
-    backup.Col = idx;
+    backup.Col = (ImGuiCol)idx;
     backup.BackupValue = gp.Style.Colors[idx];
     gp.ColorModifiers.push_back(backup);
     gp.Style.Colors[idx] = col;
@@ -4265,7 +4267,7 @@ void PushStyleVar(ImPlotStyleVar idx, float val) {
     const ImPlotStyleVarInfo* var_info = GetPlotStyleVarInfo(idx);
     if (var_info->Type == ImGuiDataType_Float && var_info->Count == 1) {
         float* pvar = (float*)var_info->GetVarPtr(&gp.Style);
-        gp.StyleModifiers.push_back(ImGuiStyleMod(idx, *pvar));
+        gp.StyleModifiers.push_back(ImGuiStyleMod((ImGuiStyleVar)idx, *pvar));
         *pvar = val;
         return;
     }
@@ -4277,27 +4279,27 @@ void PushStyleVar(ImPlotStyleVar idx, int val) {
     const ImPlotStyleVarInfo* var_info = GetPlotStyleVarInfo(idx);
     if (var_info->Type == ImGuiDataType_S32 && var_info->Count == 1) {
         int* pvar = (int*)var_info->GetVarPtr(&gp.Style);
-        gp.StyleModifiers.push_back(ImGuiStyleMod(idx, *pvar));
+        gp.StyleModifiers.push_back(ImGuiStyleMod((ImGuiStyleVar)idx, *pvar));
         *pvar = val;
         return;
     }
     else if (var_info->Type == ImGuiDataType_Float && var_info->Count == 1) {
         float* pvar = (float*)var_info->GetVarPtr(&gp.Style);
-        gp.StyleModifiers.push_back(ImGuiStyleMod(idx, *pvar));
+        gp.StyleModifiers.push_back(ImGuiStyleMod((ImGuiStyleVar)idx, *pvar));
         *pvar = (float)val;
         return;
     }
     IM_ASSERT(0 && "Called PushStyleVar() int variant but variable is not a int!");
 }
 
-void PushStyleVar(ImGuiStyleVar idx, const ImVec2& val)
+void PushStyleVar(ImPlotStyleVar idx, const ImVec2& val)
 {
     ImPlotContext& gp = *GImPlot;
     const ImPlotStyleVarInfo* var_info = GetPlotStyleVarInfo(idx);
     if (var_info->Type == ImGuiDataType_Float && var_info->Count == 2)
     {
         ImVec2* pvar = (ImVec2*)var_info->GetVarPtr(&gp.Style);
-        gp.StyleModifiers.push_back(ImGuiStyleMod(idx, *pvar));
+        gp.StyleModifiers.push_back(ImGuiStyleMod((ImGuiStyleVar)idx, *pvar));
         *pvar = val;
         return;
     }
@@ -4330,22 +4332,22 @@ void PopStyleVar(int count) {
 // [Section] Colormaps
 //------------------------------------------------------------------------------
 
-ImPlotColormap AddColormap(const char* name, const ImVec4* colormap, int vertices_size_bytes, bool qual) {
+ImPlotColormap AddColormap(const char* name, const ImVec4* colormap, int size, bool qual) {
     ImPlotContext& gp = *GImPlot;
-    IM_ASSERT_USER_ERROR(vertices_size_bytes > 1, "The colormap size must be greater than 1!");
+    IM_ASSERT_USER_ERROR(size > 1, "The colormap size must be greater than 1!");
     IM_ASSERT_USER_ERROR(gp.ColormapData.GetIndex(name) == -1, "The colormap name has already been used!");
     ImVector<ImU32> buffer;
-    buffer.resize(vertices_size_bytes);
-    for (int i = 0; i < vertices_size_bytes; ++i)
+    buffer.resize(size);
+    for (int i = 0; i < size; ++i)
         buffer[i] = ImGui::ColorConvertFloat4ToU32(colormap[i]);
-    return gp.ColormapData.Append(name, buffer.Data, vertices_size_bytes, qual);
+    return gp.ColormapData.Append(name, buffer.Data, size, qual);
 }
 
-ImPlotColormap AddColormap(const char* name, const ImU32*  colormap, int vertices_size_bytes, bool qual) {
+ImPlotColormap AddColormap(const char* name, const ImU32*  colormap, int size, bool qual) {
     ImPlotContext& gp = *GImPlot;
-    IM_ASSERT_USER_ERROR(vertices_size_bytes > 1, "The colormap size must be greater than 1!");
+    IM_ASSERT_USER_ERROR(size > 1, "The colormap size must be greater than 1!");
     IM_ASSERT_USER_ERROR(gp.ColormapData.GetIndex(name) == -1, "The colormap name has already be used!");
-    return gp.ColormapData.Append(name, colormap, vertices_size_bytes, qual);
+    return gp.ColormapData.Append(name, colormap, size, qual);
 }
 
 int GetColormapCount() {
@@ -4431,16 +4433,16 @@ ImVec4 SampleColormap(float t, ImPlotColormap cmap) {
     return ImGui::ColorConvertU32ToFloat4(SampleColormapU32(t,cmap));
 }
 
-void RenderColorBar(const ImU32* colors, int vertices_size_bytes, ImDrawList& DrawList, const ImRect& bounds, bool vert, bool reversed, bool continuous) {
-    const int n = continuous ? vertices_size_bytes - 1 : vertices_size_bytes;
+void RenderColorBar(const ImU32* colors, int size, ImDrawList& DrawList, const ImRect& bounds, bool vert, bool reversed, bool continuous) {
+    const int n = continuous ? size - 1 : size;
     ImU32 col1, col2;
     if (vert) {
         const float step = bounds.GetHeight() / n;
         ImRect rect(bounds.Min.x, bounds.Min.y, bounds.Max.x, bounds.Min.y + step);
         for (int i = 0; i < n; ++i) {
             if (reversed) {
-                col1 = colors[vertices_size_bytes-i-1];
-                col2 = continuous ? colors[vertices_size_bytes-i-2] : col1;
+                col1 = colors[size-i-1];
+                col2 = continuous ? colors[size-i-2] : col1;
             }
             else {
                 col1 = colors[i];
@@ -4455,8 +4457,8 @@ void RenderColorBar(const ImU32* colors, int vertices_size_bytes, ImDrawList& Dr
         ImRect rect(bounds.Min.x, bounds.Min.y, bounds.Min.x + step, bounds.Max.y);
         for (int i = 0; i < n; ++i) {
             if (reversed) {
-                col1 = colors[vertices_size_bytes-i-1];
-                col2 = continuous ? colors[vertices_size_bytes-i-2] : col1;
+                col1 = colors[size-i-1];
+                col2 = continuous ? colors[size-i-2] : col1;
             }
             else {
                 col1 = colors[i];
@@ -4468,7 +4470,7 @@ void RenderColorBar(const ImU32* colors, int vertices_size_bytes, ImDrawList& Dr
     }
 }
 
-void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& vertices_size_bytes, const char* TIME_FORMAT, ImPlotColormapScaleFlags flags, ImPlotColormap cmap) {
+void ColormapScale(const char* label, double scale_min, double scale_max, const ImVec2& size, const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap) {
     ImGuiContext &G      = *GImGui;
     ImGuiWindow * Window = G.CurrentWindow;
     if (Window->SkipItems)
@@ -4484,13 +4486,13 @@ void ColormapScale(const char* label, double scale_min, double scale_max, const 
     cmap = cmap == IMPLOT_AUTO ? gp.Style.Colormap : cmap;
     IM_ASSERT_USER_ERROR(cmap >= 0 && cmap < gp.ColormapData.Count, "Invalid colormap index!");
 
-    ImVec2 frame_size  = ImGui::CalcItemSize(vertices_size_bytes, 0, gp.Style.PlotDefaultSize.y);
-    if (frame_size.y < gp.Style.PlotMinSize.y && vertices_size_bytes.y < 0.0f)
+    ImVec2 frame_size  = ImGui::CalcItemSize(size, 0, gp.Style.PlotDefaultSize.y);
+    if (frame_size.y < gp.Style.PlotMinSize.y && size.y < 0.0f)
         frame_size.y = gp.Style.PlotMinSize.y;
 
     ImPlotRange range(ImMin(scale_min,scale_max), ImMax(scale_min,scale_max));
     gp.CTicker.Reset();
-    Locator_Default(gp.CTicker, range, frame_size.y, true, Formatter_Default, (void*)TIME_FORMAT);
+    Locator_Default(gp.CTicker, range, frame_size.y, true, Formatter_Default, (void*)format);
 
     const bool rend_label = label_size.x > 0;
     const float txt_off   = gp.Style.LabelPadding.x;
@@ -4557,7 +4559,7 @@ void ColormapScale(const char* label, double scale_min, double scale_max, const 
     ImGui::PopClipRect();
 }
 
-bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* TIME_FORMAT, ImPlotColormap cmap) {
+bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* format, ImPlotColormap cmap) {
     *t = ImClamp(*t,0.0f,1.0f);
     ImGuiContext &G      = *GImGui;
     ImGuiWindow * Window = G.CurrentWindow;
@@ -4583,7 +4585,7 @@ bool ColormapSlider(const char* label, float* t, ImVec4* out, const char* TIME_F
     ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, grab);
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize,2);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,0);
-    const bool changed = ImGui::SliderFloat(label,t,0,1,TIME_FORMAT);
+    const bool changed = ImGui::SliderFloat(label,t,0,1,format);
     ImGui::PopStyleColor(5);
     ImGui::PopStyleVar(2);
     if (out != NULL)
@@ -4605,8 +4607,8 @@ bool ColormapButton(const char* label, const ImVec2& size_arg, ImPlotColormap cm
     const bool   qual  = GImPlot->ColormapData.IsQual(cmap);
     const ImVec2 pos  = ImGui::GetCurrentWindow()->DC.CursorPos;
     const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
-    ImVec2 vertices_size_bytes = ImGui::CalcItemSize(size_arg, label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
-    const ImRect rect = ImRect(pos.x,pos.y,pos.x+vertices_size_bytes.x,pos.y+vertices_size_bytes.y);
+    ImVec2 size = ImGui::CalcItemSize(size_arg, label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
+    const ImRect rect = ImRect(pos.x,pos.y,pos.x+size.x,pos.y+size.y);
     RenderColorBar(keys,count,*ImGui::GetWindowDrawList(),rect,false,false,!qual);
     const ImU32 text = CalcTextColor(GImPlot->ColormapData.LerpTable(cmap,G.Style.ButtonTextAlign.x));
     ImGui::PushStyleColor(ImGuiCol_Button,IM_COL32_BLACK_TRANS);
@@ -4614,7 +4616,7 @@ bool ColormapButton(const char* label, const ImVec2& size_arg, ImPlotColormap cm
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,ImVec4(1,1,1,0.2f));
     ImGui::PushStyleColor(ImGuiCol_Text,text);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,0);
-    const bool pressed = ImGui::Button(label,vertices_size_bytes);
+    const bool pressed = ImGui::Button(label,size);
     ImGui::PopStyleColor(4);
     ImGui::PopStyleVar(1);
     return pressed;
@@ -4633,32 +4635,32 @@ ImPlotInputMap& GetInputMap() {
 void MapInputDefault(ImPlotInputMap* dst) {
     ImPlotInputMap& map = dst ? *dst : GetInputMap();
     map.Pan             = ImGuiMouseButton_Left;
-    map.PanMod          = ImGuiModFlags_None;
+    map.PanMod          = ImGuiMod_None;
     map.Fit             = ImGuiMouseButton_Left;
     map.Menu            = ImGuiMouseButton_Right;
     map.Select          = ImGuiMouseButton_Right;
-    map.SelectMod       = ImGuiModFlags_None;
+    map.SelectMod       = ImGuiMod_None;
     map.SelectCancel    = ImGuiMouseButton_Left;
-    map.SelectHorzMod   = ImGuiModFlags_Alt;
-    map.SelectVertMod   = ImGuiModFlags_Shift;
-    map.OverrideMod     = ImGuiModFlags_Ctrl;
-    map.ZoomMod         = ImGuiModFlags_None;
+    map.SelectHorzMod   = ImGuiMod_Alt;
+    map.SelectVertMod   = ImGuiMod_Shift;
+    map.OverrideMod     = ImGuiMod_Ctrl;
+    map.ZoomMod         = ImGuiMod_None;
     map.ZoomRate        = 0.1f;
 }
 
 void MapInputReverse(ImPlotInputMap* dst) {
     ImPlotInputMap& map = dst ? *dst : GetInputMap();
     map.Pan             = ImGuiMouseButton_Right;
-    map.PanMod          = ImGuiModFlags_None;
+    map.PanMod          = ImGuiMod_None;
     map.Fit             = ImGuiMouseButton_Left;
     map.Menu            = ImGuiMouseButton_Right;
     map.Select          = ImGuiMouseButton_Left;
-    map.SelectMod       = ImGuiModFlags_None;
+    map.SelectMod       = ImGuiMod_None;
     map.SelectCancel    = ImGuiMouseButton_Right;
-    map.SelectHorzMod   = ImGuiModFlags_Alt;
-    map.SelectVertMod   = ImGuiModFlags_Shift;
-    map.OverrideMod     = ImGuiModFlags_Ctrl;
-    map.ZoomMod         = ImGuiModFlags_None;
+    map.SelectHorzMod   = ImGuiMod_Alt;
+    map.SelectVertMod   = ImGuiMod_Shift;
+    map.OverrideMod     = ImGuiMod_Ctrl;
+    map.ZoomMod         = ImGuiMod_None;
     map.ZoomRate        = 0.1f;
 }
 
@@ -4672,23 +4674,23 @@ void ItemIcon(const ImVec4& col) {
 
 void ItemIcon(ImU32 col) {
     const float txt_size = ImGui::GetTextLineHeight();
-    ImVec2 vertices_size_bytes(txt_size-4,txt_size);
+    ImVec2 size(txt_size-4,txt_size);
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImVec2 pos = window->DC.CursorPos;
-    ImGui::GetWindowDrawList()->AddRectFilled(pos + ImVec2(0,2), pos + vertices_size_bytes - ImVec2(0,2), col);
-    ImGui::Dummy(vertices_size_bytes);
+    ImGui::GetWindowDrawList()->AddRectFilled(pos + ImVec2(0,2), pos + size - ImVec2(0,2), col);
+    ImGui::Dummy(size);
 }
 
 void ColormapIcon(ImPlotColormap cmap) {
     ImPlotContext& gp = *GImPlot;
     const float txt_size = ImGui::GetTextLineHeight();
-    ImVec2 vertices_size_bytes(txt_size-4,txt_size);
+    ImVec2 size(txt_size-4,txt_size);
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImVec2 pos = window->DC.CursorPos;
-    ImRect rect(pos+ImVec2(0,2),pos+vertices_size_bytes-ImVec2(0,2));
+    ImRect rect(pos+ImVec2(0,2),pos+size-ImVec2(0,2));
     ImDrawList& DrawList = *ImGui::GetWindowDrawList();
     RenderColorBar(gp.ColormapData.GetKeys(cmap),gp.ColormapData.GetKeyCount(cmap),DrawList,rect,false,false,!gp.ColormapData.IsQual(cmap));
-    ImGui::Dummy(vertices_size_bytes);
+    ImGui::Dummy(size);
 }
 
 ImDrawList* GetPlotDrawList() {
@@ -4913,14 +4915,14 @@ void ShowStyleEditor(ImPlotStyle* ref) {
                     ImGui::LogToClipboard();
                 else
                     ImGui::LogToTTY();
-                int vertices_size_bytes = GetColormapSize();
+                int size = GetColormapSize();
                 const char* name = GetColormapName(gp.Style.Colormap);
-                ImGui::LogText("static const ImU32 %s_Data[%d] = {\n", name, vertices_size_bytes);
-                for (int i = 0; i < vertices_size_bytes; ++i) {
+                ImGui::LogText("static const ImU32 %s_Data[%d] = {\n", name, size);
+                for (int i = 0; i < size; ++i) {
                     ImU32 col = GetColormapColorU32(i,gp.Style.Colormap);
-                    ImGui::LogText("    %u%s\n", col, i == vertices_size_bytes - 1 ? "" : ",");
+                    ImGui::LogText("    %u%s\n", col, i == size - 1 ? "" : ",");
                 }
-                ImGui::LogText("};\nImPlotColormap %s = ImPlot::AddColormap(\"%s\", %s_Data, %d);", name, name, name, vertices_size_bytes);
+                ImGui::LogText("};\nImPlotColormap %s = ImPlot::AddColormap(\"%s\", %s_Data, %d);", name, name, name, size);
                 ImGui::LogFinish();
             }
             ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0");
@@ -4932,7 +4934,7 @@ void ShowStyleEditor(ImPlotStyle* ref) {
             ImGui::Separator();
             for (int i = 0; i < gp.ColormapData.Count; ++i) {
                 ImGui::PushID(i);
-                int vertices_size_bytes = gp.ColormapData.GetKeyCount(i);
+                int size = gp.ColormapData.GetKeyCount(i);
                 bool selected = i == gp.Style.Colormap;
 
                 const char* name = GetColormapName(i);
@@ -4947,7 +4949,7 @@ void ShowStyleEditor(ImPlotStyle* ref) {
                 ImGui::SameLine();
                 ImGui::BeginGroup();
                 if (edit) {
-                    for (int c = 0; c < vertices_size_bytes; ++c) {
+                    for (int c = 0; c < size; ++c) {
                         ImGui::PushID(c);
                         ImVec4 col4 = ImGui::ColorConvertU32ToFloat4(gp.ColormapData.GetKeyColor(i,c));
                         if (ImGui::ColorEdit4("",&col4.x,ImGuiColorEditFlags_NoInputs)) {
@@ -4955,7 +4957,7 @@ void ShowStyleEditor(ImPlotStyle* ref) {
                             gp.ColormapData.SetKeyColor(i,c,col32);
                             BustItemCache();
                         }
-                        if ((c + 1) % 12 != 0 && c != vertices_size_bytes -1)
+                        if ((c + 1) % 12 != 0 && c != size -1)
                             ImGui::SameLine();
                         ImGui::PopID();
                     }
@@ -5234,11 +5236,11 @@ void ShowMetricsWindow(bool* p_popen) {
             for (int m = 0; m < gp.ColormapData.Count; ++m) {
                 if (ImGui::TreeNode(gp.ColormapData.GetName(m))) {
                     int count = gp.ColormapData.GetKeyCount(m);
-                    int vertices_size_bytes = gp.ColormapData.GetTableSize(m);
+                    int size = gp.ColormapData.GetTableSize(m);
                     bool qual = gp.ColormapData.IsQual(m);
                     ImGui::BulletText("Qualitative: %s", qual ? "true" : "false");
                     ImGui::BulletText("Key Count: %d", count);
-                    ImGui::BulletText("Table Size: %d", vertices_size_bytes);
+                    ImGui::BulletText("Table Size: %d", size);
                     ImGui::Indent();
 
                     static float t = 0.5;
@@ -5250,12 +5252,12 @@ void ShowMetricsWindow(bool* p_popen) {
                     ImGui::ColorButton("Sampler",samp);
                     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0,0,0,0));
                     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0,0));
-                    for (int c = 0; c < vertices_size_bytes; ++c) {
+                    for (int c = 0; c < size; ++c) {
                         ImVec4 col = ImGui::ColorConvertU32ToFloat4(gp.ColormapData.GetTableColor(m,c));
                         ImGui::PushID(m*1000+c);
                         ImGui::ColorButton("",col,0,ImVec2(10,10));
                         ImGui::PopID();
-                        if ((c + 1) % 32 != 0 && c != vertices_size_bytes - 1)
+                        if ((c + 1) % 32 != 0 && c != size - 1)
                             ImGui::SameLine();
                     }
                     ImGui::PopStyleVar();
@@ -5701,11 +5703,11 @@ void StyleColorsLight(ImPlotStyle* dst) {
 
 #ifndef IMPLOT_DISABLE_OBSOLETE_FUNCTIONS
 
-bool BeginPlot(const char* title, const char* x_label, const char* y1_label, const ImVec2& vertices_size_bytes,
+bool BeginPlot(const char* title, const char* x_label, const char* y1_label, const ImVec2& size,
                ImPlotFlags flags, ImPlotAxisFlags x_flags, ImPlotAxisFlags y1_flags, ImPlotAxisFlags y2_flags, ImPlotAxisFlags y3_flags,
                const char* y2_label, const char* y3_label)
 {
-    if (!BeginPlot(title, vertices_size_bytes, flags))
+    if (!BeginPlot(title, size, flags))
         return false;
     SetupAxis(ImAxis_X1, x_label, x_flags);
     SetupAxis(ImAxis_Y1, y1_label, y1_flags);

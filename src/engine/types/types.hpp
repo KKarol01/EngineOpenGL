@@ -6,6 +6,13 @@
 #include <algorithm>
 #include <utility>
 namespace eng {
+    typedef uint32_t BufferID;
+    typedef uint32_t VaoID;
+    typedef uint32_t TextureID;
+    typedef uint32_t FboID;
+    typedef uint32_t ProgramID;
+    typedef uint32_t PipelineID;
+
     template <typename T> using OptionalReference = std::optional<std::reference_wrapper<T>>;
 
     struct UNIQUE_INSERT;

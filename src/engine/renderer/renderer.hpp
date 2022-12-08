@@ -1,49 +1,82 @@
 #pragma once
 
-#include "typedefs.hpp"
+/*
+*
+* dla ognia:
+* vao, shader
+* narusyj ogien do 3 tekstur
+*
+*
+        pp {
+        buffer, drawing_cmd
+
+                s{
+                        fboid, bindings, vao, program
+                }
+        }
+*/
+
+#include "../wrappers/shader/shader.hpp"
 #include "../wrappers/buffer/buffer.hpp"
+#include "../allocators/idallocator.hpp"
 #include "../types/types.hpp"
 
-template <typename T> class REAllocator {
-    struct TypeWrapper {
-        template <typename... ARGS> TypeWrapper(ARGS &&...args) : type{std::forward<ARGS>(args)...} {}
+namespace eng {
 
-        TypeWrapper(TypeWrapper &&other) noexcept { *this = std::move(other); }
-        TypeWrapper &operator=(TypeWrapper &&other) noexcept {
-            id   = other.id;
-            type = std::move(other.type);
-            return *this;
+    struct DrawCMD {
+        virtual void draw() = 0;
+        virtual ~DrawCMD()  = default;
+    };
+    struct DrawElementsCMD final : public DrawCMD {
+        DrawElementsCMD(BufferID buffer);
+
+        void draw() final;
+
+        size_t count;
+    };
+    struct BufferBinder {
+        virtual void bind() = 0;
+        virtual ~BufferBinder() = default;
+
+        uint32_t gl_target;
+        BufferID buffer;
+    };
+    struct BufferBasedBinder final : public BufferBinder {
+        BufferBasedBinder(uint32_t gl_target, BufferID buffer, uint32_t base) {
+            this->gl_target = gl_target;
+            this->buffer    = buffer;
+            this->base      = base;
         }
 
-        inline bool operator<(const TypeWrapper &other) const noexcept { return id < other.id; }
-        inline bool operator==(const TypeWrapper &other) const noexcept { return id == other.id; }
 
-        uint32_t id{gid++};
-        T type;
+        void bind() final;
 
-        static inline uint32_t gid{0u};
+        uint32_t base{0u};
     };
 
-    template <typename... ARGS> auto allocate(ARGS &&...args) {
-        return storage.emplace(std::forward<ARGS>(args)...).id;
-    }
-    auto &get(uint32_t id) {
-        return *storage.find(id, [](auto &&e, auto &&v) { return e.id < v; });
-    }
+    struct PipelineStage {
+        VaoID vao;
+        ProgramID program;
+        std::shared_ptr<DrawCMD> draw_cmd;
+        std::vector<std::shared_ptr<BufferBinder>> bufferbinders;
+    };
 
-    eng::SortedVectorUnique<TypeWrapper> storage;
+    class Pipeline {
+      public:
+        void render();
 
-    friend class RE;
-};
+        std::vector<PipelineStage> stages;
+    };
 
-class RE {
-  public:
-    BufferID create_buffer(GLBufferDescriptor desc);
-    VaoID create_vao(GLVaoDescriptor desc);
-    GLBuffer &get_buffer(BufferID id);
-    GLVao &get_vao(VaoID id);
+    class Renderer {
 
-  private:
-    REAllocator<GLBuffer> buffers;
-    REAllocator<GLVao> vaos;
-};
+      public:
+        void render();
+
+        IDAllocator<Pipeline> pipelines;
+        IDAllocator<GLVao> vaos;
+        IDAllocator<GLBuffer> buffers;
+        IDAllocator<ShaderProgram> programs;
+    };
+
+} // namespace eng

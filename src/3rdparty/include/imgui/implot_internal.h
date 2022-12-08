@@ -167,7 +167,7 @@ static inline double ImMean(const T* values, int count) {
     double den = 1.0 / count;
     double mu  = 0;
     for (int i = 0; i < count; ++i)
-        mu += values[i] * den;
+        mu += (double)values[i] * den;
     return mu;
 }
 // Finds the sample standard deviation of an array
@@ -177,7 +177,7 @@ static inline double ImStdDev(const T* values, int count) {
     double mu  = ImMean(values, count);
     double x   = 0;
     for (int i = 0; i < count; ++i)
-        x += (values[i] - mu) * (values[i] - mu) * den;
+        x += ((double)values[i] - mu) * ((double)values[i] - mu) * den;
     return sqrt(x);
 }
 // Mix color a and b by factor s in [0 256]
@@ -203,12 +203,12 @@ static inline ImU32 ImMixU32(ImU32 a, ImU32 b, ImU32 s) {
 }
 
 // Lerp across an array of 32-bit collors given t in [0.0 1.0]
-static inline ImU32 ImLerpU32(const ImU32* colors, int vertices_size_bytes, float t) {
-    int i1 = (int)((vertices_size_bytes - 1 ) * t);
+static inline ImU32 ImLerpU32(const ImU32* colors, int size, float t) {
+    int i1 = (int)((size - 1 ) * t);
     int i2 = i1 + 1;
-    if (i2 == vertices_size_bytes || vertices_size_bytes == 1)
+    if (i2 == size || size == 1)
         return colors[i1];
-    float den = 1.0f / (vertices_size_bytes - 1);
+    float den = 1.0f / (size - 1);
     float t1 = i1 * den;
     float t2 = i2 * den;
     float tr = ImRemap01(t, t1, t2);
@@ -261,6 +261,7 @@ enum ImPlotTimeFmt_ {              // default        [ 24 Hour Clock ]
     ImPlotTimeFmt_SUs,             // :29.428 552    [ :29.428 552  ]
     ImPlotTimeFmt_SMs,             // :29.428        [ :29.428      ]
     ImPlotTimeFmt_S,               // :29            [ :29          ]
+    ImPlotTimeFmt_MinSMs,          // 21:29.428      [ 21:29.428    ]
     ImPlotTimeFmt_HrMinSMs,        // 7:21:29.428pm  [ 19:21:29.428 ]
     ImPlotTimeFmt_HrMinS,          // 7:21:29pm      [ 19:21:29     ]
     ImPlotTimeFmt_HrMin,           // 7:21pm         [ 19:21        ]
@@ -337,12 +338,12 @@ struct ImPlotColormapData {
     int Append(const char* name, const ImU32* keys, int count, bool qual) {
         if (GetIndex(name) != -1)
             return -1;
-        KeyOffsets.push_back(Keys.vertices_size_bytes());
+        KeyOffsets.push_back(Keys.size());
         KeyCounts.push_back(count);
-        Keys.reserve(Keys.vertices_size_bytes()+count);
+        Keys.reserve(Keys.size()+count);
         for (int i = 0; i < count; ++i)
             Keys.push_back(keys[i]);
-        TextOffsets.push_back(Text.vertices_size_bytes());
+        TextOffsets.push_back(Text.size());
         Text.append(name, name + strlen(name) + 1);
         Quals.push_back(qual);
         ImGuiID id = ImHashStr(name);
@@ -355,7 +356,7 @@ struct ImPlotColormapData {
     void _AppendTable(ImPlotColormap cmap) {
         int key_count     = GetKeyCount(cmap);
         const ImU32* keys = GetKeys(cmap);
-        int off = Tables.vertices_size_bytes();
+        int off = Tables.size();
         TableOffsets.push_back(off);
         if (IsQual(cmap)) {
             Tables.reserve(key_count);
@@ -436,6 +437,11 @@ struct ImPlotAnnotation {
     ImU32  ColorFg;
     int    TextOffset;
     bool   Clamp;
+    ImPlotAnnotation() {
+        ColorBg = ColorFg = 0;
+        TextOffset = 0;
+        Clamp = false;
+    }
 };
 
 // Collection of plot labels
@@ -451,7 +457,7 @@ struct ImPlotAnnotationCollection {
         ImPlotAnnotation an;
         an.Pos = pos; an.Offset = off;
         an.ColorBg = bg; an.ColorFg = fg;
-        an.TextOffset = TextBuffer.vertices_size_bytes();
+        an.TextOffset = TextBuffer.size();
         an.Clamp = clamp;
         Annotations.push_back(an);
         TextBuffer.appendfv(fmt, args);
@@ -500,7 +506,7 @@ struct ImPlotTagCollection {
         tag.Value = value;
         tag.ColorBg = bg;
         tag.ColorFg = fg;
-        tag.TextOffset = TextBuffer.vertices_size_bytes();
+        tag.TextOffset = TextBuffer.size();
         Tags.push_back(tag);
         TextBuffer.appendfv(fmt, args);
         const char nul[] = "";
@@ -539,6 +545,7 @@ struct ImPlotTick
     int    Idx;
 
     ImPlotTick(double value, bool major, int level, bool show_label) {
+        PixelPos     = 0;
         PlotPos      = value;
         Major        = major;
         ShowLabel    = show_label;
@@ -562,7 +569,7 @@ struct ImPlotTicker {
     ImPlotTick& AddTick(double value, bool major, int level, bool show_label, const char* label) {
         ImPlotTick tick(value, major, level, show_label);
         if (show_label && label != NULL) {
-            tick.TextOffset = TextBuffer.vertices_size_bytes();
+            tick.TextOffset = TextBuffer.size();
             TextBuffer.append(label, label + strlen(label) + 1);
             tick.LabelSize = ImGui::CalcTextSize(TextBuffer.Buf.Data + tick.TextOffset);
         }
@@ -573,7 +580,7 @@ struct ImPlotTicker {
         ImPlotTick tick(value, major, level, show_label);
         if (show_label && formatter != NULL) {
             char buff[IMPLOT_LABEL_MAX_SIZE];
-            tick.TextOffset = TextBuffer.vertices_size_bytes();
+            tick.TextOffset = TextBuffer.size();
             formatter(tick.PlotPos, buff, sizeof(buff), data);
             TextBuffer.append(buff, buff + strlen(buff) + 1);
             tick.LabelSize = ImGui::CalcTextSize(TextBuffer.Buf.Data + tick.TextOffset);
@@ -586,7 +593,7 @@ struct ImPlotTicker {
             MaxSize.x     =  tick.LabelSize.x > MaxSize.x ? tick.LabelSize.x : MaxSize.x;
             MaxSize.y     =  tick.LabelSize.y > MaxSize.y ? tick.LabelSize.y : MaxSize.y;
         }
-        tick.Idx = Ticks.vertices_size_bytes();
+        tick.Idx = Ticks.size();
         Ticks.push_back(tick);
         return Ticks.back();
     }
@@ -599,9 +606,9 @@ struct ImPlotTicker {
         return GetText(tick.Idx);
     }
 
-    void OverrideSizeLate(const ImVec2& vertices_size_bytes) {
-        LateSize.x = vertices_size_bytes.x > LateSize.x ? vertices_size_bytes.x : LateSize.x;
-        LateSize.y = vertices_size_bytes.y > LateSize.y ? vertices_size_bytes.y : LateSize.y;
+    void OverrideSizeLate(const ImVec2& size) {
+        LateSize.x = size.x > LateSize.x ? size.x : LateSize.x;
+        LateSize.y = size.y > LateSize.y ? size.y : LateSize.y;
     }
 
     void Reset() {
@@ -665,6 +672,7 @@ struct ImPlotAxis
     bool                 Held;
 
     ImPlotAxis() {
+        ID               = 0;
         Flags            = PreviousFlags = ImPlotAxisFlags_None;
         Range.Min        = 0;
         Range.Max        = 1;
@@ -763,7 +771,7 @@ struct ImPlotAxis
 
     inline void SetAspect(double unit_per_pix) {
         double new_size = unit_per_pix * PixelSize();
-        double delta    = (new_size - Range.Size()) * 0.5f;
+        double delta    = (new_size - Range.Size()) * 0.5;
         if (IsLocked())
             return;
         else if (IsLockedMin() && !IsLockedMax())
@@ -792,7 +800,7 @@ struct ImPlotAxis
             Range.Max += delta;
         }
         if (z > ConstraintZoom.Max) {
-            double delta = (z - ConstraintZoom.Max) * 0.5f;
+            double delta = (z - ConstraintZoom.Max) * 0.5;
             Range.Min += delta;
             Range.Max -= delta;
         }
@@ -944,6 +952,7 @@ struct ImPlotItem
 
     ImPlotItem() {
         ID            = 0;
+        Color         = IM_COL32_WHITE;
         NameOffset    = -1;
         Show          = true;
         SeenThisFrame = false;
@@ -985,7 +994,7 @@ struct ImPlotItemGroup
     ImPool<ImPlotItem> ItemPool;
     int                ColormapIdx;
 
-    ImPlotItemGroup() { ColormapIdx = 0; }
+    ImPlotItemGroup() { ID = 0; ColormapIdx = 0; }
 
     int         GetItemCount() const             { return ItemPool.GetBufSize();                                 }
     ImGuiID     GetItemID(const char*  label_id) { return ImGui::GetID(label_id); /* GetIDWithSeed */            }
@@ -994,7 +1003,7 @@ struct ImPlotItemGroup
     ImPlotItem* GetOrAddItem(ImGuiID id)         { return ItemPool.GetOrAddByKey(id);                            }
     ImPlotItem* GetItemByIndex(int i)            { return ItemPool.GetByIndex(i);                                }
     int         GetItemIndex(ImPlotItem* item)   { return ItemPool.GetIndex(item);                               }
-    int         GetLegendCount() const           { return Legend.Indices.vertices_size_bytes();                                 }
+    int         GetLegendCount() const           { return Legend.Indices.size();                                 }
     ImPlotItem* GetLegendItem(int i)             { return ItemPool.GetByIndex(Legend.Indices[i]);                }
     const char* GetLegendLabel(int i)            { return Legend.Labels.Buf.Data + GetLegendItem(i)->NameOffset; }
     void        Reset()                          { ItemPool.Clear(); Legend.Reset(); ColormapIdx = 0;            }
@@ -1063,7 +1072,7 @@ struct ImPlotPlot
 
     inline void SetTitle(const char* title) {
         if (title && ImGui::FindRenderedTextEnd(title, NULL) != title) {
-            TitleOffset = TextBuffer.vertices_size_bytes();
+            TitleOffset = TextBuffer.size();
             TextBuffer.append(title, title + strlen(title) + 1);
         }
         else {
@@ -1094,7 +1103,7 @@ struct ImPlotPlot
 
     inline void SetAxisLabel(ImPlotAxis& axis, const char* label) {
         if (label && ImGui::FindRenderedTextEnd(label, NULL) != label) {
-            axis.LabelOffset = TextBuffer.vertices_size_bytes();
+            axis.LabelOffset = TextBuffer.size();
             TextBuffer.append(label, label + strlen(label) + 1);
         }
         else {
@@ -1128,12 +1137,16 @@ struct ImPlotSubplot {
     bool                          HasTitle;
 
     ImPlotSubplot() {
-        Rows = Cols = CurrentIdx  = 0;
-        FrameHovered              = false;
-        Items.Legend.Location     = ImPlotLocation_North;
-        Items.Legend.Flags        = ImPlotLegendFlags_Horizontal|ImPlotLegendFlags_Outside;
-        Items.Legend.CanGoInside  = false;
-        HasTitle                  = false;
+        ID                          = 0;
+        Flags = PreviousFlags       = ImPlotSubplotFlags_None;
+        Rows = Cols = CurrentIdx    = 0;
+        FrameHovered                = false;
+        Items.Legend.Location       = ImPlotLocation_North;
+        Items.Legend.Flags          = ImPlotLegendFlags_Horizontal|ImPlotLegendFlags_Outside;
+        Items.Legend.CanGoInside    = false;
+        TempSizes[0] = TempSizes[1] = 0;
+        FrameHovered                = false;
+        HasTitle                    = false;
     }
 };
 
@@ -1231,6 +1244,7 @@ struct ImPlotContext {
     ImPlotInputMap     InputMap;
     bool               OpenContextThisFrame;
     ImGuiTextBuffer    MousePosStringBuilder;
+    ImPlotItemGroup*   SortItems;
 
     // Align plots
     ImPool<ImPlotAlignmentData> AlignmentData;
@@ -1408,7 +1422,7 @@ IMPLOT_API ImVec2 CalcLegendSize(ImPlotItemGroup& items, const ImVec2& pad, cons
 // Renders legend entries into a bounding box
 IMPLOT_API bool ShowLegendEntries(ImPlotItemGroup& items, const ImRect& legend_bb, bool interactable, const ImVec2& pad, const ImVec2& spacing, bool vertical, ImDrawList& DrawList);
 // Shows an alternate legend for the plot identified by #title_id, outside of the plot frame (can be called before or after of Begin/EndPlot but must occur in the same ImGui window!).
-IMPLOT_API void ShowAltLegend(const char* title_id, bool vertical = true, const ImVec2 vertices_size_bytes = ImVec2(0,0), bool interactable = true);
+IMPLOT_API void ShowAltLegend(const char* title_id, bool vertical = true, const ImVec2 size = ImVec2(0,0), bool interactable = true);
 // Shows an legends's context menu.
 IMPLOT_API bool ShowLegendContextMenu(ImPlotLegend& legend, bool visible);
 
@@ -1417,7 +1431,7 @@ IMPLOT_API bool ShowLegendContextMenu(ImPlotLegend& legend, bool visible);
 //-----------------------------------------------------------------------------
 
 // Create a a string label for a an axis value
-IMPLOT_API void LabelAxisValue(const ImPlotAxis& axis, double value, char* buff, int vertices_size_bytes, bool round = false);
+IMPLOT_API void LabelAxisValue(const ImPlotAxis& axis, double value, char* buff, int size, bool round = false);
 
 //-----------------------------------------------------------------------------
 // [SECTION] Styling Utils
@@ -1453,11 +1467,11 @@ static inline ImU32 CalcTextColor(ImU32 bg)         { return CalcTextColor(ImGui
 static inline ImU32 CalcHoverColor(ImU32 col)       {  return ImMixU32(col, CalcTextColor(col), 32); }
 
 // Clamps a label position so that it fits a rect defined by Min/Max
-static inline ImVec2 ClampLabelPos(ImVec2 pos, const ImVec2& vertices_size_bytes, const ImVec2& Min, const ImVec2& Max) {
+static inline ImVec2 ClampLabelPos(ImVec2 pos, const ImVec2& size, const ImVec2& Min, const ImVec2& Max) {
     if (pos.x < Min.x)              pos.x = Min.x;
     if (pos.y < Min.y)              pos.y = Min.y;
-    if ((pos.x + vertices_size_bytes.x) > Max.x)   pos.x = Max.x - vertices_size_bytes.x;
-    if ((pos.y + vertices_size_bytes.y) > Max.y)   pos.y = Max.y - vertices_size_bytes.y;
+    if ((pos.x + size.x) > Max.x)   pos.x = Max.x - size.x;
+    if ((pos.y + size.y) > Max.y)   pos.y = Max.y - size.y;
     return pos;
 }
 
@@ -1469,7 +1483,7 @@ IMPLOT_API ImU32  NextColormapColorU32();
 IMPLOT_API ImU32  SampleColormapU32(float t, ImPlotColormap cmap);
 
 // Render a colormap bar
-IMPLOT_API void RenderColorBar(const ImU32* colors, int vertices_size_bytes, ImDrawList& DrawList, const ImRect& bounds, bool vert, bool reversed, bool continuous);
+IMPLOT_API void RenderColorBar(const ImU32* colors, int size, ImDrawList& DrawList, const ImRect& bounds, bool vert, bool reversed, bool continuous);
 
 //-----------------------------------------------------------------------------
 // [SECTION] Math and Misc Utils
@@ -1569,11 +1583,11 @@ IMPLOT_API ImPlotTime RoundTime(const ImPlotTime& t, ImPlotTimeUnit unit);
 IMPLOT_API ImPlotTime CombineDateTime(const ImPlotTime& date_part, const ImPlotTime& time_part);
 
 // Formats the time part of timestamp t into a buffer according to #fmt
-IMPLOT_API int FormatTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotTimeFmt fmt, bool use_24_hr_clk);
+IMPLOT_API int FormatTime(const ImPlotTime& t, char* buffer, int size, ImPlotTimeFmt fmt, bool use_24_hr_clk);
 // Formats the date part of timestamp t into a buffer according to #fmt
-IMPLOT_API int FormatDate(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotDateFmt fmt, bool use_iso_8601);
+IMPLOT_API int FormatDate(const ImPlotTime& t, char* buffer, int size, ImPlotDateFmt fmt, bool use_iso_8601);
 // Formats the time and/or date parts of a timestamp t into a buffer according to #fmt
-IMPLOT_API int FormatDateTime(const ImPlotTime& t, char* buffer, int vertices_size_bytes, ImPlotDateTimeSpec fmt);
+IMPLOT_API int FormatDateTime(const ImPlotTime& t, char* buffer, int size, ImPlotDateTimeSpec fmt);
 
 // Shows a date picker widget block (year/month/day).
 // #level = 0 for day, 1 for month, 2 for year. Modified by user interaction.
@@ -1618,18 +1632,18 @@ static inline double TransformInverse_Logit(double v, void*) {
 // [SECTION] Formatters
 //-----------------------------------------------------------------------------
 
-static inline int Formatter_Default(double value, char* buff, int vertices_size_bytes, void* data) {
+static inline int Formatter_Default(double value, char* buff, int size, void* data) {
     char* fmt = (char*)data;
-    return ImFormatString(buff, vertices_size_bytes, fmt, value);
+    return ImFormatString(buff, size, fmt, value);
 }
 
-static inline int Formatter_Logit(double value, char* buff, int vertices_size_bytes, void*) {
+static inline int Formatter_Logit(double value, char* buff, int size, void*) {
     if (value == 0.5)
-        return ImFormatString(buff,vertices_size_bytes,"1/2");
+        return ImFormatString(buff,size,"1/2");
     else if (value < 0.5)
-        return ImFormatString(buff,vertices_size_bytes,"%g", value);
+        return ImFormatString(buff,size,"%g", value);
     else
-        return ImFormatString(buff,vertices_size_bytes,"1 - %g", 1 - value);
+        return ImFormatString(buff,size,"1 - %g", 1 - value);
 }
 
 struct Formatter_Time_Data {
@@ -1639,9 +1653,9 @@ struct Formatter_Time_Data {
     void* UserFormatterData;
 };
 
-static inline int Formatter_Time(double, char* buff, int vertices_size_bytes, void* data) {
+static inline int Formatter_Time(double, char* buff, int size, void* data) {
     Formatter_Time_Data* ftd = (Formatter_Time_Data*)data;
-    return FormatDateTime(ftd->Time, buff, vertices_size_bytes, ftd->Spec);
+    return FormatDateTime(ftd->Time, buff, size, ftd->Spec);
 }
 
 //------------------------------------------------------------------------------

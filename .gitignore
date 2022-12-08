@@ -33,4 +33,6 @@
 
 #visual stuff
 .vs/*
+.vscode/*
 out/*
+build/*

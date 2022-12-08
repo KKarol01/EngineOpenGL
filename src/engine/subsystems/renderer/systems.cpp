@@ -34,8 +34,7 @@ void RenderSystem::update() {
         sh->use();
         for (const auto id : ids.data()) {
             const auto &comp = eng::Engine::instance().ecs()->get_component<RenderData>(id);
-            sh->feed_uniforms(comp.sh_datas);
-            comp.vao.bind();
+//            comp.vao.bind();
         }
     }
 }

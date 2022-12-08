@@ -12,7 +12,6 @@
 
 #include <glm/glm.hpp>
 
-template <typename... OPS> struct ExhaustiveVisitor : OPS... { using OPS::operator()...; };
 
 struct ShaderDataWrapper {
     using SupportedTypes = std::variant<std::reference_wrapper<int>,
@@ -26,7 +25,7 @@ struct ShaderDataWrapper {
     template <typename T> ShaderDataWrapper(T &&t) {
         if constexpr (std::is_pointer_v<T>) {
             data      = std::shared_ptr<void>{t, [](void *) {}};
-            conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T >(ptr)}; };
+            conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T>(ptr)}; };
         } else if constexpr (std::is_lvalue_reference_v<decltype(t)>) {
             data      = std::shared_ptr<void>{new std::remove_cvref_t<T>{t}};
             conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T *>(ptr)}; };
@@ -53,7 +52,7 @@ struct ShaderStorage {
     ShaderDataWrapper &operator[](const std::string &name) { return data[name]; }
 };
 
-class Shader {
+class ShaderProgram {
   private:
     unsigned program_id{0u};
     std::string file_name;
@@ -67,14 +66,14 @@ class Shader {
     };
 
   public:
-    Shader(const std::string &file_name);
+    ShaderProgram(const std::string &file_name);
 
-    Shader() = default;
-    Shader(const Shader &) noexcept;
-    Shader(Shader &&) noexcept;
-    Shader &operator=(const Shader &) noexcept;
-    Shader &operator=(Shader &&) noexcept;
-    ~Shader();
+    ShaderProgram() = default;
+    ShaderProgram(const ShaderProgram &) noexcept;
+    ShaderProgram(ShaderProgram &&) noexcept;
+    ShaderProgram &operator=(const ShaderProgram &) noexcept;
+    ShaderProgram &operator=(ShaderProgram &&) noexcept;
+    ~ShaderProgram();
 
   public:
     template <typename T>
@@ -98,7 +97,6 @@ class Shader {
 
   public:
     void use();
-    void feed_uniforms(const ShaderStorage &data);
     void recompile();
 
     auto get_program() const { return program_id; }
