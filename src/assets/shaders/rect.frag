@@ -2,45 +2,19 @@
 
 out vec4 FRAG_COL;
 in vec3 vpos;
-
-layout(std140, binding=0) uniform CAM_DATA {
-	mat4 proj;
-	mat4 view;
-	vec4 pos;
-	vec4 dir;
-};
-
-
+flat in int iid;
 
 void main() {
 	
-	vec4 cam_ray = inverse(proj) * (vec4(vpos.xy*2.-1., -1,1.));
-	cam_ray/=cam_ray.w;
-	cam_ray = inverse(view) * cam_ray;
-	cam_ray = normalize(cam_ray.xyz - pos.xyz).xyzz;
+	vec3 coll = vec3(.5); 
+	if(iid%10==0) coll = vec3(1.);
 
-	bool hit = false;
+	float n =gl_DepthRange.near;
+	float f =gl_DepthRange.far;
+	n = 0.01;
+	f = 100.0;
+	float d = gl_FragCoord.z*2.-1.;
 
-	vec3 a = vec3(-5, 0, 5);
-	vec3 b = vec3( 5, 0,-5);
-	vec3 n = vec3(0, -1, 0);
-	float t = 0.f;
-	float d = dot(n, cam_ray.xyz);
-	if(d > 1e-6) {
-		vec3 p = -pos.xyz;
-		t = dot(p, n) / d;
-		hit = t>=0.f;
-	}
-	if(hit) {
-		vec3 h = pos.xyz + t * cam_ray.xyz;
-
-		if(
-			(h.x > a.x  && h.z < a.z
-			&&h.x < b.x  && h.z > b.z) == false) hit = false;
-
-	}
-
-
-	if(hit == false) discard;
-	FRAG_COL = vec4(1.f.xxx, 1.);
+	float ldepth = (2.*n*f)/(f+n-d*(f-n));
+	FRAG_COL = vec4(coll, 1.-ldepth/f*2.);
 }

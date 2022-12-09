@@ -73,6 +73,27 @@ int main() {
     pp.stages = {pps1};
     auto ppid = r.pipelines[pp];
 
+    auto linebufid = r.buffers[GLBuffer{}];
+    auto &linebuf  = r.buffers[linebufid];
+
+    glm::vec3 ls[2]{
+        glm::vec3{0., 0., 100.},
+        glm::vec3{0., 0., -100.},
+    };
+    linebuf.push_data(ls, 24);
+    auto &linevao = r.vaos[r.vaos[GLVao{}]];
+    linevao.configure_binding(0, linebufid, 12, 0);
+    linevao.configure_attributes({
+        eng::GLVaoAttributeDescriptor{0, 0, 3, 0},
+    });
+
+    engine.gui_->add_draw([&] {
+        if (ImGui::Button("recompile")) { r.programs[rectid].recompile(); }
+    });
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
@@ -81,11 +102,12 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-        u.set("proj", cam.perspective_matrix());
-        u.set("view", cam.view_matrix());
-        u.set("dir", cam.forward_vec());
-        u.set("pos", cam.position());
-        r.render();
+        r.programs[rectid].use();
+        r.programs[rectid].set("proj", cam.perspective_matrix());
+        r.programs[rectid].set("view", cam.view_matrix());
+        linevao.bind();
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDrawArraysInstanced(GL_LINES, 0, 2, 100);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();

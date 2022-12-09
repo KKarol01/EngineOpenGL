@@ -13,6 +13,7 @@ void Window::configure_glfw_and_hints(WINDOW_HINTS hints) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, hints.MINOR_VERSION);
     glfwWindowHint(GLFW_OPENGL_PROFILE, hints.PROFILE);
     glfwWindowHint(GLFW_OPENGL_COMPAT_PROFILE, hints.FORWARD_COMPAT);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     glfw_initialized = true;
 };
