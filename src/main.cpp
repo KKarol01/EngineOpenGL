@@ -30,11 +30,9 @@
 
 int main() {
     eng::Engine::initialise("window", 1920, 1080);
-
     auto &engine      = eng::Engine::instance();
     const auto window = engine.window();
     auto cam          = Camera{};
-    constexpr float x = 1.f;
 
     auto &r    = *engine.renderer_.get();
     auto vaoid = r.vaos.emplace();
@@ -87,27 +85,34 @@ int main() {
         eng::GLVaoAttributeDescriptor{0, 0, 3, 0},
     });
 
+    glm::vec3 clear_color{.25f};
     engine.gui_->add_draw([&] {
+        auto cam_dir = cam.forward_vec();
+        auto cam_pos = cam.position();
+        ImGui::SliderFloat3("cam_dir", &cam_dir.x, 0., 1.);
+        ImGui::SliderFloat3("cam_position", &cam_pos.x, 0., 1.);
         if (ImGui::Button("recompile")) { r.programs[rectid].recompile(); }
     });
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
-        glClearColor(0., 0., 0., 1.);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.);
         Engine::instance().window()->clear_framebuffer();
         eng::Engine::instance().controller()->update();
         cam.update();
 
         r.programs[rectid].use();
+        r.programs[rectid].set("model", glm::mat4{1.f});
         r.programs[rectid].set("proj", cam.perspective_matrix());
         r.programs[rectid].set("view", cam.view_matrix());
         linevao.bind();
+        glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDrawArraysInstanced(GL_LINES, 0, 2, 100);
+        glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 0);
+        r.programs[rectid].set("model", glm::rotate(glm::mat4{1.f}, glm::radians(90.f), glm::vec3{0, 1, 0}));
+        glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 102);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();
