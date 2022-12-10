@@ -35,5 +35,4 @@ class Camera {
     glm::vec3 forward_vec() const { return glm::normalize(look_forward); }
     glm::vec3 right_vec() const { return glm::normalize(glm::cross(forward_vec(), up)); }
     glm::vec3 position() const { return m_position; }
-    glm::vec3 &position() { return m_position; }
 };

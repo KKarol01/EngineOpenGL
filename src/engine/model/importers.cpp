@@ -18,7 +18,8 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
     std::function<void(const aiScene *, aiNode *)> parse_node = [&](const aiScene *scene, aiNode *node) {
         for (auto i = 0u; i < node->mNumMeshes; ++i) {
             const auto nmsh = scene->mMeshes[node->mMeshes[i]];
-            Model::Mesh msh;
+            Mesh msh;
+            if (nmsh->mName.length > 0) msh.name = nmsh->mName.C_Str();
 
             msh.stride = 3;
             if (nmsh->HasNormals()) msh.stride += 3;
@@ -66,20 +67,19 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
             auto nmat = scene->mMaterials[nmsh->mMaterialIndex];
             if (nmat) {
 
-                const auto load_texture = [&](aiTextureType type, Model::Mesh::TEXTURE_IDX idx) {
+                const auto load_texture = [&](aiTextureType type, Mesh::TEXTURE_IDX idx) {
                     if (nmat->GetTextureCount(type) == 0) return;
                     aiString aipath;
                     nmat->GetTexture(type, 0, &aipath);
                     auto txtpath = std::string{path.begin(), path.begin() + path.rfind("/") + 1};
                     txtpath.append(aipath.C_Str());
 
-                    auto it      = std::find_if(m.textures.begin(),
-                                           m.textures.end(),
-                                           [&txtpath](auto &&e) { return e.path == txtpath; });
+                    auto it = std::find_if(
+                        m.textures.begin(), m.textures.end(), [&txtpath](auto &&e) { return e.path == txtpath; });
                     auto itfound = it != m.textures.end();
 
                     if (!itfound) {
-                        Model::Texture txt{txtpath, GL_LINEAR_MIPMAP_LINEAR, GL_CLAMP_TO_EDGE};
+                        ModelTexture txt{txtpath, GL_LINEAR_MIPMAP_LINEAR, GL_CLAMP_TO_EDGE};
                         txt.build2d();
                         it = m.textures.emplace(m.textures.end(), std::move(txt));
                     }
@@ -103,16 +103,29 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
 
     if (scene) parse_node(scene, scene->mRootNode);
 
+    for (auto &mesh : m.meshes) {
+        for (auto i = 0u; i < mesh.vertex_count; ++i) {
+            auto v = mesh.get_vertex(&m, i);
+
+            m.aabb.min.x = glm::min(m.aabb.min.x, v.position.x);
+            m.aabb.min.y = glm::min(m.aabb.min.y, v.position.y);
+            m.aabb.min.z = glm::min(m.aabb.min.z, v.position.z);
+            m.aabb.max.x = glm::max(m.aabb.max.x, v.position.x);
+            m.aabb.max.y = glm::max(m.aabb.max.y, v.position.y);
+            m.aabb.max.z = glm::max(m.aabb.max.z, v.position.z);
+        }
+    }
+
     return m;
 }
 
-Model::Texture::Texture(std::string_view path, uint32_t filter_minmag, uint32_t wrap_str) {
+ModelTexture::ModelTexture(std::string_view path, uint32_t filter_minmag, uint32_t wrap_str) {
     this->path = path.data();
     filter_min = filter_mag = filter_minmag;
     wrap_s = wrap_t = wrap_r = wrap_str;
 }
 
-void Model::Texture::build2d() {
+void ModelTexture::build2d() {
     auto data = stbi_load(path.data(), &width, &height, &channels, 0);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &handle);
@@ -131,3 +144,19 @@ void Model::Texture::build2d() {
 
     stbi_image_free(data);
 }
+
+Vertex Mesh::get_vertex(const Model *parent_model, size_t idx) const { 
+
+    const auto &verts = parent_model->vertices;
+
+    auto off = vertex_offset;
+    auto i   = idx;
+
+    glm::vec3 position;
+    position.x = verts[(off + i) * stride + 0];
+    position.y = verts[(off + i) * stride + 1];
+    position.z = verts[(off + i) * stride + 2];
+
+    return Vertex{position};
+}
+
