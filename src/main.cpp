@@ -78,7 +78,7 @@ int main() {
     pp2s1vao->configure_binding(0, pp2->vbo, 12, 0);
     pp2s1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
     {
-        float line_verts[]{0.f, 0.f, -100.f, 0.f, 0.f, 100.f};
+        float line_verts[]{0.f, 0.f, -100000.f, 0.f, 0.f, 100000.f};
         engine.renderer_->buffers[pp2->vbo].push_data(line_verts, sizeof(line_verts));
     }
     pp2s1.vao      = pp2s1vao;
@@ -103,9 +103,11 @@ int main() {
         rect_program->set("model", glm::mat4{1.f});
         rect_program->set("view", cam.view_matrix());
         rect_program->set("proj", cam.perspective_matrix());
-    glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_DEPTH_TEST);
         engine.renderer_->render();
-        rect_program->set("model", glm::rotate(glm::mat4{1.f}, 3.14f/2.f, glm::vec3{0,1,0}));
+        rect_program->set("model", glm::rotate(glm::mat4{1.f}, 3.14f / 2.f, glm::vec3{0, 1, 0}));
         glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 102);
 
         eng::Engine::instance().gui_->draw();
