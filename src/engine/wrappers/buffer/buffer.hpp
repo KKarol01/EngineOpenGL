@@ -34,7 +34,7 @@ namespace eng {
         GLBuffer(std::vector<T> &data, GLBufferDescriptor desc)
             : GLBuffer(data.data(), data.size() * sizeof(T), desc) {}
 
-        void push_data(void *data, size_t size_bytes);
+        void push_data(const void *data, size_t size_bytes);
 
         GLBufferDescriptor descriptor;
 
@@ -92,14 +92,14 @@ namespace eng {
         void configure_binding(uint32_t id, BufferID bufferid, size_t stride, size_t offset = 0u);
         void configure_ebo(BufferID bufferid);
 
-        void configure_attributes(std::initializer_list<GLVaoAttributeDescriptor> attributes);
+        void configure_attributes(const std::vector<GLVaoAttributeDescriptor> &attributes);
         void configure_attributes(uint32_t size,
                                   uint32_t gl_type,
                                   uint32_t type_size_bytes,
-                                  std::initializer_list<GLVaoAttributeSameFormat> attributes);
+                                  const std::vector<GLVaoAttributeSameFormat> &attributes);
         void configure_attributes(uint32_t gl_type,
                                   uint32_t type_size_bytes,
-                                  std::initializer_list<GLVaoAttributeSameType> attributes);
+                                  const std::vector<GLVaoAttributeSameType> &attributes);
 
         GLVaoDescriptor descriptor;
 

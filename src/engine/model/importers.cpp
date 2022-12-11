@@ -13,58 +13,54 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
     Assimp::Importer importer;
     const auto scene = importer.ReadFile(path.data(), ai_flags);
 
-    Model m;
+    Model model;
 
     std::function<void(const aiScene *, aiNode *)> parse_node = [&](const aiScene *scene, aiNode *node) {
         for (auto i = 0u; i < node->mNumMeshes; ++i) {
-            const auto nmsh = scene->mMeshes[node->mMeshes[i]];
-            Mesh msh;
-            if (nmsh->mName.length > 0) msh.name = nmsh->mName.C_Str();
+            const auto assimp_mesh = scene->mMeshes[node->mMeshes[i]];
+            Mesh mesh;
+            if (assimp_mesh->mName.length > 0) mesh.name = assimp_mesh->mName.C_Str();
+            mesh.vertex_offset = model.vertices.size();
+            mesh.index_offset  = model.indices.size();
+            mesh.normal_offset = model.normals.size();
 
-            msh.stride = 3;
-            if (nmsh->HasNormals()) msh.stride += 3;
-            if (nmsh->HasTangentsAndBitangents()) msh.stride += 6;
-            if (nmsh->HasTextureCoords(0)) msh.stride += 2;
+            for (auto j = 0u; j < assimp_mesh->mNumVertices; ++j) {
+                auto av = assimp_mesh->mVertices[j];
+                mesh.vertices.push_back(model.vertices.size());
+                model.vertices.emplace_back(av.x, av.y, av.z);
 
-            msh.vertex_count  = nmsh->mNumVertices;
-            msh.vertex_offset = m.vertices.size() / msh.stride;
-            msh.index_offset  = m.indices.size();
-            msh.index_count   = nmsh->mNumFaces * 3;
-
-            for (auto j = 0u; j < nmsh->mNumVertices; ++j) {
-                m.vertices.push_back(nmsh->mVertices[j].x);
-                m.vertices.push_back(nmsh->mVertices[j].y);
-                m.vertices.push_back(nmsh->mVertices[j].z);
-
-                if (nmsh->HasNormals()) {
-                    m.vertices.push_back(nmsh->mNormals[j].x);
-                    m.vertices.push_back(nmsh->mNormals[j].y);
-                    m.vertices.push_back(nmsh->mNormals[j].z);
+                if (assimp_mesh->HasNormals()) {
+                    av = assimp_mesh->mNormals[j];
+                    mesh.normals.push_back(model.normals.size());
+                    model.normals.emplace_back(av.x, av.y, av.z);
                 }
 
-                if (nmsh->HasTangentsAndBitangents()) {
-                    m.vertices.push_back(nmsh->mTangents[j].x);
-                    m.vertices.push_back(nmsh->mTangents[j].y);
-                    m.vertices.push_back(nmsh->mTangents[j].z);
-                    m.vertices.push_back(nmsh->mBitangents[j].x);
-                    m.vertices.push_back(nmsh->mBitangents[j].y);
-                    m.vertices.push_back(nmsh->mBitangents[j].z);
+                if (assimp_mesh->HasTangentsAndBitangents()) {
+                    av = assimp_mesh->mTangents[j];
+                    // m.tangents.emplace_back(av.x, av.y, av.z);
+                    av = assimp_mesh->mBitangents[j];
+                    // m.bitangents.emplace_back(av.x, av.y, av.z);
+                    // mesh.(bi)tangents.pushback(size)
                 }
 
-                if (nmsh->HasTextureCoords(0)) {
-                    m.vertices.push_back(nmsh->mTextureCoords[0][j].x);
-                    m.vertices.push_back(nmsh->mTextureCoords[0][j].y);
+                if (assimp_mesh->HasTextureCoords(0)) {
+                    av = assimp_mesh->mTextureCoords[0][j];
+                    model.texture_coordinates.emplace_back(av.x, av.y);
+                    // push textures to mesh
                 }
             }
 
-            for (auto j = 0u; j < nmsh->mNumFaces; ++j) {
-                const auto nf = nmsh->mFaces[j];
-                m.indices.push_back(nf.mIndices[0]);
-                m.indices.push_back(nf.mIndices[1]);
-                m.indices.push_back(nf.mIndices[2]);
+            for (auto j = 0u; j < assimp_mesh->mNumFaces; ++j) {
+                const auto nf = assimp_mesh->mFaces[j];
+                mesh.indices.push_back(model.indices.size());
+                model.indices.push_back(nf.mIndices[0]);
+                mesh.indices.push_back(model.indices.size());
+                model.indices.push_back(nf.mIndices[1]);
+                mesh.indices.push_back(model.indices.size());
+                model.indices.push_back(nf.mIndices[2]);
             }
 
-            auto nmat = scene->mMaterials[nmsh->mMaterialIndex];
+            /*auto nmat = scene->mMaterials[assimp_mesh->mMaterialIndex];
             if (nmat) {
 
                 const auto load_texture = [&](aiTextureType type, Mesh::TEXTURE_IDX idx) {
@@ -74,28 +70,29 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
                     auto txtpath = std::string{path.begin(), path.begin() + path.rfind("/") + 1};
                     txtpath.append(aipath.C_Str());
 
-                    auto it = std::find_if(
-                        m.textures.begin(), m.textures.end(), [&txtpath](auto &&e) { return e.path == txtpath; });
-                    auto itfound = it != m.textures.end();
+                    auto it      = std::find_if(model.textures.begin(), model.textures.end(), [&txtpath](auto &&e) {
+                        return e.path == txtpath;
+                    });
+                    auto itfound = it != model.textures.end();
 
                     if (!itfound) {
                         ModelTexture txt{txtpath, GL_LINEAR_MIPMAP_LINEAR, GL_CLAMP_TO_EDGE};
                         txt.build2d();
-                        it = m.textures.emplace(m.textures.end(), std::move(txt));
+                        it = model.textures.emplace(model.textures.end(), std::move(txt));
                     }
 
-                    msh.present_textures |= (uint32_t)std::pow(2., (double)idx);
-                    msh.textures[idx] = std::distance(m.textures.begin(), it);
+                    mesh.present_textures |= (uint32_t)std::pow(2., (double)idx);
+                    mesh.textures[idx] = std::distance(model.textures.begin(), it);
                 };
 
-                load_texture(aiTextureType_DIFFUSE, msh.DIFFUSE);
-                load_texture(aiTextureType_NORMALS, msh.NORMAL);
-                load_texture(aiTextureType_METALNESS, msh.METALNESS);
-                load_texture(aiTextureType_DIFFUSE_ROUGHNESS, msh.ROUGHNESS);
-                load_texture(aiTextureType_EMISSIVE, msh.EMISSIVE);
-            }
+                load_texture(aiTextureType_DIFFUSE, mesh.DIFFUSE);
+                load_texture(aiTextureType_NORMALS, mesh.NORMAL);
+                load_texture(aiTextureType_METALNESS, mesh.METALNESS);
+                load_texture(aiTextureType_DIFFUSE_ROUGHNESS, mesh.ROUGHNESS);
+                load_texture(aiTextureType_EMISSIVE, mesh.EMISSIVE);
+            }*/
 
-            m.meshes.push_back(std::move(msh));
+            model.meshes.push_back(std::move(mesh));
         }
 
         for (auto i = 0u; i < node->mNumChildren; ++i) { parse_node(scene, node->mChildren[i]); }
@@ -103,20 +100,20 @@ Model ModelImporter::import_model(std::string_view path, uint32_t ai_flags) {
 
     if (scene) parse_node(scene, scene->mRootNode);
 
-    for (auto &mesh : m.meshes) {
-        for (auto i = 0u; i < mesh.vertex_count; ++i) {
-            auto v = mesh.get_vertex(&m, i);
+    for (auto &mesh : model.meshes) {
+        for (auto i = 0u; i < mesh.vertices.size(); ++i) {
+            auto v = model.vertices[mesh.vertices[i]];
 
-            m.aabb.min.x = glm::min(m.aabb.min.x, v.position.x);
-            m.aabb.min.y = glm::min(m.aabb.min.y, v.position.y);
-            m.aabb.min.z = glm::min(m.aabb.min.z, v.position.z);
-            m.aabb.max.x = glm::max(m.aabb.max.x, v.position.x);
-            m.aabb.max.y = glm::max(m.aabb.max.y, v.position.y);
-            m.aabb.max.z = glm::max(m.aabb.max.z, v.position.z);
+            model.aabb.min.x = glm::min(model.aabb.min.x, v.x);
+            model.aabb.min.y = glm::min(model.aabb.min.y, v.y);
+            model.aabb.min.z = glm::min(model.aabb.min.z, v.z);
+            model.aabb.max.x = glm::max(model.aabb.max.x, v.x);
+            model.aabb.max.y = glm::max(model.aabb.max.y, v.y);
+            model.aabb.max.z = glm::max(model.aabb.max.z, v.z);
         }
     }
 
-    return m;
+    return model;
 }
 
 ModelTexture::ModelTexture(std::string_view path, uint32_t filter_minmag, uint32_t wrap_str) {
@@ -144,19 +141,3 @@ void ModelTexture::build2d() {
 
     stbi_image_free(data);
 }
-
-Vertex Mesh::get_vertex(const Model *parent_model, size_t idx) const { 
-
-    const auto &verts = parent_model->vertices;
-
-    auto off = vertex_offset;
-    auto i   = idx;
-
-    glm::vec3 position;
-    position.x = verts[(off + i) * stride + 0];
-    position.y = verts[(off + i) * stride + 1];
-    position.z = verts[(off + i) * stride + 2];
-
-    return Vertex{position};
-}
-

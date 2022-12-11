@@ -15,8 +15,6 @@
 
 #define USE_BINDLESS_TEXTURES
 
-struct Model;
-
 struct ModelTexture {
     ModelTexture(std::string_view path, uint32_t filter_minmag, uint32_t wrap_str);
 
@@ -32,6 +30,8 @@ struct ModelTexture {
 #endif // USE_BINDLESS_TEXTURES
 };
 
+struct Material {};
+
 struct Vertex {
     glm::vec3 position;
 };
@@ -41,17 +41,10 @@ struct AABB {
 };
 
 struct Mesh {
-    enum TEXTURE_IDX { DIFFUSE, NORMAL, METALNESS, ROUGHNESS, EMISSIVE };
-    static inline constexpr uint32_t MAX_TEXTURES = 5u;
-
-    Vertex get_vertex(const Model *p, size_t idx) const;
-
     std::string name{"undefined"};
-    size_t vertex_offset, index_offset;
-    size_t vertex_count, index_count;
+    size_t vertex_offset{0u}, normal_offset{0u}, index_offset{0u};
+    std::vector<size_t> vertices, indices, normals;
     size_t stride;
-    uint32_t present_textures = 0;
-    std::array<size_t, MAX_TEXTURES> textures;
 };
 
 struct Model {
@@ -59,7 +52,8 @@ struct Model {
 
     uint32_t id{gid++};
     std::vector<Mesh> meshes;
-    std::vector<float> vertices;
+    std::vector<glm::vec3> vertices, normals;
+    std::vector<glm::vec2> texture_coordinates;
     std::vector<unsigned> indices;
     std::vector<ModelTexture> textures;
     AABB aabb;

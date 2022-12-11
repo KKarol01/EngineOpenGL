@@ -9,17 +9,33 @@ template <typename T> class IDAllocator {
   public:
     typedef uint32_t ID;
 
-    ID insert(const T &t) {
+    struct InsertedData {
+      private:
+        friend class IDAllocator<T>;
+        InsertedData(ID id, IDAllocator<T> *this_) : id{id}, this_{this_} {}
+
+      public:
+        T *operator->() { return &this_->get(id); }
+        const T *operator->() const { return &this_->get(id); }
+        operator ID() const { return id; }
+
+        ID id;
+
+      private:
+        IDAllocator<T> *this_{nullptr};
+    };
+
+    InsertedData insert(const T &t) {
         auto &dt = storage.insert(DataWrapper{t});
-        return dt.id;
+        return InsertedData{dt.id, this};
     }
-    ID insert(T &&t) {
+    InsertedData insert(T &&t) {
         auto &dt = storage.insert(DataWrapper{std::move(t)});
-        return dt.id;
+        return InsertedData{dt.id, this};
     }
-    template <typename... ARGS> ID emplace(ARGS &&...args) {
+    template <typename... ARGS> InsertedData emplace(ARGS &&...args) {
         auto &dt = storage.emplace(std::forward<ARGS>(args)...);
-        return dt.id;
+        return InsertedData{dt.id, this};
     }
     T &get(ID id) { return storage.find(id)->data; }
     const T &get(ID id) const { return storage.find(id)->data; }

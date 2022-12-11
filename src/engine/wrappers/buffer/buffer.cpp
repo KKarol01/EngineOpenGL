@@ -22,7 +22,7 @@ eng::GLBuffer &eng::GLBuffer::operator=(GLBuffer &&other) noexcept {
     return *this;
 }
 
-void eng::GLBuffer::push_data(void *data, size_t data_size) {
+void eng::GLBuffer::push_data(const void *data, size_t data_size) {
     if (descriptor.capacity < descriptor.size + data_size) { resize(descriptor.size + data_size); }
 
     if ((descriptor.flags & GL_DYNAMIC_STORAGE_BIT) != GL_DYNAMIC_STORAGE_BIT) {
@@ -95,7 +95,7 @@ void eng::GLVao::configure_ebo(BufferID bufferid) {
         [handle = this->handle](uint32_t nh) { glVertexArrayElementBuffer(handle, nh); });
 }
 
-void eng::GLVao::configure_attributes(std::initializer_list<GLVaoAttributeDescriptor> attributes) {
+void eng::GLVao::configure_attributes(const std::vector<GLVaoAttributeDescriptor> &attributes) {
     descriptor.attributes = attributes;
     configure_attributes();
 }
@@ -103,7 +103,7 @@ void eng::GLVao::configure_attributes(std::initializer_list<GLVaoAttributeDescri
 void eng::GLVao::configure_attributes(uint32_t size,
                                       uint32_t gl_type,
                                       uint32_t type_size_bytes,
-                                      std::initializer_list<GLVaoAttributeSameFormat> attributes) {
+                                      const std::vector<GLVaoAttributeSameFormat> &attributes) {
     std::unordered_map<uint32_t, uint32_t> binding_offset;
     for (const auto &a : attributes) {
         descriptor.attributes.emplace_back(a.idx, a.binding, size, binding_offset[a.binding], gl_type, a.normalize);
@@ -115,7 +115,7 @@ void eng::GLVao::configure_attributes(uint32_t size,
 
 void eng::GLVao::configure_attributes(uint32_t gl_type,
                                       uint32_t type_size_bytes,
-                                      std::initializer_list<GLVaoAttributeSameType> attributes) {
+                                      const std::vector<GLVaoAttributeSameType> &attributes) {
     std::unordered_map<uint32_t, uint32_t> binding_offset;
     for (const auto &a : attributes) {
         descriptor.attributes.emplace_back(a.idx, a.binding, a.size, binding_offset[a.binding], gl_type, a.normalize);
