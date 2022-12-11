@@ -55,22 +55,22 @@ int main() {
     auto gjk_test_cube  = imp.import_model("3dmodels/simple_shapes/cube.obj", aiProcess_Triangulate);
     auto gjk_test_plane = imp.import_model("3dmodels/simple_shapes/plane.obj", aiProcess_Triangulate);
 
-    //ModelPipelineAdapter ppadapter{{ModelPipelineAdapter::ATTR_POSITION}};
-    //auto pp = engine.renderer_->pipelines.emplace(ppadapter);
+    // ModelPipelineAdapter ppadapter{{ModelPipelineAdapter::ATTR_POSITION}};
+    // auto pp = engine.renderer_->pipelines.emplace(ppadapter);
 
-    //PipelineStage ppstage1;
-    //auto ppstage1vao = engine.renderer_->vaos.emplace();
-    //ppstage1vao->configure_binding(0, pp->vbo, pp->adapter.stride * 4, 0);
-    //ppstage1vao->configure_ebo(pp->ebo);
-    //ppstage1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
-    //ppstage1.vao      = ppstage1vao;
-    //ppstage1.program  = default_program.id;
-    //ppstage1.draw_cmd = std::make_shared<DrawElementsCMD>(pp->vbo);
-    //pp->on_model_add.connect([&](const Model &m) {
-    //    static_cast<DrawElementsCMD *>(pp->stages[0].draw_cmd.get())->count = m.indices.size();
-    //});
-    //pp->stages.push_back(std::move(ppstage1));
-    //pp->add_model(gjk_test_cube);
+    // PipelineStage ppstage1;
+    // auto ppstage1vao = engine.renderer_->vaos.emplace();
+    // ppstage1vao->configure_binding(0, pp->vbo, pp->adapter.stride * 4, 0);
+    // ppstage1vao->configure_ebo(pp->ebo);
+    // ppstage1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
+    // ppstage1.vao      = ppstage1vao;
+    // ppstage1.program  = default_program.id;
+    // ppstage1.draw_cmd = std::make_shared<DrawElementsCMD>(pp->vbo);
+    // pp->on_model_add.connect([&](const Model &m) {
+    //     static_cast<DrawElementsCMD *>(pp->stages[0].draw_cmd.get())->count = m.indices.size();
+    // });
+    // pp->stages.push_back(std::move(ppstage1));
+    // pp->add_model(gjk_test_cube);
 
     auto pp2 = engine.renderer_->pipelines.emplace();
     PipelineStage pp2s1;
@@ -78,7 +78,7 @@ int main() {
     pp2s1vao->configure_binding(0, pp2->vbo, 12, 0);
     pp2s1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
     {
-        float line_verts[]{100.f, 0.f, 0.f, -100.f, 0.f, 0.f};
+        float line_verts[]{0.f, 0.f, -100.f, 0.f, 0.f, 100.f};
         engine.renderer_->buffers[pp2->vbo].push_data(line_verts, sizeof(line_verts));
     }
     pp2s1.vao      = pp2s1vao;
@@ -86,7 +86,6 @@ int main() {
     pp2s1.draw_cmd = std::make_shared<DrawArraysInstancedCMD>(2, 101, 0, GL_LINES);
     pp2->stages.push_back(std::move(pp2s1));
 
-    glEnable(GL_DEPTH_TEST);
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
@@ -104,8 +103,10 @@ int main() {
         rect_program->set("model", glm::mat4{1.f});
         rect_program->set("view", cam.view_matrix());
         rect_program->set("proj", cam.perspective_matrix());
+    glEnable(GL_DEPTH_TEST);
         engine.renderer_->render();
-    glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 102);
+        rect_program->set("model", glm::rotate(glm::mat4{1.f}, 3.14f/2.f, glm::vec3{0,1,0}));
+        glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 102);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();
