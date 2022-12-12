@@ -19,10 +19,12 @@ eng::Pipeline::Pipeline(ModelPipelineAdapter adapter) : Pipeline() { this->adapt
 void eng::Pipeline::render() {
     auto &r = *eng::Engine::instance().renderer_.get();
     for (auto &s : stages) {
-        r.programs[s.program].use();
-        r.vaos[s.vao].bind();
+        if (s.program != 0) r.programs[s.program].use();
+        if (s.vao != 0) r.vaos[s.vao].bind();
         for (auto &b : s.bufferbinders) b->bind();
+        if (s.on_stage_start) s.on_stage_start();
         s.draw_cmd->draw();
+        if (s.on_stage_end) s.on_stage_end();
     }
 }
 
@@ -90,6 +92,8 @@ eng::DrawCMD::DrawCMD() { gl_mode = GL_TRIANGLES; }
 
 eng::DrawCMD::DrawCMD(uint32_t gl_mode) { this->gl_mode = gl_mode; }
 
-void eng::DrawArraysInstancedCMD::draw() { 
-    glDrawArraysInstancedBaseInstance(gl_mode, first, vertex_count, instance_count, 0);
+void eng::DrawArraysInstancedCMD::draw() { glDrawArraysInstanced(gl_mode, first, vertex_count, instance_count); }
+
+void eng::DrawArraysInstancedBaseInstanceCMD::draw() {
+    glDrawArraysInstancedBaseInstance(gl_mode, first, vertex_count, instance_count, base_instance);
 }

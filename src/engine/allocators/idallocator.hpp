@@ -67,7 +67,7 @@ template <typename T> class IDAllocator {
 
         ID id{gid++};
         T data;
-        static inline ID gid{0u};
+        static inline ID gid{1u};
     };
 
     eng::SortedVectorUnique<DataWrapper> storage;

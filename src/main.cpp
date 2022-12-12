@@ -73,18 +73,29 @@ int main() {
     // pp->add_model(gjk_test_cube);
 
     auto pp2 = engine.renderer_->pipelines.emplace();
-    PipelineStage pp2s1;
+    PipelineStage pp2s1, pp2s2;
     auto pp2s1vao = engine.renderer_->vaos.emplace();
     pp2s1vao->configure_binding(0, pp2->vbo, 12, 0);
     pp2s1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
     {
-        float line_verts[]{0.f, 0.f, -100000.f, 0.f, 0.f, 100000.f};
+        float line_verts[]{0.f, 0.f, -50.f, 0.f, 0.f, 50.f};
         engine.renderer_->buffers[pp2->vbo].push_data(line_verts, sizeof(line_verts));
     }
-    pp2s1.vao      = pp2s1vao;
-    pp2s1.program  = rect_program.id;
-    pp2s1.draw_cmd = std::make_shared<DrawArraysInstancedCMD>(2, 101, 0, GL_LINES);
+    pp2s1.vao            = pp2s1vao;
+    pp2s1.program        = rect_program.id;
+    pp2s1.draw_cmd       = std::make_shared<DrawArraysInstancedBaseInstanceCMD>(2, 101, 0, 0, GL_LINES);
+    pp2s2.draw_cmd       = std::make_shared<DrawArraysInstancedBaseInstanceCMD>(2, 101, 0, 102, GL_LINES);
+    pp2s1.on_stage_start = [&] {
+        rect_program->set("model", glm::mat4{1.f});
+        rect_program->set("view", cam.view_matrix());
+        rect_program->set("projection", cam.perspective_matrix());
+    };
+    pp2s2.on_stage_start = [&] {
+        static const auto R = glm::rotate(glm::mat4{1.f}, 3.14f / 2.f, glm::vec3{0, 1, 0});
+        rect_program->set("model", R);
+    };
     pp2->stages.push_back(std::move(pp2s1));
+    pp2->stages.push_back(std::move(pp2s2));
 
     while (!window->should_close()) {
         float time = glfwGetTime();
@@ -95,20 +106,10 @@ int main() {
         eng::Engine::instance().controller()->update();
         cam.update();
 
-        default_program->use();
-        default_program->set("model", glm::mat4{1.f});
-        default_program->set("view", cam.view_matrix());
-        default_program->set("projection", cam.perspective_matrix());
-        rect_program->use();
-        rect_program->set("model", glm::mat4{1.f});
-        rect_program->set("view", cam.view_matrix());
-        rect_program->set("proj", cam.perspective_matrix());
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable(GL_DEPTH_TEST);
         engine.renderer_->render();
-        rect_program->set("model", glm::rotate(glm::mat4{1.f}, 3.14f / 2.f, glm::vec3{0, 1, 0}));
-        glDrawArraysInstancedBaseInstance(GL_LINES, 0, 2, 101, 102);
 
         eng::Engine::instance().gui_->draw();
         window->swap_buffers();

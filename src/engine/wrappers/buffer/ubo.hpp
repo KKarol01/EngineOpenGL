@@ -32,9 +32,8 @@ namespace eng {
             return static_cast<T *>(vptr);
         }
         template <typename T> void set(std::string_view name, const T &data, size_t idx = 0u) {
-            auto tptr              = get(name, idx);
+            auto tptr              = get<T>(name, idx);
             const auto member_size = entries.at(name.data()).size;
-
             memcpy(tptr, static_cast<const void *>(&data), member_size);
         }
 

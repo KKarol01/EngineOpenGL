@@ -68,6 +68,29 @@ namespace eng {
         int first;
         size_t vertex_count, instance_count;
     };
+    struct DrawArraysInstancedBaseInstanceCMD final : public DrawCMD {
+        DrawArraysInstancedBaseInstanceCMD(size_t vertex_count, size_t instance_count, uint32_t base_instance)
+            : DrawCMD() {
+            this->first          = 0;
+            this->vertex_count   = vertex_count;
+            this->instance_count = instance_count;
+            this->base_instance  = base_instance;
+        }
+        DrawArraysInstancedBaseInstanceCMD(
+            size_t vertex_count, size_t instance_count, int first, uint32_t base_instance, uint32_t gl_mode)
+            : DrawCMD(gl_mode) {
+            this->first          = first;
+            this->vertex_count   = vertex_count;
+            this->instance_count = instance_count;
+            this->base_instance  = base_instance;
+        }
+
+        void draw() final;
+
+        int first;
+        size_t vertex_count, instance_count;
+        uint32_t base_instance;
+    };
 
     struct BufferBinder {
         virtual void bind()     = 0;
@@ -104,10 +127,12 @@ namespace eng {
     };
 
     struct PipelineStage {
-        VaoID vao;
-        ProgramID program;
+        VaoID vao{0};
+        ProgramID program{0};
         std::shared_ptr<DrawCMD> draw_cmd;
         std::vector<std::shared_ptr<BufferBinder>> bufferbinders;
+
+        std::function<void()> on_stage_start, on_stage_end;
     };
 
     class Pipeline {

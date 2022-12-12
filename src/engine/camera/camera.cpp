@@ -6,6 +6,9 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 
+static void on_scroll(GLFWwindow*, double x, double y) {
+}
+
 Camera::Camera() { update_projection(); }
 
 void Camera::update() {
@@ -19,6 +22,8 @@ void Camera::update() {
     }
 
     if (proceed == false) return;
+
+
 
     yaw_pitch += controller.look_vec();
     yaw_pitch.y = glm::clamp(yaw_pitch.y, -89.f, 89.f);
