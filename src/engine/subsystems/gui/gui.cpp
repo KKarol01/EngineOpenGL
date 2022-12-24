@@ -57,6 +57,7 @@ void GUI::draw() {
     }
     ImGui::End();
     #endif
+
     if(ImGui::BeginMainMenuBar()) {
     if(ImGui::Button("Load...")) {}
     if(ImGui::Button("RenderingPP graph")) {}
