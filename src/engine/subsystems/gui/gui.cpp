@@ -1,13 +1,14 @@
-#include "../../engine.hpp"
-#include "../ecs/ecs.hpp"
-#include "../../wrappers/window/window.hpp"
-
 #include "gui.hpp"
 
 #include <optional>
 #include <variant>
 
 #include <imgui/include_me.hpp>
+
+#include "../../engine.hpp"
+#include "../ecs/ecs.hpp"
+#include "../../wrappers/window/window.hpp"
+#include "render_graph.hpp"
 
 GUI::GUI() {
     IMGUI_CHECKVERSION();
@@ -18,6 +19,8 @@ GUI::GUI() {
 
     ImGui_ImplGlfw_InitForOpenGL(eng::Engine::instance().window()->glfwptr(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
+
+    render_graph = std::make_unique<RenderGraphGUI>();
 
     io->IniFilename         = "imgui.ini";
     io->WantSaveIniSettings = true;
@@ -38,7 +41,7 @@ void GUI::draw() {
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
-    #if 0 == 1
+#if 0 == 1
     //   auto s = Engine::instance().sceneinstance().();
     auto ww = eng::Engine::instance().window()->width();
     auto wh = eng::Engine::instance().window()->height();
@@ -56,17 +59,21 @@ void GUI::draw() {
         }
     }
     ImGui::End();
-    #endif
+#endif
 
-    if(ImGui::BeginMainMenuBar()) {
-    if(ImGui::Button("Load...")) {}
-    if(ImGui::Button("RenderingPP graph")) {}
-    if(ImGui::Button("Performance monitor")) {}
-    if(ImGui::Button("Gpu memory statistics")) {}
-    if(ImGui::Button("Window")) {}
-    if(ImGui::Button("HW info")) {}
-    ImGui::EndMainMenuBar();
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::Button("Load...")) {}
+        if (ImGui::Button("RenderingPP graph")) {
+            render_graph->open_widget();
+        }
+        if (ImGui::Button("Performance monitor")) {}
+        if (ImGui::Button("Gpu memory statistics")) {}
+        if (ImGui::Button("Window")) {}
+        if (ImGui::Button("HW info")) {}
+        ImGui::EndMainMenuBar();
     }
+
+    if (render_graph->is_open()) render_graph->draw();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -5,10 +5,13 @@
 #include <functional>
 #include <stdexcept>
 #include <cstring>
-
-struct ImGuiIO;
+#include <memory>
 
 #include "ecs_comps.hpp"
+
+struct ImGuiIO;
+struct RenderGraphGUI;
+
 
 class GUI {
   public:
@@ -37,4 +40,6 @@ class GUI {
     uint32_t ui_draws_count{0u};
     ComponentGUI comp_gui;
     ImGuiIO *io{nullptr};
+
+    std::unique_ptr<RenderGraphGUI> render_graph;
 };
