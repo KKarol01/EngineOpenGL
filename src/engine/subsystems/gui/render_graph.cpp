@@ -42,6 +42,7 @@ void RenderGraphGUI::draw() {
 
         draw_resource_list();
         ImGui::SameLine();
+
         draw_canvas();
     }
     ImGui::End();
@@ -124,12 +125,10 @@ void RenderGraphGUI::draw_grid() {
 }
 
 void RenderGraphGUI::draw_nodes() {
-
     for (auto i = 0u; i < nodes.size(); ++i) {
-        auto &n = nodes.at(i);
-        auto a  = canvas_start + pan_offset + n.start();
-        auto b  = canvas_start + pan_offset + n.end();
+        ImGui::PushID(i + 1);
 
+        auto &n = nodes.at(i);
         ImGui::SetCursorPos(convert_vec(pan_offset + n.position));
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, Node::corner_rounding);
         ImGui::PushStyleColor(ImGuiCol_MenuBarBg, IM_COL32(252, 80, 68, 255));
@@ -151,14 +150,14 @@ void RenderGraphGUI::draw_nodes() {
             ImGui::PopStyleColor();
         }
         ImGui::EndChild();
-
+        ImGui::PopID();
     }
 }
 
 void RenderGraphGUI::draw_node_contents(Node *node) {
 
     static const char *depth_tests[]{"GL_LESS", "GL_GREATER", "GL_NOTEQUAL"};
-
+    ImGui::PushID(node->id);
     switch (node->type) {
     case NodeType::DepthTest: {
         ImGui::BeginMenuBar();
@@ -176,7 +175,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         }
         draw_connection_dot(node, false, false);
         ImGui::PopItemWidth();*/
-        return;
+        break;
     }
     case NodeType::VAO: {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 5));
@@ -186,14 +185,15 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         ImGui::Text("VAO");
         ImGui::EndMenuBar();
 
-        static float height = 150;
+        static std::unordered_map<uint32_t, float> heights;
+        if(heights.contains(node->id)==false)heights[node->id]=150.f;
 
         auto bindings_ptr = std::any_cast<VaoBindings>(&node->storage.storage["vao_bindings"]);
         assert(bindings_ptr);
 
         auto &bindings = *bindings_ptr;
 
-        if (ImGui::BeginChild("##bindings", ImVec2(0, height), true)) {
+        if (ImGui::BeginChild("##bindings", ImVec2(0, heights.at(node->id)), true)) {
 
             if (ImGui::BeginTable("buffer_bindings",
                                   3,
@@ -215,13 +215,19 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                 ImGui::TableSetColumnIndex(2);
                 ImGui::PushID(3);
                 if (ImGui::Button("+", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-                    bindings.push_back({bindings.size(), 0});
+                    if (bindings.size() < buffer_names.size()) {
+                        auto it = buffer_names.begin();
+                        std::advance(it, bindings.size());
+
+                        bindings.emplace_back(it->first, bindings.size());
+                    }
                 }
                 ImGui::PopID();
                 ImGui::PopID();
                 ImGui::PopID();
 
                 for (auto i = 0u; i < bindings.size(); ++i) {
+                    ImGui::PushID(i+1);
 
                     int buff    = bindings.at(i).first;
                     int binding = bindings.at(i).second;
@@ -230,13 +236,13 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                     ImGui::TableSetColumnIndex(0);
 
                     bool s = false;
-                    ImGui::Selectable(std::to_string(buff).c_str(),
+                    ImGui::Selectable(buffer_names.at(buff).c_str(),
                                       &s,
                                       ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
                                       ImVec2(0, ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y * 1.5f));
 
                     if (ImGui::BeginDragDropTarget()) {
-                        if (auto payload = ImGui::AcceptDragDropPayload("DND")) {
+                        if (auto payload = ImGui::AcceptDragDropPayload("GLBuffer")) {
                             auto data = *static_cast<int *>(payload->Data);
                         }
 
@@ -258,10 +264,10 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                     if (ImGui::InputInt("##binding", &binding, 0, 1)) { bindings.at(i).second = glm::max(0, binding); }
 
                     ImGui::TableSetColumnIndex(2);
-                    ImGui::PushID(i+1);
                     if (ImGui::Button("-", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
                         bindings.erase(bindings.begin() + i);
                     }
+
                     ImGui::PopID();
                 }
                 ImGui::EndTable();
@@ -272,9 +278,12 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         ImGui::InvisibleButton("##hsplitter", ImVec2(FLT_MAX, 8.f));
         ImGui::PopStyleVar();
+
+
+
         if (ImGui::IsItemActive()) {
             can_move_nodes = false;
-            height += ImGui::GetIO().MouseDelta.y;
+            heights.at(node->id) += ImGui::GetIO().MouseDelta.y;
         }
 
         if (ImGui::BeginChild("second child", ImVec2(0, 0), true)) { ImGui::Text("asdfdf"); }
@@ -282,11 +291,13 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
 
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
-        return;
+        break;
     }
 
     default: throw std::runtime_error{"Unsupported node type"};
     }
+
+    ImGui::PopID();
 }
 
 void RenderGraphGUI::draw_connection_dot(Node *node, bool left, bool center) {
@@ -305,10 +316,17 @@ void RenderGraphGUI::draw_connection_dot(Node *node, bool left, bool center) {
 }
 
 void RenderGraphGUI::draw_resource_list() {
+    static bool selected;
+    static uint32_t sel_id;
+    static bool edit = false;
+
     ImGui::BeginChild("##Resources", ImVec2(200, 0), true);
+
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (ImGui::TreeNode("Resources")) {
         ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing() * .75f);
 
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (ImGui::TreeNode("Buffers")) {
             eng::Engine::instance().renderer_->buffers.for_each([&](const eng::GLBuffer &buff) {
                 const auto bid = buff.descriptor.id;
@@ -317,9 +335,33 @@ void RenderGraphGUI::draw_resource_list() {
                 }
                 const auto &bname = buffer_names.at(bid);
 
-                bool selected = false;
                 ImGui::PushID(bid);
-                ImGui::Selectable("label", selected, 0, ImVec2(ImGui::GetContentRegionAvail().x * .75f, 0.f));
+
+                if (buff.descriptor.id != sel_id || !edit)
+                    if (ImGui::Selectable(bname.c_str(),
+                                          selected && buff.descriptor.id == sel_id,
+                                          ImGuiSelectableFlags_AllowDoubleClick,
+                                          ImVec2(ImGui::GetContentRegionAvail().x * .75f, 0.f))) {
+                        if (selected) { edit = false; }
+                        selected = true;
+                        sel_id   = buff.descriptor.id;
+                        if (ImGui::IsMouseDoubleClicked(0)) { edit = true; }
+                    }
+                if (edit == true && buff.descriptor.id == sel_id) {
+                    static char buff[512];
+                    memcpy(buff, bname.c_str(), bname.size() + 1);
+
+                    if (ImGui::IsMouseDoubleClicked(0)) { ImGui::SetKeyboardFocusHere(0); }
+
+                    if (ImGui::InputText(
+                            "##text", buff, 512, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank
+
+                            )) {
+                        buffer_names.at(bid) = buff;
+                        edit                 = false;
+                        selected             = false;
+                    }
+                }
 
                 if (ImGui::BeginDragDropSource()) {
                     can_move_nodes = false;
@@ -340,6 +382,11 @@ void RenderGraphGUI::draw_resource_list() {
         ImGui::TreePop();
     }
     ImGui::EndChild();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) == false && ImGui::IsMouseClicked(0)) {
+        selected = false;
+        edit     = false;
+    }
 }
 
 void RenderGraphGUI::draw_canvas() {
@@ -393,8 +440,6 @@ Node NodeBuilder::build(NodeType type) {
         node.size.x                          = 250;
         node.size.y                          = 500.f;
         node.storage.storage["vao_bindings"] = std::make_any<VaoBindings>();
-        /*node.storage.register_data<uint32_t>("binding0", 0);
-        node.storage.register_data<uint32_t>("buffer0", 0);*/
         break;
     default: break;
     }
