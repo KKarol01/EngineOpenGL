@@ -16,10 +16,13 @@ namespace eng {
         explicit GLBufferDescriptor(uint32_t flags) : flags{flags} {}
         bool operator==(const GLBufferDescriptor &other) const noexcept { return handle == other.handle; }
 
+        std::uint32_t id{gid++};
         std::uint32_t handle{0u}, flags{0u};
         std::size_t size{0u}, capacity{0u};
 
         Signal<uint32_t> on_handle_change;
+
+        inline static std::uint32_t gid{0u};
     };
 
     struct GLBuffer {

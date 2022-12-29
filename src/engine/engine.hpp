@@ -5,6 +5,7 @@
 
 #include "subsystems/ecs/ecs.hpp"
 #include "./types/types.hpp"
+#include "renderer/renderer.hpp"    
 
 class Window;
 class Controller;

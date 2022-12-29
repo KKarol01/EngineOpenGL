@@ -3,60 +3,18 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <any>
 #include <unordered_map>
 
 #include <glm/glm.hpp>
 
 struct ImDrawList;
 
-class NodeDataStorage {
-    struct MetaData {
-        MetaData(const std::string &name, size_t off) : name{name}, offset{off} {}
-
-        std::string name;
-        size_t offset{0u};
-    };
-
-  public:
-    NodeDataStorage() = default;
-
-    NodeDataStorage(NodeDataStorage &&n) noexcept { *this = std::move(n); }
-    NodeDataStorage &operator=(NodeDataStorage &&n) noexcept {
-        total_size = n.total_size;
-        storage    = std::move(n.storage);
-        data       = n.data;
-        n.data     = nullptr;
-
-        return *this;
-    }
-    ~NodeDataStorage() {
-        if (data) delete[] data;
-    }
-
-    template <typename T> void register_data(const std::string &s, const T &t = {}) {
-        storage.emplace_back(s, total_size);
-        if (data == nullptr) data = (char *)malloc(sizeof(T));
-        else
-            data = static_cast<char *>(realloc(data, total_size + sizeof(T)));
-        assert(data != nullptr);
-        memcpy(data + total_size, &t, sizeof(T));
-        total_size += sizeof(T);
-    }
-    template <typename T = void> T *get(const std::string &s) {
-        auto it = std::find_if(storage.begin(), storage.end(), [&s](auto &&val) { return val.name == s; });
-        assert(it != storage.end());
-        const auto &md = *it;
-
-        return static_cast<T *>(static_cast<void *>(data + md.offset));
-    }
-
-  private:
-    size_t total_size{0u};
-    std::vector<MetaData> storage;
-    char *data = nullptr;
+struct NodeDataStorage {
+    std::unordered_map<std::string, std::any> storage;
 };
 
-enum class NodeType { DepthTest };
+enum class NodeType { DepthTest, VAO };
 
 struct Node {
   private:
@@ -71,11 +29,13 @@ struct Node {
     glm::vec2 size{150.f, 50.f};
     glm::vec2 drag_start{0.f}, drag_end{0.f};
     bool mouse_down{false}, mouse_hovering{false}, mouse_dragging{false};
+    uint32_t id = gid++;
     NodeDataStorage storage;
 
     inline static float corner_rounding = 5.f;
     inline static float border_size     = .7f;
     inline static float padding         = 2.f;
+    inline static uint32_t gid          = 0u;
 
     friend class NodeBuilder;
 };
@@ -96,6 +56,8 @@ class RenderGraphGUI {
     };
 
   public:
+    RenderGraphGUI();
+
     void draw();
 
     bool is_open() const { return open; }
@@ -107,11 +69,14 @@ class RenderGraphGUI {
     void draw_grid();
     void draw_nodes();
     void draw_node_contents(Node *);
-    void draw_connection_dot(Node *);
+    void draw_connection_dot(Node *, bool left, bool center);
+    void draw_resource_list();
+    void draw_canvas();
 
     bool mouse_over_node(const Node &n);
 
     std::vector<Node> nodes{};
+    std::unordered_map<uint32_t, std::string> buffer_names;
 
     glm::vec2 canvas_size{0.f};
     glm::vec2 canvas_start{0.f}, canvas_end{0.f};
@@ -121,5 +86,7 @@ class RenderGraphGUI {
     NodeBuilder node_builder;
     bool open{true};
     Node *inode{nullptr};
-    bool node_input_focus{false};
+    bool canvas_panning{false};
+    bool resource_dragging{false};
+    bool can_move_nodes{true};
 };
