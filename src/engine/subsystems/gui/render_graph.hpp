@@ -26,7 +26,9 @@ struct Node {
 
     NodeType type{0u};
     glm::vec2 position{0.f};
+    glm::vec2 min_size, max_size;
     glm::vec2 size{150.f, 50.f};
+    
     glm::vec2 drag_start{0.f}, drag_end{0.f};
     bool mouse_down{false}, mouse_hovering{false}, mouse_dragging{false};
     uint32_t id = gid++;
@@ -82,6 +84,7 @@ class RenderGraphGUI {
     glm::vec2 canvas_start{0.f}, canvas_end{0.f};
     glm::vec2 pan_offset{0.f};
     float grid_step = 64.f;
+    float zoom_speed = 5.f;
     ImDrawList *draw_list{nullptr};
     NodeBuilder node_builder;
     bool open{true};
