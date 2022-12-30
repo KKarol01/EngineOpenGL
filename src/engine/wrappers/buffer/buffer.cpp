@@ -101,24 +101,24 @@ void eng::GLVao::configure_attributes(const std::vector<GLVaoAttributeDescriptor
 }
 
 void eng::GLVao::configure_attributes(uint32_t size,
-                                      uint32_t gl_type,
+                                      GL_FORMAT_ gl_format,
                                       uint32_t type_size_bytes,
                                       const std::vector<GLVaoAttributeSameFormat> &attributes) {
     std::unordered_map<uint32_t, uint32_t> binding_offset;
     for (const auto &a : attributes) {
-        descriptor.attributes.emplace_back(a.idx, a.binding, size, binding_offset[a.binding], gl_type, a.normalize);
+        descriptor.attributes.emplace_back(a.idx, a.binding, size, binding_offset[a.binding], gl_format, a.normalize);
         binding_offset[a.binding] += type_size_bytes * size;
     }
 
     configure_attributes();
 }
 
-void eng::GLVao::configure_attributes(uint32_t gl_type,
+void eng::GLVao::configure_attributes(GL_FORMAT_ gl_format,
                                       uint32_t type_size_bytes,
                                       const std::vector<GLVaoAttributeSameType> &attributes) {
     std::unordered_map<uint32_t, uint32_t> binding_offset;
     for (const auto &a : attributes) {
-        descriptor.attributes.emplace_back(a.idx, a.binding, a.size, binding_offset[a.binding], gl_type, a.normalize);
+        descriptor.attributes.emplace_back(a.idx, a.binding, a.size, binding_offset[a.binding], gl_format, a.normalize);
         binding_offset[a.binding] += type_size_bytes * a.size;
     }
 
@@ -130,29 +130,19 @@ void eng::GLVao::configure_attributes() {
         glEnableVertexArrayAttrib(handle, a.idx);
         glVertexArrayAttribBinding(handle, a.idx, a.binding);
 
-        switch (a.gl_func) {
-        case GLVaoAttributeDescriptor::GL_FORMAT_FUNC::FLOAT:
-            glVertexArrayAttribFormat(handle, a.idx, a.size, a.gl_type, a.normalize, a.offset);
-            break;
+        switch (a.gl_format) {
+        case GL_FORMAT_FLOAT: glVertexArrayAttribFormat(handle, a.idx, a.size, GL_FLOAT, a.normalize, a.offset); break;
         default: throw std::runtime_error{"Unrecognised gl_func"};
         }
     }
 }
 
 eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset)
-    : idx{idx}, binding{binding}, size{size}, offset{offset} {
-    gl_type = GL_FLOAT;
-}
+    : idx{idx}, binding{binding}, size{size}, offset{offset} {}
 
 eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(
-    uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, uint32_t gl_type, bool normalize)
+    uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize)
     : GLVaoAttributeDescriptor(idx, binding, size, offset) {
-    this->gl_type   = gl_type;
     this->normalize = normalize;
-
-    switch (gl_type) {
-    case GL_FLOAT:
-    case GL_HALF_FLOAT: gl_func = GL_FORMAT_FUNC::FLOAT; break;
-    default: throw std::runtime_error{"Unrecognised gl_type"};
-    }
+    this->gl_format   = gl_format;
 }

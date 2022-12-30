@@ -55,7 +55,7 @@ int main() {
     PipelineStage pp2s1, pp2s2;
     auto pp2s1vao = engine.renderer_->vaos.emplace();
     pp2s1vao->configure_binding(0, pp2->vbo, 12, 0);
-    pp2s1vao->configure_attributes(GL_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
+    pp2s1vao->configure_attributes(GL_FORMAT_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
     {
         float line_verts[]{0.f, 0.f, -50.f, 0.f, 0.f, 50.f};
         engine.renderer_->buffers[pp2->vbo].push_data(line_verts, sizeof(line_verts));

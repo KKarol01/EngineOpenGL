@@ -16,13 +16,10 @@ namespace eng {
         explicit GLBufferDescriptor(uint32_t flags) : flags{flags} {}
         bool operator==(const GLBufferDescriptor &other) const noexcept { return handle == other.handle; }
 
-        std::uint32_t id{gid++};
         std::uint32_t handle{0u}, flags{0u};
         std::size_t size{0u}, capacity{0u};
 
         Signal<uint32_t> on_handle_change;
-
-        inline static std::uint32_t gid{0u};
     };
 
     struct GLBuffer {
@@ -47,16 +44,17 @@ namespace eng {
         static constexpr float GROWTH_FACTOR{1.61f};
     };
 
+    enum GL_FORMAT_ { GL_FORMAT_FLOAT };
+
     struct GLVaoAttributeDescriptor {
         GLVaoAttributeDescriptor(uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset);
         GLVaoAttributeDescriptor(
-            uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, uint32_t gl_type, bool normalize);
+            uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize);
 
         uint32_t idx, size{0}, offset{0};
         uint32_t binding;
-        uint32_t gl_type;
         bool normalize{false};
-        enum class GL_FORMAT_FUNC { FLOAT } gl_func = GL_FORMAT_FUNC::FLOAT;
+        GL_FORMAT_ gl_format = GL_FORMAT_FLOAT;
     };
 
     struct GLVaoAttributeSameType {
@@ -97,10 +95,10 @@ namespace eng {
 
         void configure_attributes(const std::vector<GLVaoAttributeDescriptor> &attributes);
         void configure_attributes(uint32_t size,
-                                  uint32_t gl_type,
+                                  GL_FORMAT_ gl_format,
                                   uint32_t type_size_bytes,
                                   const std::vector<GLVaoAttributeSameFormat> &attributes);
-        void configure_attributes(uint32_t gl_type,
+        void configure_attributes(GL_FORMAT_ gl_format,
                                   uint32_t type_size_bytes,
                                   const std::vector<GLVaoAttributeSameType> &attributes);
 

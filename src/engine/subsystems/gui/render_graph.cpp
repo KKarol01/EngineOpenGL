@@ -4,7 +4,25 @@
 
 #include "../../engine.hpp"
 
-typedef std::vector<std::pair<int, int>> VaoBindings;
+struct BufferBinding {
+    BufferBinding(uint32_t bud, uint32_t bid, uint32_t str, uint32_t off, bool ebo = false)
+        : buffer_id{bud}, binding_id{bid}, stride{str}, offset{off}, is_ebo{ebo} {}
+
+    uint32_t buffer_id{0u}, binding_id{0u};
+    uint32_t stride{0u}, offset{0u};
+    bool is_ebo{false};
+};
+typedef eng::GLVaoAttributeDescriptor VertexSpec;
+typedef std::vector<VertexSpec> VaoAttributes;
+typedef std::vector<BufferBinding> VaoBindings;
+
+struct AttrFormatDescriptor {
+    eng::GL_FORMAT_ format;
+    std::string name;
+    uint32_t size_in_bytes;
+};
+
+static AttrFormatDescriptor get_format_desc(eng::GL_FORMAT_ f);
 
 static glm::vec2 convert_vec(ImVec2 v) { return {v.x, v.y}; }
 static ImVec2 convert_vec(glm::vec2 v) { return {v.x, v.y}; }
@@ -27,6 +45,12 @@ void RenderGraphGUI::draw() {
             ImGui::SameLine();
             ImGui::Button("Texture");
             ImGui::SameLine();
+            if (ImGui::Button("Buffer")) {
+                auto buff = eng::Engine::instance().renderer_->buffers.insert(
+                    eng::GLBuffer{eng::GLBufferDescriptor{GL_DYNAMIC_STORAGE_BIT}});
+                buffer_names.emplace(buff.id, std::string{"Buffer"}.append(std::to_string(buff.id)));
+            }
+            ImGui::SameLine();
             ImGui::Button("Stage");
             ImGui::SameLine();
             ImGui::Button("DrawCmd");
@@ -38,11 +62,8 @@ void RenderGraphGUI::draw() {
         }
         ImGui::EndChild();
 
-        can_move_nodes = true;
-
         draw_resource_list();
         ImGui::SameLine();
-
         draw_canvas();
     }
     ImGui::End();
@@ -129,6 +150,7 @@ void RenderGraphGUI::draw_nodes() {
         ImGui::PushID(i + 1);
 
         auto &n = nodes.at(i);
+
         ImGui::SetCursorPos(convert_vec(pan_offset + n.position));
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, Node::corner_rounding);
         ImGui::PushStyleColor(ImGuiCol_MenuBarBg, IM_COL32(252, 80, 68, 255));
@@ -178,6 +200,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         break;
     }
     case NodeType::VAO: {
+
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 5));
         ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, convert_vec(Colors::grid));
 
@@ -186,111 +209,229 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         ImGui::EndMenuBar();
 
         static std::unordered_map<uint32_t, float> heights;
-        if(heights.contains(node->id)==false)heights[node->id]=150.f;
+        if (heights.contains(node->id) == false) heights[node->id] = 150.f;
 
-        auto bindings_ptr = std::any_cast<VaoBindings>(&node->storage.storage["vao_bindings"]);
-        assert(bindings_ptr);
-
-        auto &bindings = *bindings_ptr;
+        auto &vao_bindings = *std::any_cast<VaoBindings>(&node->storage.storage["vao_bindings"]);
+        auto &vao_ebo_id   = *std::any_cast<uint32_t>(&node->storage.storage["ebo_id"]);
 
         if (ImGui::BeginChild("##bindings", ImVec2(0, heights.at(node->id)), true)) {
 
             if (ImGui::BeginTable("buffer_bindings",
-                                  3,
+                                  5,
                                   ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg,
                                   ImVec2(0, ImGui::GetContentRegionAvail().y))) {
                 ImGui::TableSetupColumn("Buffer");
                 ImGui::TableSetupColumn("Binding id");
+                ImGui::TableSetupColumn("Stride");
+                ImGui::TableSetupColumn("Offset");
                 ImGui::TableSetupColumn("");
                 ImGui::TableSetupScrollFreeze(0, 1);
 
                 ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
-                ImGui::TableSetColumnIndex(0);
-                ImGui::PushID(1);
-                ImGui::AlignTextToFramePadding();
-                ImGui::TableHeader(ImGui::TableGetColumnName(0));
-                ImGui::TableSetColumnIndex(1);
-                ImGui::PushID(2);
-                ImGui::TableHeader(ImGui::TableGetColumnName(1));
-                ImGui::TableSetColumnIndex(2);
-                ImGui::PushID(3);
-                if (ImGui::Button("+", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-                    if (bindings.size() < buffer_names.size()) {
-                        auto it = buffer_names.begin();
-                        std::advance(it, bindings.size());
+                for (int i = 0; i < 5; ++i) {
+                    ImGui::TableSetColumnIndex(i);
+                    ImGui::AlignTextToFramePadding();
 
-                        bindings.emplace_back(it->first, bindings.size());
+                    if (i == 4) {
+                        if (ImGui::Button("+", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                            if (vao_bindings.size() < buffer_names.size()) {
+                                auto it = buffer_names.begin();
+                                std::advance(it, vao_bindings.size());
+
+                                vao_bindings.emplace_back(it->first, vao_bindings.size(), 0u, 0u, false);
+                            }
+                        }
+                        break;
                     }
+
+                    ImGui::TableHeader(ImGui::TableGetColumnName(i));
                 }
-                ImGui::PopID();
-                ImGui::PopID();
-                ImGui::PopID();
 
-                for (auto i = 0u; i < bindings.size(); ++i) {
-                    ImGui::PushID(i+1);
+                for (auto i = 0u; i < vao_bindings.size(); ++i) {
+                    if (buffer_names.contains(vao_bindings.at(i).buffer_id) == false) {
+                        vao_bindings.erase(vao_bindings.begin() + i);
+                        continue;
+                    }
+                    ImGui::PushID(i + 1);
 
-                    int buff    = bindings.at(i).first;
-                    int binding = bindings.at(i).second;
+                    auto &vao_binding = vao_bindings.at(i);
 
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
 
                     bool s = false;
-                    ImGui::Selectable(buffer_names.at(buff).c_str(),
+                    ImGui::Selectable(std::to_string(vao_binding.buffer_id).c_str(),
                                       &s,
                                       ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
                                       ImVec2(0, ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y * 1.5f));
-
+                    //=== Node reordering by dragging ===
+                    if (ImGui::IsItemActive()) { can_move_nodes = false; }
+                    if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
+                        uint32_t dst_idx = i + (ImGui::GetMouseDragDelta().y < 0.f ? -1 : 1);
+                        ImGui::ResetMouseDragDelta(0);
+                        if (dst_idx >= 0u && dst_idx < vao_bindings.size()) {
+                            auto temp                = vao_bindings.at(dst_idx);
+                            vao_bindings.at(dst_idx) = vao_bindings.at(i);
+                            vao_bindings.at(i)       = temp;
+                        }
+                    }
+                    //=== Binding buffer by dragging it from the list ===
                     if (ImGui::BeginDragDropTarget()) {
                         if (auto payload = ImGui::AcceptDragDropPayload("GLBuffer")) {
-                            auto data = *static_cast<int *>(payload->Data);
+                            auto data                    = *static_cast<int *>(payload->Data);
+                            vao_bindings.at(i).buffer_id = data;
                         }
 
                         ImGui::EndDragDropTarget();
                     }
 
-                    if (ImGui::IsItemActive()) can_move_nodes = false;
-                    if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
-                        uint32_t dst_idx = i + (ImGui::GetMouseDragDelta().y < 0.f ? -1 : 1);
-                        ImGui::ResetMouseDragDelta(0);
-                        if (dst_idx >= 0u && dst_idx < bindings.size()) {
-                            auto temp            = bindings.at(dst_idx);
-                            bindings.at(dst_idx) = bindings.at(i);
-                            bindings.at(i)       = temp;
-                        }
+                    //=== Context menu ===
+                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 5));
+                    auto &st = ImGui::GetStyle();
+                    if (ImGui::BeginPopupContextItem("buff_name_del_ctx")) {
+                        if (ImGui::Selectable("Delete", false)) { vao_bindings.erase(vao_bindings.begin() + i); }
+                        ImGui::EndPopup();
                     }
+                    ImGui::PopStyleVar();
 
                     ImGui::TableSetColumnIndex(1);
-                    if (ImGui::InputInt("##binding", &binding, 0, 1)) { bindings.at(i).second = glm::max(0, binding); }
+                    if (ImGui::InputInt("##binding", (int *)&vao_binding.binding_id, 0, 1)) {
+                        vao_bindings.at(i).binding_id = glm::max(0, (int)vao_binding.binding_id);
+                    }
 
                     ImGui::TableSetColumnIndex(2);
-                    if (ImGui::Button("-", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-                        bindings.erase(bindings.begin() + i);
+                    if (ImGui::InputInt("##stride", (int *)&vao_binding.stride, 0, 1)) {
+                        vao_bindings.at(i).stride = glm::max(0, (int)vao_binding.stride);
                     }
+
+                    ImGui::TableSetColumnIndex(3);
+                    if (ImGui::InputInt("##offset", (int *)&vao_binding.offset, 0, 1)) {
+                        vao_bindings.at(i).offset = glm::max(0, (int)vao_binding.offset);
+                    }
+
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::BeginGroup();
+                    bool checked = vao_ebo_id == vao_binding.buffer_id;
+                    if (ImGui::Checkbox("EBO", &checked)) {
+
+                        if (checked) vao_ebo_id = vao_binding.buffer_id;
+                        else
+                            vao_ebo_id = 0u;
+                    }
+                    ImGui::EndGroup();
 
                     ImGui::PopID();
                 }
+
                 ImGui::EndTable();
             }
         }
         ImGui::EndChild();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlapped
+                                 | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+            can_move_nodes = false;
+        }
+
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         ImGui::InvisibleButton("##hsplitter", ImVec2(FLT_MAX, 8.f));
         ImGui::PopStyleVar();
 
-
-
         if (ImGui::IsItemActive()) {
             can_move_nodes = false;
             heights.at(node->id) += ImGui::GetIO().MouseDelta.y;
+            heights.at(node->id) = glm::max(15.f, glm::min(node->size.y, heights.at(node->id)));
         }
 
-        if (ImGui::BeginChild("second child", ImVec2(0, 0), true)) { ImGui::Text("asdfdf"); }
+        if (ImGui::BeginChild("second child", ImVec2(0, 0), false)) {
+            auto &vao_attribs = *std::any_cast<VaoAttributes>(&node->storage.storage["vao_attributes"]);
+
+            if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                uint32_t idx, binding{0}, size{0}, offset{0}, normalize{false};
+                eng::GL_FORMAT_ format = eng::GL_FORMAT_FLOAT;
+                idx                    = vao_attribs.size();
+
+                if (idx > 0) {
+                    size   = vao_attribs.back().size;
+                    offset = vao_attribs.back().offset + vao_attribs.back().size * 4.f;
+                }
+
+                vao_attribs.emplace_back(idx, binding, size, offset, format, normalize);
+            }
+
+            if (ImGui::BeginTable("Vertex Specification",
+                                  6,
+                                  ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersH
+                                      | ImGuiTableFlags_SizingFixedFit)) {
+                ImGui::TableSetupColumn("Id", 0, ImGui::CalcTextSize("saaas").x);
+                ImGui::TableSetupColumn("Binding id", 0, ImGui::CalcTextSize("saaas").x);
+                ImGui::TableSetupColumn("Size", 0, ImGui::CalcTextSize("saaas").x);
+                ImGui::TableSetupColumn("Offset", 0, ImGui::CalcTextSize("saaas").x);
+                ImGui::TableSetupColumn("Type", 0, ImGui::CalcTextSize("GL_UNSIGNED").x);
+                ImGui::TableSetupColumn("Normalize", 0, ImGui::CalcTextSize("saaas").x);
+                ImGui::TableSetupScrollFreeze(0, 1);
+
+                ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
+                for (int i = 0; i < 6; ++i) {
+                    ImGui::TableSetColumnIndex(i);
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TableHeader(ImGui::TableGetColumnName(i));
+                }
+
+                ImGui::PushID("vaos");
+                for (auto i = 0u; i < vao_attribs.size(); ++i) {
+                    ImGui::PushID(i + 1);
+                    auto &attr = vao_attribs.at(i);
+
+                    ImGui::TableNextRow();
+
+                    ImGui::TableSetColumnIndex(0);
+                    if (int val = attr.idx; ImGui::InputInt("##Id", &val, 0, 0)) { attr.idx = glm::max(0, val); }
+                    ImGui::TableSetColumnIndex(1);
+                    if (int val = attr.binding; ImGui::InputInt("##Binding id", &val, 0, 0)) {
+                        attr.binding = glm::max(0, val);
+                    }
+                    ImGui::TableSetColumnIndex(2);
+                    if (int val = attr.size; ImGui::InputInt("##Size", &val, 0, 0)) { attr.size = glm::max(0, val); }
+                    ImGui::TableSetColumnIndex(3);
+                    if (int val = attr.offset; ImGui::InputInt("##Offset", &val, 0, 0)) {
+                        attr.offset = glm::max(0, val);
+                    }
+                    ImGui::TableSetColumnIndex(4);
+                    {
+                        eng::GL_FORMAT_ all_formats[]{eng::GL_FORMAT_FLOAT};
+                        if (ImGui::BeginListBox(
+                                "##Format",
+                                ImVec2(ImGui::CalcTextSize("GL_UNSIGNED").x, ImGui::GetFrameHeightWithSpacing()))) {
+                            for (int i = 0; i < IM_ARRAYSIZE(all_formats); ++i) {
+                                auto f    = eng::GL_FORMAT_(i);
+                                auto desc = get_format_desc(f);
+
+                                if (ImGui::Selectable(desc.name.c_str(), eng::GL_FORMAT_(i) == attr.gl_format)) {
+                                    attr.gl_format = f;
+                                }
+                            }
+                            ImGui::EndListBox();
+                        }
+                    }
+                    ImGui::TableSetColumnIndex(5);
+                    if (bool val = attr.normalize; ImGui::Checkbox("##Normalize", &val)) { attr.normalize = val; }
+
+                    ImGui::PopID();
+                }
+                ImGui::PopID();
+                ImGui::EndTable();
+            }
+        }
         ImGui::EndChild();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlapped
+                                 | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+            can_move_nodes = false;
+        }
 
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
+        draw_connection_dot(node, false, true);
         break;
     }
 
@@ -304,6 +445,8 @@ void RenderGraphGUI::draw_connection_dot(Node *node, bool left, bool center) {
     const auto a    = canvas_start + pan_offset + node->start();
     const auto size = node->size;
 
+    auto draw_list = ImGui::GetForegroundDrawList();
+    draw_list->PushClipRect(convert_vec(canvas_start), convert_vec(canvas_end));
     auto dot_pos = a;
     dot_pos.x += left ? 0.f : size.x;
     if (center == false) {
@@ -313,6 +456,8 @@ void RenderGraphGUI::draw_connection_dot(Node *node, bool left, bool center) {
         dot_pos.y += .5f * (size.y - ImGui::GetFrameHeightWithSpacing()) - 4.f;
         draw_list->AddCircleFilled(convert_vec(dot_pos), 4.f, IM_COL32(66, 245, 152, 255));
     }
+    
+    draw_list->PopClipRect();
 }
 
 void RenderGraphGUI::draw_resource_list() {
@@ -328,55 +473,63 @@ void RenderGraphGUI::draw_resource_list() {
 
         ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (ImGui::TreeNode("Buffers")) {
-            eng::Engine::instance().renderer_->buffers.for_each([&](const eng::GLBuffer &buff) {
-                const auto bid = buff.descriptor.id;
-                if (buffer_names.contains(bid) == false) {
-                    buffer_names[bid] = std::string{"Buffer"}.append(std::to_string(bid));
-                }
-                const auto &bname = buffer_names.at(bid);
 
-                ImGui::PushID(bid);
+            uint32_t buff_to_delete{0u};
+            for (const auto &[id, name] : buffer_names) {
+                const auto &bname = name;
 
-                if (buff.descriptor.id != sel_id || !edit)
-                    if (ImGui::Selectable(bname.c_str(),
-                                          selected && buff.descriptor.id == sel_id,
-                                          ImGuiSelectableFlags_AllowDoubleClick,
-                                          ImVec2(ImGui::GetContentRegionAvail().x * .75f, 0.f))) {
+                ImGui::PushID(id);
+
+                const auto label    = bname.c_str();
+                const auto sel_cond = selected && id == sel_id;
+                const auto flags    = ImGuiSelectableFlags_AllowDoubleClick;
+                const auto size     = ImVec2(ImGui::GetContentRegionAvail().x * .75f, 0.f);
+                if (id != sel_id || !edit)
+                    if (ImGui::Selectable(label, sel_cond, flags, size)) {
                         if (selected) { edit = false; }
                         selected = true;
-                        sel_id   = buff.descriptor.id;
+                        sel_id   = id;
                         if (ImGui::IsMouseDoubleClicked(0)) { edit = true; }
                     }
-                if (edit == true && buff.descriptor.id == sel_id) {
+                if (ImGui::BeginPopupContextItem()) {
+                    ImGui::Selectable("Buffer editor");
+                    ImGui::EndPopup();
+                }
+                if (edit == true && id == sel_id) {
                     static char buff[512];
                     memcpy(buff, bname.c_str(), bname.size() + 1);
 
                     if (ImGui::IsMouseDoubleClicked(0)) { ImGui::SetKeyboardFocusHere(0); }
 
-                    if (ImGui::InputText(
-                            "##text", buff, 512, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank
-
-                            )) {
-                        buffer_names.at(bid) = buff;
-                        edit                 = false;
-                        selected             = false;
+                    if (ImGui::InputText("##text",
+                                         buff,
+                                         512,
+                                         ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank)) {
+                        buffer_names.at(id) = buff;
+                        edit                = false;
+                        selected            = false;
                     }
                 }
 
                 if (ImGui::BeginDragDropSource()) {
                     can_move_nodes = false;
 
-                    ImGui::SetDragDropPayload("GLBuffer", &bid, 4);
+                    ImGui::SetDragDropPayload("GLBuffer", &id, 4);
                     ImGui::Text(bname.c_str());
                     ImGui::EndDragDropSource();
                 }
 
                 ImGui::SameLine();
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().FramePadding.y * .5f);
-                ImGui::Button("X", ImVec2(0, ImGui::GetTextLineHeightWithSpacing()));
+                if (ImGui::Button("X", ImVec2(0, ImGui::GetTextLineHeightWithSpacing()))) { buff_to_delete = id; }
                 ImGui::PopID();
-            });
+            }
 
+            if (buff_to_delete > 0u) { buffer_names.erase(buff_to_delete); }
+
+            ImGui::TreePop();
+        }
+        if(ImGui::TreeNode("Vaos")) {
             ImGui::TreePop();
         }
         ImGui::TreePop();
@@ -400,10 +553,11 @@ void RenderGraphGUI::draw_canvas() {
         canvas_start = convert_vec(ImGui::GetCursorScreenPos());
         canvas_end   = canvas_start + canvas_size;
 
-        draw_grid();
-        draw_nodes();
         handle_panning();
         handle_node_mouse_interaction();
+        can_move_nodes = true;
+        draw_grid();
+        draw_nodes();
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -437,11 +591,22 @@ Node NodeBuilder::build(NodeType type) {
         break;
 
     case NodeType::VAO:
-        node.size.x                          = 250;
-        node.size.y                          = 500.f;
-        node.storage.storage["vao_bindings"] = std::make_any<VaoBindings>();
+        node.size.x                            = 300;
+        node.size.y                            = 450.f;
+        node.storage.storage["vao_bindings"]   = std::make_any<VaoBindings>();
+        node.storage.storage["vao_attributes"] = std::make_any<VaoAttributes>();
+        node.storage.storage["ebo_id"]         = 0u;
         break;
     default: break;
     }
     return node;
+}
+
+static AttrFormatDescriptor get_format_desc(eng::GL_FORMAT_ f) {
+    switch (f) {
+    case eng::GL_FORMAT_FLOAT:
+        return AttrFormatDescriptor{.format = f, .name = "GL_Float", .size_in_bytes = sizeof(1.f)};
+
+    default: assert(false && "unsupported format type");
+    }
 }
