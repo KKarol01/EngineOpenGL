@@ -17,9 +17,6 @@ struct NodeDataStorage {
 enum class NodeType { DepthTest, VAO };
 
 struct Node {
-  private:
-    Node() = default;
-
   public:
     auto start() const { return position; }
     auto end() const { return position + size; }
@@ -38,8 +35,6 @@ struct Node {
     inline static float border_size     = .7f;
     inline static float padding         = 2.f;
     inline static uint32_t gid          = 0u;
-
-    friend class NodeBuilder;
 };
 
 struct NodeBuilder {
@@ -74,17 +69,19 @@ class RenderGraphGUI {
     void draw_connection_dot(Node *, bool left, bool center);
     void draw_resource_list();
     void draw_canvas();
+    void add_node(NodeType type);
 
     bool mouse_over_node(const Node &n);
 
     std::vector<Node> nodes{};
     std::unordered_map<uint32_t, std::string> buffer_names;
+    std::unordered_map<uint32_t, glm::vec2> nodes_original_sizes;
 
     glm::vec2 canvas_size{0.f};
     glm::vec2 canvas_start{0.f}, canvas_end{0.f};
     glm::vec2 pan_offset{0.f};
     float grid_step = 64.f;
-    float zoom_speed = 5.f;
+    float zoom_speed = 100.f;
     ImDrawList *draw_list{nullptr};
     NodeBuilder node_builder;
     bool open{true};
