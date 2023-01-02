@@ -10,9 +10,12 @@
 #include "../../wrappers/window/window.hpp"
 #include "render_graph.hpp"
 
+ImFont *font1;
+ImGuiContext *ctx1;
 GUI::GUI() {
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    ctx1 = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx1);
     ImPlot::CreateContext();
     io = &ImGui::GetIO();
     ImGui::StyleColorsDark();
@@ -22,12 +25,19 @@ GUI::GUI() {
 
     render_graph = std::make_unique<RenderGraphGUI>();
 
+    ImFontConfig fcfg;
+    fcfg.OversampleH         = 2;
+    fcfg.OversampleV         = 2;
+    font1                    = ImGui::GetIO().Fonts->AddFontFromFileTTF("consola.ttf", 14, &fcfg);
+    ImGui::GetIO().Fonts->Build();
+
     io->IniFilename         = "imgui.ini";
     io->WantSaveIniSettings = true;
     io->IniSavingRate       = 2.f;
 }
 
 GUI::~GUI() {
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
@@ -38,6 +48,7 @@ void GUI::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
+    ImGui::PushFont(font1);
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
@@ -63,9 +74,7 @@ void GUI::draw() {
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::Button("Load...")) {}
-        if (ImGui::Button("RenderingPP graph")) {
-            render_graph->open_widget();
-        }
+        if (ImGui::Button("RenderingPP graph")) { render_graph->open_widget(); }
         if (ImGui::Button("Performance monitor")) {}
         if (ImGui::Button("Gpu memory statistics")) {}
         if (ImGui::Button("Window")) {}
@@ -75,6 +84,7 @@ void GUI::draw() {
 
     if (render_graph->is_open()) render_graph->draw();
 
+    ImGui::PopFont();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
