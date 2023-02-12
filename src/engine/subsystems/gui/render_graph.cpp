@@ -8,12 +8,111 @@ RenderGraphGUI::RenderGraphGUI() {
     buffers_names[0] = "empty";
 
     add_node(NodeType::VAO);
-    add_node(NodeType::VAO);
+    add_node(NodeType::Stage);
 }
 
 constexpr static auto gvec2(ImVec2 v) { return glm::vec2{v.x, v.y}; }
 constexpr static auto ivec2(glm::vec2 v) { return ImVec2{v.x, v.y}; }
 constexpr static auto icol32(glm::u8vec4 v) { return IM_COL32(v.r, v.g, v.b, v.a); }
+
+constexpr static auto linear_bezier    = [](float t, glm::vec2 a, glm::vec2 b) { return (1.f - t) * a + t * b; };
+constexpr static auto quadratic_bezier = [](float t, glm::vec2 a, glm::vec2 b, glm::vec2 c) {
+    return linear_bezier(t, linear_bezier(t, a, b), linear_bezier(t, b, c));
+};
+constexpr static auto cubic_bezier = [](float t, glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d) {
+    return linear_bezier(t, quadratic_bezier(t, a, b, c), quadratic_bezier(t, b, c, d));
+};
+
+static void draw_cubic_bezier(
+    ImDrawList *list, glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::u8vec4 c1, glm::u8vec4 c2) {
+    const float approx_length = glm::distance(a, d);
+    const float step          = 1.f / glm::max<float>(100.f, approx_length);
+
+    auto prev = cubic_bezier(0.f, a, b, c, d);
+    for (float t = step; t <= 1.f; t += step) {
+        const auto curr  = cubic_bezier(t, a, b, c, d);
+        const auto color = glm::mix(c1, c2, t);
+        list->AddLine(ivec2(prev), ivec2(curr), icol32(color), 2.f);
+
+        prev = curr;
+    }
+}
+
+static void draw_cubic_bezier(ImDrawList *list, glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::u8vec4 c1) {
+    draw_cubic_bezier(list, a, b, c, d, c1, c1);
+}
+
+constexpr static auto cubic_solver_real = [](float A, float B, float C, float D) {
+    // p and q are depressed form factors.
+    constexpr auto E = glm::epsilon<float>();
+    const auto p     = (3.f * A * C - B * B) / (3.f * A * A);
+    const auto q     = (2.f * B * B * B - 9.f * A * B * C + 27.f * A * A * D) / (27.f * A * A * A);
+    
+    std::vector<float> roots;
+    if (fabsf(p) < E) { // if p or q are zero, then problem reduces to quadratic form
+        roots.push_back(cbrtf(-q));
+    } else if (fabsf(q) < E) {
+        roots.push_back(0.f);
+
+        if (p < 0.f) {
+            const auto psqrt = sqrt(-p);
+            roots.push_back(psqrt);
+            roots.push_back(-psqrt);
+        }
+    } else {
+        constexpr auto oneOverThree = 0.3333333f;
+        constexpr auto PI           = glm::pi<float>();
+        const auto delta            = q * q * .25f + p * p * p * .037;
+        const auto deltasqrt        = sqrtf(delta);
+        const auto QoverP           = q / p;
+        const auto negHalfQ         = -.5f * q;
+
+        if (delta > 0.f) { // one real root - cardano's formula
+            roots.push_back(cbrtf(negHalfQ + deltasqrt) + cbrtf(negHalfQ - deltasqrt));
+        } else if (fabsf(delta) < E) { // two roots (one is a multiple)
+            roots.push_back(-1.5f * QoverP);
+            roots.push_back(3.f * QoverP);
+        } else { // three roots, using trigonometric solution
+            const auto u = 2.f * sqrtf(-p * oneOverThree);
+            const auto t = acosf(3.f * QoverP / u) * oneOverThree;
+            const auto k = 2.f * PI * oneOverThree;
+            roots.push_back(u * cosf(t));
+            roots.push_back(u * cosf(t - k));
+            roots.push_back(u * cosf(t - 2.f * k));
+        }
+    }
+
+    const auto fromDepressed = B / (3.f * A);
+    for (auto &r : roots) {
+        r -= fromDepressed; // bring back root(s) from depressed form
+    }
+
+    return roots;
+};
+
+static bool line_cubic_bezier(glm::vec2 l0, glm::vec2 l1, glm::vec2 c0, glm::vec2 c1, glm::vec2 c2, glm::vec2 c3) {
+    // Map a P point that belongs to the line and the curve
+    // using gradient equality due to colinearity.
+    const auto ld = l0.x * (l1.y - l0.y) + l0.y * (l0.x - l1.x);
+    const auto v  = glm::vec2{l1.y - l0.y, l0.x - l1.x};
+    // A B C D are the cubic coefficients
+    const auto A = glm::dot(v, -c0 + 3.f * c1 - 3.f * c2 + c3);
+    const auto B = glm::dot(v, 3.f * c0 - 6.f * c1 + 3.f * c2);
+    const auto C = glm::dot(v, -3.f * c0 + 3.f * c1);
+    const auto D = glm::dot(v, c0) - ld;
+
+    const auto qr = cubic_solver_real(A, B, C, D);
+    for (auto &r : qr) {
+        if (r >= 0.f && r <= 1.f) {
+            const auto P = cubic_bezier(r, c0, c1, c2, c3);
+            if (glm::length(P - l0) <= glm::length(l0 - l1)) { return true; }
+        }
+    }
+
+    return false;
+}
+
+static void draw_menu_bar(const char *title, Node *node, bool foldable = true);
 
 struct VaoBinding {
     uint32_t id, bindingid;
@@ -27,10 +126,32 @@ struct VaoAttrib {
 };
 
 void RenderGraphGUI::draw() {
-    fgdraw_list = ImGui::GetForegroundDrawList();
+    bgdraw_list = ImGui::GetBackgroundDrawList();
     // scale       = fmaxf(scale_min, fminf(scale_max, scale + ImGui::GetIO().MouseWheel * .1));
 
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
     if (ImGui::Begin("render graph", &open)) {
+        window_start = gvec2(ImGui::GetCursorScreenPos()) - gvec2(ImGui::GetStyle().WindowPadding);
+        window_size  = gvec2(ImGui::GetWindowSize()) - glm::vec2{0.f, ImGui::GetFrameHeight()};
+        bgdraw_list->AddRectFilled(ivec2(window_start), ivec2(window_start + window_size), icol32(Colors::window));
+
+        glm::vec2 c0{0.f}, c1{100.f, 0.f}, c2{0.f, 100.f}, c3{100.f, 100.f};
+        const glm::vec2 l0{canvas_start}, l1{gvec2(ImGui::GetMousePos())};
+        c0 += canvas_start + canvas_size * .5f;
+        c1 += canvas_start + canvas_size * .5f;
+        c2 += canvas_start + canvas_size * .5f;
+        c3 += canvas_start + canvas_size * .5f;
+
+        bool hit            = line_cubic_bezier(l0, l1, c0, c1, c2, c3);
+        static float tstart = ImGui::GetTime();
+        bgdraw_list->AddLine(ivec2(l0), ImGui::GetMousePos(), IM_COL32(100, 0, 100, 255));
+
+        constexpr auto white  = glm::u8vec4{255};
+        constexpr auto purple = glm::u8vec4{100, 0, 100, 255};
+        constexpr auto green  = glm::u8vec4{50, 100, 50, 255};
+        draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, hit ? purple : white, green);
+
         ImGui::SetWindowFontScale(1.f);
         mouse_node_interactions();
         can_move_nodes = true;
@@ -91,15 +212,24 @@ void RenderGraphGUI::draw() {
 
         canvas_start = gvec2(ImGui::GetCursorScreenPos());
         canvas_size  = gvec2(ImGui::GetContentRegionAvail());
-        if (ImGui::BeginChild("canvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar)) {
 
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(63, 63, 63, 255));
+        if (ImGui::BeginChild("canvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar)) {
             draw_nodes();
-            ImGui::PopStyleColor();
         }
         ImGui::EndChild();
     }
+
+    if(line_dragging) {
+        const auto c0 = line_dragging_start;
+        const auto c1 = c0 + glm::vec2{100.f, 0.f};
+        const auto c3 = gvec2(ImGui::GetMousePos());
+        const auto c2 = c3 - glm::vec2{100.f, 0.f};
+
+        draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, glm::vec4{255});
+    }
+
     ImGui::End();
+    ImGui::PopStyleColor(2);
 }
 
 void RenderGraphGUI::draw_nodes() {
@@ -136,15 +266,6 @@ void RenderGraphGUI::draw_nodes() {
     }
 
     if (child_to_push_on_top != -1) {
-        if (inode) {
-
-            if (inode == &nodes.back()) {
-                inode = &nodes.at(child_to_push_on_top);
-            } else if (inode == &nodes.at(child_to_push_on_top)) {
-                inode = &nodes.back();
-            }
-        }
-
         auto last                      = nodes.back();
         nodes.back()                   = std::move(nodes.at(child_to_push_on_top));
         nodes.at(child_to_push_on_top) = std::move(last);
@@ -157,30 +278,24 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         break;
     }
     case NodeType::VAO: {
-        if (ImGui::BeginMenuBar()) {
-            if (ImGui::ArrowButton("vao_fold_toggle", node->opened ? ImGuiDir_Down : ImGuiDir_Right)) {
-                node->opened = !node->opened;
-            }
-            ImGui::SameLine();
-            ImGui::Text("VAO");
-            ImGui::EndMenuBar();
-        }
+        draw_menu_bar("Vao", node);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
         auto cpos = ImGui::GetCursorPos();
         cpos.x += ImGui::GetContentRegionAvail().x;
-        cpos.x -= ImGui::CalcTextSize("Vao").x;
-        auto cd1 = cpos;
+        cpos.x -= ImGui::CalcTextSize("Vao >").x;
         ImGui::SetCursorPos(cpos);
-        ImGui::TextColored(ImVec4(255, 0, 0, 255), "Vao");
-        cpos       = ImGui::GetCursorPos();
-        auto cd2   = cpos.y - cd1.y;
-        auto tcpos = cpos;
-        tcpos.y -= ImGui::GetFrameHeightWithSpacing() * .5f;
-        tcpos.x += node->size.x - 9.f;
-        ImGui::SetCursorPos(tcpos);
-        node->connection_dots["vao_output"] = gvec2(ImGui::GetCursorScreenPos());
-
-        fgdraw_list->AddCircleFilled(ImGui::GetCursorScreenPos(), 4.f, IM_COL32(0, 255, 0, 255));
-        ImGui::SetCursorPos(cpos);
+        auto vaobtn = gvec2(ImGui::GetCursorPos()) ;
+        vaobtn.x+= ImGui::CalcTextSize("Vao >").x;
+        if (ImGui::SmallButton("Vao >")) {}
+        if (ImGui::IsItemActive()) {
+            line_dragging                = true;
+            line_dragging_node_of_origin = node->id;
+            line_dragging_name           = "vao_output";
+            line_dragging_start          = canvas_start + node->position + vaobtn;
+            can_move_nodes               = false;
+        }
+        ImGui::PopStyleVar();
 
         auto &bindings = *std::any_cast<std::vector<VaoBinding>>(&node->storage.at("bindings"));
         if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
@@ -318,6 +433,15 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         ImGui::PopStyleColor();
         break;
     }
+    case NodeType::Stage: {
+        draw_menu_bar("Stage", node);
+
+        ImGui::SmallButton("> Vao");
+
+        if (ImGui::IsItemHovered(0) && ImGui::IsMouseDown(0) == false && line_dragging) { line_dragging = false; }
+
+        break;
+    }
     }
 }
 
@@ -335,6 +459,8 @@ void RenderGraphGUI::add_node(NodeType type) {
         n.storage["bindings_table_height"] = n.size.y * .45f;
         break;
 
+    case NodeType::Stage: n.size = glm::vec2{400.f, 500.f};
+
     default: break;
     }
 
@@ -343,51 +469,50 @@ void RenderGraphGUI::add_node(NodeType type) {
     nodes.push_back(std::move(n));
 }
 
-Node *RenderGraphGUI::find_node(std::function<bool(Node *)> pred) {
+int RenderGraphGUI::find_node_id(std::function<bool(Node *)> pred) {
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
-        if (pred(&*it)) return &*it;
+        if (pred(&*it)) return it->id;
+    }
+
+    return -1;
+}
+Node *RenderGraphGUI::find_node_id(int id) {
+    for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+        if (it->id == id) return &*it;
     }
 
     return nullptr;
 }
+
+void RenderGraphGUI::draw_resource_list() {}
 
 void RenderGraphGUI::mouse_node_interactions() {
     if (can_move_nodes == false) return;
 
     const auto mousepos    = gvec2(ImGui::GetMousePos());
     const auto mouserelpos = mousepos - canvas_start;
+    auto node              = find_node_id(inode);
 
-    if (inode) {
-        if (draw_line) {
-            if (ImGui::IsMouseReleased(0)) {
-                draw_line = false;
-                inode     = nullptr;
-                return;
-            }
-
-            const auto a = line_start;
-            const auto b = mousepos;
-            fgdraw_list->AddLine(ivec2(a), ivec2(b), IM_COL32(255, 255, 0, 255), 4.f);
-
-        } else if (inode->resizing) {
+    if (node) {
+        if (node->resizing) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
             if (ImGui::IsMouseDown(0) == false) {
-                inode->resizing = false;
-                inode           = nullptr;
+                node->resizing = false;
+                inode          = -1;
                 return;
             }
 
-            inode->size.x += ImGui::GetMouseDragDelta(0, 0.f).x;
+            node->size.x += ImGui::GetMouseDragDelta(0, 0.f).x;
             ImGui::ResetMouseDragDelta();
-        } else if (inode->moving) {
+        } else if (node->moving) {
             if (ImGui::IsMouseDown(0) == false) {
-                inode->moving = false;
-                inode         = nullptr;
+                node->moving = false;
+                inode        = -1;
                 return;
             }
 
-            inode->position += gvec2(ImGui::GetMouseDragDelta(0, 0.f));
+            node->position += gvec2(ImGui::GetMouseDragDelta(0, 0.f));
             ImGui::ResetMouseDragDelta();
         }
 
@@ -395,28 +520,13 @@ void RenderGraphGUI::mouse_node_interactions() {
     }
 
     const auto require_visibility = [&]() {
-        if (!inode) return;
+        if (inode == -1) return;
 
-        const auto visible = inode && inode == find_node([](auto node) { return node->hovered; });
-        if (!visible) { inode = nullptr; }
+        const auto visible = inode == find_node_id([](auto node) { return node->hovered; });
+        if (!visible) { inode = -1; }
     };
 
-    inode = find_node([&](Node *n) {
-        if (ImGui::IsMouseDown(0) == false) return false;
-
-        for (const auto &[name, v] : n->connection_dots) {
-            if (glm::distance(mousepos, v) <= 8.f) {
-                draw_line  = true;
-                line_start = v;
-                return true;
-            }
-        }
-
-        return false;
-    });
-    if (inode && draw_line) { return; }
-
-    inode = find_node([&](Node *n) {
+    inode = find_node_id([&](Node *n) {
         const auto p   = mouserelpos;
         const auto np  = n->position;
         const auto ns  = n->size * scale;
@@ -426,18 +536,44 @@ void RenderGraphGUI::mouse_node_interactions() {
     });
     require_visibility();
 
-    if (inode) {
+    if (inode > -1) {
+        auto node = find_node_id(inode);
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (ImGui::IsMouseClicked(0)) {
-            inode->resizing = true;
+            node->resizing = true;
         } else {
-            inode = nullptr;
+            inode = -1;
         }
         return;
     }
     ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
 
-    inode = find_node([&](Node *n) { return n->clicked; });
+    inode = find_node_id([&](Node *n) { return n->clicked; });
     require_visibility();
-    if (inode) { inode->moving = true; }
+
+    if (inode > -1) { find_node_id(inode)->moving = true; }
 }
+
+static void draw_menu_bar(const char *title, Node *node, bool foldable) {
+    if (ImGui::BeginMenuBar()) {
+        std::string arrow_id = title;
+        arrow_id += "_fold_btn";
+
+        if (foldable) {
+            if (ImGui::ArrowButton(arrow_id.c_str(), node->opened ? ImGuiDir_Down : ImGuiDir_Right)) {
+                node->opened = !node->opened;
+            }
+        }
+
+        ImGui::Text(title);
+        ImGui::EndMenuBar();
+    }
+}
+
+glm::vec2 NodeConnection::get_from_position() const { return parent->find_node_id(from_id)->position + fromoff; }
+
+glm::vec2 NodeConnection::get_to_position() const { return parent->find_node_id(to_id)->position + tooff; }
+
+std::string NodeConnection::get_from_name() const { return from_name; }
+
+std::string NodeConnection::get_to_name() const { return to_name; }
