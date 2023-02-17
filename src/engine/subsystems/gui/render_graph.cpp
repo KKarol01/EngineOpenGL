@@ -1,14 +1,16 @@
 #include "render_graph.hpp"
 
+#include <algorithm>
+
 #include <imgui/imgui.h>
 
 #include "../../engine.hpp"
 
 RenderGraphGUI::RenderGraphGUI() {
     buffers_names[0] = "empty";
-
     add_node(NodeType::VAO);
-    add_node(NodeType::Stage);
+    add_node(NodeType::VAO);
+    // add_node(NodeType::Stage);
 }
 
 constexpr static auto gvec2(ImVec2 v) { return glm::vec2{v.x, v.y}; }
@@ -47,7 +49,7 @@ constexpr static auto cubic_solver_real = [](float A, float B, float C, float D)
     constexpr auto E = glm::epsilon<float>();
     const auto p     = (3.f * A * C - B * B) / (3.f * A * A);
     const auto q     = (2.f * B * B * B - 9.f * A * B * C + 27.f * A * A * D) / (27.f * A * A * A);
-    
+
     std::vector<float> roots;
     if (fabsf(p) < E) { // if p or q are zero, then problem reduces to quadratic form
         roots.push_back(cbrtf(-q));
@@ -114,335 +116,350 @@ static bool line_cubic_bezier(glm::vec2 l0, glm::vec2 l1, glm::vec2 c0, glm::vec
 
 static void draw_menu_bar(const char *title, Node *node, bool foldable = true);
 
-struct VaoBinding {
-    uint32_t id, bindingid;
-    uint32_t offset, stride;
-};
-struct VaoAttrib {
-    uint32_t id, bindingid;
-    uint32_t size, offset;
-    eng::GL_FORMAT_ gl_type = eng::GL_FORMAT_FLOAT;
-    bool normalize;
-};
-
 void RenderGraphGUI::draw() {
     bgdraw_list = ImGui::GetBackgroundDrawList();
-    // scale       = fmaxf(scale_min, fminf(scale_max, scale + ImGui::GetIO().MouseWheel * .1));
+    mouse_node_interactions();
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
     if (ImGui::Begin("render graph", &open)) {
         window_start = gvec2(ImGui::GetCursorScreenPos()) - gvec2(ImGui::GetStyle().WindowPadding);
-        window_size  = gvec2(ImGui::GetWindowSize()) - glm::vec2{0.f, ImGui::GetFrameHeight()};
+        window_size  = gvec2(ImGui::GetContentRegionAvail()) + 2.f * gvec2(ImGui::GetStyle().WindowPadding);
+
         bgdraw_list->AddRectFilled(ivec2(window_start), ivec2(window_start + window_size), icol32(Colors::window));
 
-        glm::vec2 c0{0.f}, c1{100.f, 0.f}, c2{0.f, 100.f}, c3{100.f, 100.f};
-        const glm::vec2 l0{canvas_start}, l1{gvec2(ImGui::GetMousePos())};
-        c0 += canvas_start + canvas_size * .5f;
-        c1 += canvas_start + canvas_size * .5f;
-        c2 += canvas_start + canvas_size * .5f;
-        c3 += canvas_start + canvas_size * .5f;
-
-        bool hit            = line_cubic_bezier(l0, l1, c0, c1, c2, c3);
-        static float tstart = ImGui::GetTime();
-        bgdraw_list->AddLine(ivec2(l0), ImGui::GetMousePos(), IM_COL32(100, 0, 100, 255));
-
-        constexpr auto white  = glm::u8vec4{255};
-        constexpr auto purple = glm::u8vec4{100, 0, 100, 255};
-        constexpr auto green  = glm::u8vec4{50, 100, 50, 255};
-        draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, hit ? purple : white, green);
-
-        ImGui::SetWindowFontScale(1.f);
-        mouse_node_interactions();
-        can_move_nodes = true;
-        if (ImGui::BeginChild("resource_view", ImVec2(200.f, 0.f), true, ImGuiWindowFlags_NoMove)) {
-            if (ImGui::TreeNode("Buffers")) {
-                ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
-
-                if (ImGui::Button("Add buffer")) {
-                    buffers_names[buffers_names.size()] = std::string{"Buffer"} + std::to_string(buffers_names.size());
-                }
-
-                for (auto &[id, name] : buffers_names) {
-                    if (id == 0) continue;
-
-                    ImGui::PushID(id + 1);
-
-                    if (editing_buffer_name == (int)id) {
-                        if (ImGui::InputText("##new_buffer_name",
-                                             new_buffer_name,
-                                             512,
-                                             ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue)) {
-                            name = new_buffer_name;
-                            delete[] new_buffer_name;
-                            editing_buffer_name = -1;
-                        }
-
-                    } else {
-                        if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
-                            if (ImGui::IsMouseDoubleClicked(0)) {
-                                editing_buffer_name = id;
-                                new_buffer_name     = new char[512];
-                                memcpy(new_buffer_name, name.c_str(), name.size() + 1);
-                            }
-                        }
-                        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-                            can_move_nodes    = false;
-                            resource_dragging = true;
-                            ImGui::SetDragDropPayload("vao_binding", &id, 4);
-                            ImGui::Text(name.c_str());
-                            ImGui::EndDragDropSource();
-                        }
-
-                        if (resource_dragging && ImGui::IsMouseDown(0) == false) {
-                            resource_dragging = false;
-                            can_move_nodes    = true;
-                        }
-                    }
-
-                    ImGui::PopID();
-                }
-
-                ImGui::TreePop();
-            }
-        }
+        if (ImGui::BeginChild("buffer list", ImVec2(250, 0), true, ImGuiWindowFlags_NoMove)) { draw_buffer_list(); }
         ImGui::EndChild();
 
         ImGui::SameLine();
 
-        canvas_start = gvec2(ImGui::GetCursorScreenPos());
-        canvas_size  = gvec2(ImGui::GetContentRegionAvail());
-
-        if (ImGui::BeginChild("canvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar)) {
-            draw_nodes();
+        if (ImGui::BeginChild("canvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoMove)) {
+            canvas_start = gvec2(ImGui::GetCursorScreenPos()) - gvec2(ImGui::GetStyle().WindowPadding);
+            canvas_size  = gvec2(ImGui::GetContentRegionAvail());
+            draw_canvas();
         }
         ImGui::EndChild();
     }
-
-    if(line_dragging) {
-        const auto c0 = line_dragging_start;
-        const auto c1 = c0 + glm::vec2{100.f, 0.f};
-        const auto c3 = gvec2(ImGui::GetMousePos());
-        const auto c2 = c3 - glm::vec2{100.f, 0.f};
-
-        draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, glm::vec4{255});
-    }
-
     ImGui::End();
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor();
+
+    // bgdraw_list = ImGui::GetBackgroundDrawList();
+    //// scale       = fmaxf(scale_min, fminf(scale_max, scale + ImGui::GetIO().MouseWheel * .1));
+
+    // ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    // ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+    // if (ImGui::Begin("render graph", &open)) {
+    //     window_start = gvec2(ImGui::GetCursorScreenPos()) - gvec2(ImGui::GetStyle().WindowPadding);
+    //     window_size  = gvec2(ImGui::GetWindowSize()) - glm::vec2{0.f, ImGui::GetFrameHeight()};
+    //     bgdraw_list->AddRectFilled(ivec2(window_start), ivec2(window_start + window_size), icol32(Colors::window));
+
+    //    glm::vec2 c0{0.f}, c1{100.f, 0.f}, c2{0.f, 100.f}, c3{100.f, 100.f};
+    //    const glm::vec2 l0{canvas_start}, l1{gvec2(ImGui::GetMousePos())};
+    //    c0 += canvas_start + canvas_size * .5f;
+    //    c1 += canvas_start + canvas_size * .5f;
+    //    c2 += canvas_start + canvas_size * .5f;
+    //    c3 += canvas_start + canvas_size * .5f;
+
+    //    bool hit            = line_cubic_bezier(l0, l1, c0, c1, c2, c3);
+    //    static float tstart = ImGui::GetTime();
+    //    bgdraw_list->AddLine(ivec2(l0), ImGui::GetMousePos(), IM_COL32(100, 0, 100, 255));
+
+    //    constexpr auto white  = glm::u8vec4{255};
+    //    constexpr auto purple = glm::u8vec4{100, 0, 100, 255};
+    //    constexpr auto green  = glm::u8vec4{50, 100, 50, 255};
+    //    draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, hit ? purple : white, green);
+
+    //    ImGui::SetWindowFontScale(1.f);
+    //    mouse_node_interactions();
+    //    can_move_nodes = true;
+    //    if (ImGui::BeginChild("resource_view", ImVec2(200.f, 0.f), true, ImGuiWindowFlags_NoMove)) {
+    //        if (ImGui::TreeNode("Buffers")) {
+    //            ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
+
+    //            if (ImGui::Button("Add buffer")) {
+    //                buffers_names[buffers_names.size()] = std::string{"Buffer"} +
+    //                std::to_string(buffers_names.size());
+    //            }
+
+    //            for (auto &[id, name] : buffers_names) {
+    //                if (id == 0) continue;
+
+    //                ImGui::PushID(id + 1);
+
+    //                if (editing_buffer_name == (int)id) {
+    //                    if (ImGui::InputText("##new_buffer_name",
+    //                                         new_buffer_name,
+    //                                         512,
+    //                                         ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue))
+    //                                         {
+    //                        name = new_buffer_name;
+    //                        delete[] new_buffer_name;
+    //                        editing_buffer_name = -1;
+    //                    }
+
+    //                } else {
+    //                    if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
+    //                        if (ImGui::IsMouseDoubleClicked(0)) {
+    //                            editing_buffer_name = id;
+    //                            new_buffer_name     = new char[512];
+    //                            memcpy(new_buffer_name, name.c_str(), name.size() + 1);
+    //                        }
+    //                    }
+    //                    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+    //                        can_move_nodes    = false;
+    //                        resource_dragging = true;
+    //                        ImGui::SetDragDropPayload("vao_binding", &id, 4);
+    //                        ImGui::Text(name.c_str());
+    //                        ImGui::EndDragDropSource();
+    //                    }
+
+    //                    if (resource_dragging && ImGui::IsMouseDown(0) == false) {
+    //                        resource_dragging = false;
+    //                        can_move_nodes    = true;
+    //                    }
+    //                }
+
+    //                ImGui::PopID();
+    //            }
+
+    //            ImGui::TreePop();
+    //        }
+    //    }
+    //    ImGui::EndChild();
+
+    //    ImGui::SameLine();
+
+    //    canvas_start = gvec2(ImGui::GetCursorScreenPos());
+    //    canvas_size  = gvec2(ImGui::GetContentRegionAvail());
+
+    //    if (ImGui::BeginChild("canvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar)) {
+    //        draw_nodes();
+    //    }
+    //    ImGui::EndChild();
+    //}
+
+    // if(line_dragging) {
+    //     const auto c0 = line_dragging_start;
+    //     const auto c1 = c0 + glm::vec2{100.f, 0.f};
+    //     const auto c3 = gvec2(ImGui::GetMousePos());
+    //     const auto c2 = c3 - glm::vec2{100.f, 0.f};
+
+    //    draw_cubic_bezier(bgdraw_list, c0, c1, c2, c3, glm::vec4{255});
+    //}
+
+    // ImGui::End();
+    // ImGui::PopStyleColor(2);
 }
 
 void RenderGraphGUI::draw_nodes() {
 
-    auto child_to_push_on_top = -1;
+    /* auto child_to_push_on_top = -1;
 
-    for (auto i = 0u; i < nodes.size(); ++i) {
-        auto &node            = nodes.at(i);
-        auto nsize            = node.size * scale;
-        const auto font_scale = nsize.y / node.size.y;
+     for (auto i = 0u; i < nodes.size(); ++i) {
+         auto &node            = nodes.at(i);
+         auto nsize            = node.size * scale;
+         const auto font_scale = nsize.y / node.size.y;
 
-        if (node.opened == false) { nsize.y = ImGui::GetFrameHeight(); }
+         if (node.opened == false) { nsize.y = ImGui::GetFrameHeight(); }
 
-        ImGui::SetWindowFontScale(font_scale);
-        ImGui::SetCursorPos(ivec2(node.position));
+         ImGui::SetWindowFontScale(font_scale);
+         ImGui::SetCursorPos(ivec2(node.position));
 
-        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, icol32(Colors::menubar.at(node.type)));
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, icol32(Colors::node));
-        if (ImGui::BeginChild(node.id + 1,
-                              ivec2(nsize),
-                              true,
-                              ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar
-                                  | ImGuiWindowFlags_NoScrollWithMouse)) {
-            draw_node_contents(&node);
-        }
+         ImGui::PushStyleColor(ImGuiCol_MenuBarBg, icol32(Colors::menubar.at(node.type)));
+         ImGui::PushStyleColor(ImGuiCol_ChildBg, icol32(Colors::node));
+         if (ImGui::BeginChild(node.id + 1,
+                               ivec2(nsize),
+                               true,
+                               ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar
+                                   | ImGuiWindowFlags_NoScrollWithMouse)) {
+             draw_node_contents(&node);
+         }
 
-        node.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-        node.down    = node.hovered && ImGui::IsMouseDown(0);
-        node.clicked = node.hovered && ImGui::IsMouseClicked(0);
-        if (node.clicked) { child_to_push_on_top = (int)i; }
+         node.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+         node.down    = node.hovered && ImGui::IsMouseDown(0);
+         node.clicked = node.hovered && ImGui::IsMouseClicked(0);
+         if (node.clicked) { child_to_push_on_top = (int)i; }
 
-        ImGui::EndChild();
-        ImGui::PopStyleColor(2);
-    }
+         ImGui::EndChild();
+         ImGui::PopStyleColor(2);
+     }
 
-    if (child_to_push_on_top != -1) {
-        auto last                      = nodes.back();
-        nodes.back()                   = std::move(nodes.at(child_to_push_on_top));
-        nodes.at(child_to_push_on_top) = std::move(last);
-    }
+     if (child_to_push_on_top != -1) {
+         auto last                      = nodes.back();
+         nodes.back()                   = std::move(nodes.at(child_to_push_on_top));
+         nodes.at(child_to_push_on_top) = std::move(last);
+     }*/
 }
 
 void RenderGraphGUI::draw_node_contents(Node *node) {
-    switch (node->type) {
-    case NodeType::DepthTest: {
-        break;
-    }
-    case NodeType::VAO: {
-        draw_menu_bar("Vao", node);
+    /* switch (node->type) {
+     case NodeType::DepthTest: {
+         break;
+     }
+     case NodeType::VAO: {
+         draw_menu_bar("Vao", node);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
-        auto cpos = ImGui::GetCursorPos();
-        cpos.x += ImGui::GetContentRegionAvail().x;
-        cpos.x -= ImGui::CalcTextSize("Vao >").x;
-        ImGui::SetCursorPos(cpos);
-        auto vaobtn = gvec2(ImGui::GetCursorPos()) ;
-        vaobtn.x+= ImGui::CalcTextSize("Vao >").x;
-        if (ImGui::SmallButton("Vao >")) {}
-        if (ImGui::IsItemActive()) {
-            line_dragging                = true;
-            line_dragging_node_of_origin = node->id;
-            line_dragging_name           = "vao_output";
-            line_dragging_start          = canvas_start + node->position + vaobtn;
-            can_move_nodes               = false;
-        }
-        ImGui::PopStyleVar();
+         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
+         auto cpos = ImGui::GetCursorPos();
+         cpos.x += ImGui::GetContentRegionAvail().x;
+         cpos.x -= ImGui::CalcTextSize("Vao >").x;
+         ImGui::SetCursorPos(cpos);
+         auto vaobtn = gvec2(ImGui::GetCursorPos()) ;
+         vaobtn.x+= ImGui::CalcTextSize("Vao >").x;
+         if (ImGui::SmallButton("Vao >")) {}
+         if (ImGui::IsItemActive()) {
+             line_dragging                = true;
+             line_dragging_node_of_origin = node->id;
+             line_dragging_name           = "vao_output";
+             line_dragging_start          = canvas_start + node->position + vaobtn;
+             can_move_nodes               = false;
+         }
+         ImGui::PopStyleVar();
 
-        auto &bindings = *std::any_cast<std::vector<VaoBinding>>(&node->storage.at("bindings"));
-        if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-            VaoBinding b;
-            b.id        = bindings.size();
-            b.bindingid = 0;
-            b.offset    = 0;
-            b.stride    = 0;
+         auto &bindings = *std::any_cast<std::vector<VaoBinding>>(&node->storage.at("bindings"));
+         if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+             VaoBinding b;
+             b.id        = bindings.size();
+             b.bindingid = 0;
+             b.offset    = 0;
+             b.stride    = 0;
 
-            bindings.push_back(b);
-        }
+             bindings.push_back(b);
+         }
 
-        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
-        auto &table_height = *std::any_cast<float>(&node->storage.at("bindings_table_height"));
-        if (ImGui::BeginTable("vao_bindings_table",
-                              4,
-                              ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
-                              ImVec2(0, table_height))) {
-            ImGui::TableSetupColumn("id");
-            ImGui::TableSetupColumn("binding");
-            ImGui::TableSetupColumn("stride");
-            ImGui::TableSetupColumn("offset");
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableHeadersRow();
+         ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
+         auto &table_height = *std::any_cast<float>(&node->storage.at("bindings_table_height"));
+         if (ImGui::BeginTable("vao_bindings_table",
+                               4,
+                               ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                               ImVec2(0, table_height))) {
+             ImGui::TableSetupColumn("id");
+             ImGui::TableSetupColumn("binding");
+             ImGui::TableSetupColumn("stride");
+             ImGui::TableSetupColumn("offset");
+             ImGui::TableSetupScrollFreeze(0, 1);
+             ImGui::TableHeadersRow();
 
-            for (auto i = 0u; i < bindings.size(); ++i) {
-                ImGui::TableNextRow();
+             for (auto i = 0u; i < bindings.size(); ++i) {
+                 ImGui::TableNextRow();
 
-                auto &binding = bindings.at(i);
+                 auto &binding = bindings.at(i);
 
-                ImGui::TableSetColumnIndex(0);
-                if (ImGui::Selectable(std::to_string(binding.id).c_str(),
-                                      false,
-                                      ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
-                                      ImVec2(0, ImGui::GetFrameHeight()))) {}
-                if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
-                    int swap_bindings = i;
-                    int dir           = ImGui::GetMouseDragDelta(0).y > 0.f ? 1 : -1;
+                 ImGui::TableSetColumnIndex(0);
+                 if (ImGui::Selectable(std::to_string(binding.id).c_str(),
+                                       false,
+                                       ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
+                                       ImVec2(0, ImGui::GetFrameHeight()))) {}
+                 if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
+                     int swap_bindings = i;
+                     int dir           = ImGui::GetMouseDragDelta(0).y > 0.f ? 1 : -1;
 
-                    if (swap_bindings + dir >= 0 && swap_bindings + dir < bindings.size()) {
-                        auto temp                        = bindings.at(swap_bindings);
-                        bindings.at(swap_bindings)       = bindings.at(swap_bindings + dir);
-                        bindings.at(swap_bindings + dir) = temp;
-                        ImGui::ResetMouseDragDelta();
-                    }
-                }
-                ImGui::PushID(i + 1);
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text(buffers_names.at(binding.bindingid).c_str());
-                if (ImGui::BeginDragDropTarget()) {
-                    if (auto payload = ImGui::AcceptDragDropPayload("vao_binding")) {
-                        binding.bindingid = *static_cast<uint32_t *>(payload->Data);
-                    }
-                    ImGui::EndDragDropTarget();
-                }
+                     if (swap_bindings + dir >= 0 && swap_bindings + dir < bindings.size()) {
+                         auto temp                        = bindings.at(swap_bindings);
+                         bindings.at(swap_bindings)       = bindings.at(swap_bindings + dir);
+                         bindings.at(swap_bindings + dir) = temp;
+                         ImGui::ResetMouseDragDelta();
+                     }
+                 }
+                 ImGui::PushID(i + 1);
+                 ImGui::TableSetColumnIndex(1);
+                 ImGui::Text(buffers_names.at(binding.bindingid).c_str());
+                 if (ImGui::BeginDragDropTarget()) {
+                     if (auto payload = ImGui::AcceptDragDropPayload("vao_binding")) {
+                         binding.bindingid = *static_cast<uint32_t *>(payload->Data);
+                     }
+                     ImGui::EndDragDropTarget();
+                 }
 
-                ImGui::TableSetColumnIndex(2);
-                if (int input = binding.stride; ImGui::InputInt("##stride", &input, 0, 0)) {
-                    binding.stride = glm::max(0, input);
-                }
-                ImGui::TableSetColumnIndex(3);
-                if (int input = binding.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
-                    binding.offset = glm::max(0, input);
-                }
-                ImGui::PopID();
-            }
-            ImGui::EndTable();
-        }
+                 ImGui::TableSetColumnIndex(2);
+                 if (int input = binding.stride; ImGui::InputInt("##stride", &input, 0, 0)) {
+                     binding.stride = glm::max(0, input);
+                 }
+                 ImGui::TableSetColumnIndex(3);
+                 if (int input = binding.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
+                     binding.offset = glm::max(0, input);
+                 }
+                 ImGui::PopID();
+             }
+             ImGui::EndTable();
+         }
 
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
-        if (ImGui::Button("slider", ImVec2(FLT_MAX, 10.f))) {}
-        if (ImGui::IsItemActive()) {
-            can_move_nodes = false;
-            table_height += ImGui::GetMouseDragDelta(0, 0.f).y;
-            ImGui::ResetMouseDragDelta();
-        }
-        auto &attributes = *std::any_cast<std::vector<VaoAttrib>>(&node->storage.at("attribs"));
-        if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
-            VaoAttrib a;
-            a.id        = attributes.size();
-            a.bindingid = 0;
-            a.size      = 0;
-            a.offset    = 0;
-            a.gl_type   = eng::GL_FORMAT_FLOAT;
-            a.normalize = false;
-            attributes.push_back(a);
-        }
+         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+         if (ImGui::Button("slider", ImVec2(FLT_MAX, 10.f))) {}
+         if (ImGui::IsItemActive()) {
+             can_move_nodes = false;
+             table_height += ImGui::GetMouseDragDelta(0, 0.f).y;
+             ImGui::ResetMouseDragDelta();
+         }
+         auto &attributes = *std::any_cast<std::vector<VaoAttrib>>(&node->storage.at("attribs"));
+         if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
+             VaoAttrib a;
+             a.id        = attributes.size();
+             a.bindingid = 0;
+             a.size      = 0;
+             a.offset    = 0;
+             a.gl_type   = eng::GL_FORMAT_FLOAT;
+             a.normalize = false;
+             attributes.push_back(a);
+         }
 
-        if (ImGui::BeginTable("vao_attributes_table",
-                              6,
-                              ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
-            ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthStretch, 40.f);
-            ImGui::TableSetupColumn("binding", ImGuiTableColumnFlags_WidthStretch, 40.f);
-            ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthStretch, 40.f);
-            ImGui::TableSetupColumn("offset", ImGuiTableColumnFlags_WidthStretch, 40.f);
-            ImGui::TableSetupColumn("gl_type", ImGuiTableColumnFlags_WidthStretch, 75.f);
-            ImGui::TableSetupColumn("N", ImGuiTableColumnFlags_WidthStretch, 20.f);
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableHeadersRow();
+         if (ImGui::BeginTable("vao_attributes_table",
+                               6,
+                               ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+             ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthStretch, 40.f);
+             ImGui::TableSetupColumn("binding", ImGuiTableColumnFlags_WidthStretch, 40.f);
+             ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthStretch, 40.f);
+             ImGui::TableSetupColumn("offset", ImGuiTableColumnFlags_WidthStretch, 40.f);
+             ImGui::TableSetupColumn("gl_type", ImGuiTableColumnFlags_WidthStretch, 75.f);
+             ImGui::TableSetupColumn("N", ImGuiTableColumnFlags_WidthStretch, 20.f);
+             ImGui::TableSetupScrollFreeze(0, 1);
+             ImGui::TableHeadersRow();
 
-            for (auto i = 0u; i < attributes.size(); ++i) {
-                auto &attrib = attributes.at(i);
-                ImGui::TableNextRow();
+             for (auto i = 0u; i < attributes.size(); ++i) {
+                 auto &attrib = attributes.at(i);
+                 ImGui::TableNextRow();
 
-                ImGui::PushID(i + 1);
+                 ImGui::PushID(i + 1);
 
-                ImGui::TableSetColumnIndex(0);
-                if (int input = attrib.id; ImGui::InputInt("##id", &input, 0, 0)) { attrib.id = fmaxf(0, input); }
-                ImGui::TableSetColumnIndex(1);
-                if (int input = attrib.bindingid; ImGui::InputInt("##binding", &input, 0, 0)) {
-                    attrib.bindingid = fmaxf(0, input);
-                }
-                ImGui::TableSetColumnIndex(2);
-                if (int input = attrib.size; ImGui::InputInt("##size", &input, 0, 0)) { attrib.size = fmaxf(0, input); }
-                ImGui::TableSetColumnIndex(3);
-                if (int input = attrib.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
-                    attrib.offset = fmaxf(0, input);
-                }
-                ImGui::TableSetColumnIndex(4);
-                const char *types[]{"GL_FLOAT"};
-                if (ImGui::BeginCombo("##gl_type", types[(int)attrib.gl_type])) {
-                    for (int i = 0; i < IM_ARRAYSIZE(types); ++i) {
-                        if (ImGui::Selectable(types[i])) { attrib.gl_type = eng::GL_FORMAT_(i); }
-                    }
+                 ImGui::TableSetColumnIndex(0);
+                 if (int input = attrib.id; ImGui::InputInt("##id", &input, 0, 0)) { attrib.id = fmaxf(0, input); }
+                 ImGui::TableSetColumnIndex(1);
+                 if (int input = attrib.bindingid; ImGui::InputInt("##binding", &input, 0, 0)) {
+                     attrib.bindingid = fmaxf(0, input);
+                 }
+                 ImGui::TableSetColumnIndex(2);
+                 if (int input = attrib.size; ImGui::InputInt("##size", &input, 0, 0)) { attrib.size = fmaxf(0, input);
+     } ImGui::TableSetColumnIndex(3); if (int input = attrib.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
+                     attrib.offset = fmaxf(0, input);
+                 }
+                 ImGui::TableSetColumnIndex(4);
+                 const char *types[]{"GL_FLOAT"};
+                 if (ImGui::BeginCombo("##gl_type", types[(int)attrib.gl_type])) {
+                     for (int i = 0; i < IM_ARRAYSIZE(types); ++i) {
+                         if (ImGui::Selectable(types[i])) { attrib.gl_type = eng::GL_FORMAT_(i); }
+                     }
 
-                    ImGui::EndCombo();
-                }
-                ImGui::TableSetColumnIndex(5);
-                ImGui::Checkbox("##normalize", &attrib.normalize);
-                ImGui::PopID();
-            }
+                     ImGui::EndCombo();
+                 }
+                 ImGui::TableSetColumnIndex(5);
+                 ImGui::Checkbox("##normalize", &attrib.normalize);
+                 ImGui::PopID();
+             }
 
-            ImGui::EndTable();
-        }
-        ImGui::PopStyleColor();
-        break;
-    }
-    case NodeType::Stage: {
-        draw_menu_bar("Stage", node);
+             ImGui::EndTable();
+         }
+         ImGui::PopStyleColor();
+         break;
+     }
+     case NodeType::Stage: {
+         draw_menu_bar("Stage", node);
 
-        ImGui::SmallButton("> Vao");
+         ImGui::SmallButton("> Vao");
 
-        if (ImGui::IsItemHovered(0) && ImGui::IsMouseDown(0) == false && line_dragging) { line_dragging = false; }
+         if (ImGui::IsItemHovered(0) && ImGui::IsMouseDown(0) == false && line_dragging) { line_dragging = false; }
 
-        break;
-    }
-    }
+         break;
+     }
+     }*/
 }
 
 void RenderGraphGUI::add_node(NodeType type) {
@@ -453,9 +470,9 @@ void RenderGraphGUI::add_node(NodeType type) {
     switch (type) {
     case NodeType::DepthTest: break;
     case NodeType::VAO:
-        n.size                             = glm::vec2{400.f, 500.f};
-        n.storage["bindings"]              = std::vector<VaoBinding>{};
-        n.storage["attribs"]               = std::vector<VaoAttrib>{};
+        n.size = glm::vec2{400.f, 500.f};
+        // n.storage["bindings"]              = std::vector<VaoBinding>{};
+        // n.storage["attribs"]               = std::vector<VaoAttrib>{};
         n.storage["bindings_table_height"] = n.size.y * .45f;
         break;
 
@@ -469,14 +486,7 @@ void RenderGraphGUI::add_node(NodeType type) {
     nodes.push_back(std::move(n));
 }
 
-int RenderGraphGUI::find_node_id(std::function<bool(Node *)> pred) {
-    for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
-        if (pred(&*it)) return it->id;
-    }
-
-    return -1;
-}
-Node *RenderGraphGUI::find_node_id(int id) {
+Node *RenderGraphGUI::get_node(NodeID id) {
     for (auto it = nodes.begin(); it != nodes.end(); ++it) {
         if (it->id == id) return &*it;
     }
@@ -487,71 +497,109 @@ Node *RenderGraphGUI::find_node_id(int id) {
 void RenderGraphGUI::draw_resource_list() {}
 
 void RenderGraphGUI::mouse_node_interactions() {
-    if (can_move_nodes == false) return;
 
-    const auto mousepos    = gvec2(ImGui::GetMousePos());
-    const auto mouserelpos = mousepos - canvas_start;
-    auto node              = find_node_id(inode);
+    //Helper function - find node based on predicate
+    static const auto find_node = [this](std::function<bool(Node *)> f) -> Node * {
+        for (auto i = nodes.size() - 1;; --i) {
+            if (f(&nodes.at(i))) return &nodes.at(i);
 
-    if (node) {
-        if (node->resizing) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-            if (ImGui::IsMouseDown(0) == false) {
-                node->resizing = false;
-                inode          = -1;
-                return;
-            }
-
-            node->size.x += ImGui::GetMouseDragDelta(0, 0.f).x;
-            ImGui::ResetMouseDragDelta();
-        } else if (node->moving) {
-            if (ImGui::IsMouseDown(0) == false) {
-                node->moving = false;
-                inode        = -1;
-                return;
-            }
-
-            node->position += gvec2(ImGui::GetMouseDragDelta(0, 0.f));
-            ImGui::ResetMouseDragDelta();
+            if (i == 0u) break;
         }
-
-        return;
-    }
-
-    const auto require_visibility = [&]() {
-        if (inode == -1) return;
-
-        const auto visible = inode == find_node_id([](auto node) { return node->hovered; });
-        if (!visible) { inode = -1; }
+        return nullptr;
     };
 
-    inode = find_node_id([&](Node *n) {
-        const auto p   = mouserelpos;
-        const auto np  = n->position;
-        const auto ns  = n->size * scale;
-        const auto nps = np + ns;
-        const auto r   = p - glm::vec2{nps.x, np.y};
-        return fabsf(r.x) < 5.f && r.y >= 0.f && r.y <= ns.y;
-    });
-    require_visibility();
+    const auto is_canvas_hovered
+        = ImGui::IsMouseHoveringRect(ivec2(canvas_start), ivec2(canvas_start + canvas_size), false);
 
-    if (inode > -1) {
-        auto node = find_node_id(inode);
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        if (ImGui::IsMouseClicked(0)) {
-            node->resizing = true;
-        } else {
-            inode = -1;
-        }
+    if (is_canvas_hovered == false) {
+        active_node_id     = 0u;
+        active_node_action = NodeAction_None;
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
         return;
     }
-    ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
 
-    inode = find_node_id([&](Node *n) { return n->clicked; });
-    require_visibility();
+    if (active_node_id == 0u || active_node_action == NodeAction_Hovering) {
+        auto hovered_node = find_node([&](Node *n) {
+            auto p = n->position;
+            p += canvas_start;
+            return ImGui::IsMouseHoveringRect(ivec2(p), ivec2(p + n->size), false);
+        });
 
-    if (inode > -1) { find_node_id(inode)->moving = true; }
+        if (hovered_node == nullptr) { return; }
+
+        active_node_id     = hovered_node->id;
+        active_node_action = NodeAction_Hovering;
+    }
+
+    auto node = get_node(active_node_id);
+    assert(node);
+
+    if (ImGui::IsMouseClicked(0)) { move_node_to_front(active_node_id); }
+
+    if (active_node_action == NodeAction_Hovering) {
+        const auto mp  = gvec2(ImGui::GetMousePos());
+        auto node_edge = node->position + node->size;
+        node_edge += canvas_start;
+
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+        if (fabsf(mp.x - node_edge.x) < 10.f) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+            if (ImGui::IsMouseClicked(0)) { active_node_action = NodeAction_Resizing; }
+        } else if (ImGui::IsMouseDown(0)) {
+            active_node_action = NodeAction_Down;
+
+            if (ImGui::IsMouseDragging(0, .0f)) { active_node_action = NodeAction_Dragging; }
+        }
+    }
+
+    if (active_node_action == NodeAction_Resizing) {
+        node->size.x += ImGui::GetMouseDragDelta(0, 0.f).x;
+        ImGui::ResetMouseDragDelta();
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    } else if (active_node_action == NodeAction_Dragging) {
+        node->position += gvec2(ImGui::GetMouseDragDelta(0, 0.f));
+        ImGui::ResetMouseDragDelta();
+    }
+
+    if (ImGui::IsMouseReleased(0)) {
+        active_node_id     = 0u;
+        active_node_action = NodeAction_None;
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    }
+}
+
+void RenderGraphGUI::draw_buffer_list() {}
+
+void RenderGraphGUI::draw_canvas() {
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, icol32(Colors::node));
+
+    for (auto &n : nodes) {
+        ImGui::SetCursorPos(ivec2(n.position));
+
+        if (ImGui::BeginChild(n.id, ivec2(n.size), false, ImGuiWindowFlags_MenuBar)) {
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+                printf("Focused\n");
+            } else {
+                printf("Not Focused\n");
+            }
+            draw_menu_bar("VAO", &n);
+            ImGui::Button("asdf");
+        }
+        ImGui::EndChild();
+    }
+
+    ImGui::PopStyleColor();
+}
+
+void RenderGraphGUI::move_node_to_front(NodeID id) {
+    if (nodes.size() <= 1) { return; }
+    if (nodes.at(nodes.size() - 1).id == id) { return; }
+
+    auto it = std::find_if(nodes.begin(), nodes.end(), [id](const auto &n) { return id == n.id; });
+    assert(it != nodes.end());
+
+    std::rotate(it, it + 1, nodes.end());
 }
 
 static void draw_menu_bar(const char *title, Node *node, bool foldable) {
@@ -569,11 +617,3 @@ static void draw_menu_bar(const char *title, Node *node, bool foldable) {
         ImGui::EndMenuBar();
     }
 }
-
-glm::vec2 NodeConnection::get_from_position() const { return parent->find_node_id(from_id)->position + fromoff; }
-
-glm::vec2 NodeConnection::get_to_position() const { return parent->find_node_id(to_id)->position + tooff; }
-
-std::string NodeConnection::get_from_name() const { return from_name; }
-
-std::string NodeConnection::get_to_name() const { return to_name; }
