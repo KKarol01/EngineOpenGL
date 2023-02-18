@@ -1,0 +1,9 @@
+C:/Users/k/Desktop/gfx_engine/CMakeFiles/edit_cache.dir
+C:/Users/k/Desktop/gfx_engine/CMakeFiles/rebuild_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/CMakeFiles/opengl_engine.dir
+C:/Users/k/Desktop/gfx_engine/src/CMakeFiles/edit_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/CMakeFiles/rebuild_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/3rdparty/CMakeFiles/edit_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/3rdparty/CMakeFiles/rebuild_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/assets/CMakeFiles/edit_cache.dir
+C:/Users/k/Desktop/gfx_engine/src/assets/CMakeFiles/rebuild_cache.dir
