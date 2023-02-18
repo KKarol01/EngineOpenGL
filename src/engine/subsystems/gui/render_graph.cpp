@@ -116,6 +116,8 @@ static bool line_cubic_bezier(glm::vec2 l0, glm::vec2 l1, glm::vec2 c0, glm::vec
 
 static void draw_menu_bar(const char *title, Node *node, bool foldable = true);
 
+static void draw_vao_node_contents(Node *n);
+
 void RenderGraphGUI::draw() {
     bgdraw_list = ImGui::GetBackgroundDrawList();
     mouse_node_interactions();
@@ -291,6 +293,11 @@ void RenderGraphGUI::draw_nodes() {
 }
 
 void RenderGraphGUI::draw_node_contents(Node *node) {
+
+    switch (node->type) {
+    case NodeType::VAO: draw_menu_bar("VAO", node); draw_vao_node_contents(node);
+    }
+
     /* switch (node->type) {
      case NodeType::DepthTest: {
          break;
@@ -498,7 +505,7 @@ void RenderGraphGUI::draw_resource_list() {}
 
 void RenderGraphGUI::mouse_node_interactions() {
 
-    //Helper function - find node based on predicate
+    // Helper function - find node based on predicate
     static const auto find_node = [this](std::function<bool(Node *)> f) -> Node * {
         for (auto i = nodes.size() - 1;; --i) {
             if (f(&nodes.at(i))) return &nodes.at(i);
@@ -577,15 +584,7 @@ void RenderGraphGUI::draw_canvas() {
     for (auto &n : nodes) {
         ImGui::SetCursorPos(ivec2(n.position));
 
-        if (ImGui::BeginChild(n.id, ivec2(n.size), false, ImGuiWindowFlags_MenuBar)) {
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-                printf("Focused\n");
-            } else {
-                printf("Not Focused\n");
-            }
-            draw_menu_bar("VAO", &n);
-            ImGui::Button("asdf");
-        }
+        if (ImGui::BeginChild(n.id, ivec2(n.size), false, ImGuiWindowFlags_MenuBar)) { draw_node_contents(&n); }
         ImGui::EndChild();
     }
 
@@ -617,3 +616,16 @@ static void draw_menu_bar(const char *title, Node *node, bool foldable) {
         ImGui::EndMenuBar();
     }
 }
+
+static void draw_vao_node_contents(Node *node) {
+    ImGui::GetStyle().WindowPadding.y=2.f;
+    if(ImGui::BeginChild("content",ImVec2(0,0), true, ImGuiWindowFlags_AlwaysUseWindowPadding)) {
+        if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+            printf("WINDOW FOCUSED");
+        }
+        ImGui::Button("test");
+    }
+
+ ImGui::EndChild();        
+}
+

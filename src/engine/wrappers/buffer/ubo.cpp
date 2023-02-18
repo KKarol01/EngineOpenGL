@@ -24,7 +24,7 @@ eng::UBO::UBO(INIT_LIST init, const std::vector<const void *> &data) {
     const auto round_to_multiple = [](size_t num, size_t mult) { return ((num + mult - 1ull) / mult) * mult; };
 
     auto max_size = 0ull;
-    for (const auto &d : init) max_size = glm::max(max_size, get_data_size(d.second));
+    for (const auto &d : init) max_size = glm::max((size_t)max_size, get_data_size(d.second));
     stride     = round_to_multiple(total_size, max_size);
     total_size = stride * data.size();
 

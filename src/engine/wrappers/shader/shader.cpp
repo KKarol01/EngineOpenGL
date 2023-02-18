@@ -9,16 +9,32 @@
 #include <sstream>
 
 #include <glad/glad.h>
+#include <vector>
 
 static unsigned compile_shader(const std::string &path, unsigned type);
 
 ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name} {
-    auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto &entry) {
-                     auto fname  = entry.path().filename().string();
-                     auto substr = fname.substr(0, fname.rfind('.'));
-                     return substr == file_name;
-                 })
-                 | std::views::transform([](const auto &entry) { return entry.path().string(); });
+    // auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto &entry) {
+    //                  auto fname  = entry.path().filename().string();
+    //                  auto substr = fname.substr(0, fname.rfind('.'));
+    //                  return substr == file_name;
+    //              })
+    //              | std::views::transform([](const auto &entry) { return entry.path().string(); });
+
+    std::vector<std::string> files;
+
+    for(auto i : std::filesystem::directory_iterator{SHADERS_DIR}) {
+        auto file = i.path().string();
+        auto filename = i.path().filename().string();
+        auto substr = filename.substr(0, filename.rfind('.'));
+
+
+        if(substr != file_name) {
+            continue;
+        }
+
+        files.push_back(file);
+    }
 
     unsigned present_shaders = 0;
     using enum SHADER_TYPE;

@@ -25,11 +25,11 @@ GUI::GUI() {
 
     render_graph = std::make_unique<RenderGraphGUI>();
 
-    ImFontConfig fcfg;
-    fcfg.OversampleH         = 2;
-    fcfg.OversampleV         = 2;
-    font1                    = ImGui::GetIO().Fonts->AddFontFromFileTTF("consola.ttf", 14, &fcfg);
-    ImGui::GetIO().Fonts->Build();
+    // ImFontConfig fcfg;
+    // fcfg.OversampleH         = 2;
+    // fcfg.OversampleV         = 2;
+    // font1                    = ImGui::GetIO().Fonts->AddFontFromFileTTF("consola.ttf", 14, &fcfg);
+    // ImGui::GetIO().Fonts->Build();
 
     io->IniFilename         = "imgui.ini";
     io->WantSaveIniSettings = true;
@@ -48,7 +48,7 @@ void GUI::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
-    ImGui::PushFont(font1);
+    // ImGui::PushFont(font1);
 
     for (const auto &[_, draw] : ui_draws) { draw(); }
 
@@ -84,7 +84,7 @@ void GUI::draw() {
 
     if (render_graph->is_open()) render_graph->draw();
 
-    ImGui::PopFont();
+    // ImGui::PopFont();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
