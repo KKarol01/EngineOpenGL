@@ -73,7 +73,7 @@ eng::GLVao::~GLVao() { glDeleteVertexArrays(1, &handle); }
 void eng::GLVao::bind() const { glBindVertexArray(handle); }
 
 void eng::GLVao::configure_binding(uint32_t id, BufferID bufferid, size_t stride, size_t offset) {
-    descriptor.buff_bindings[id] = bufferid;
+    descriptor.buff_bindings.push_back(GLVaoBufferBinding{id, bufferid});
 
     auto &buffer = Engine::instance().renderer_->buffers[bufferid];
     glVertexArrayVertexBuffer(handle, id, buffer.descriptor.handle, offset, stride);
@@ -144,5 +144,5 @@ eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(
     uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize)
     : GLVaoAttributeDescriptor(idx, binding, size, offset) {
     this->normalize = normalize;
-    this->gl_format   = gl_format;
+    this->gl_format = gl_format;
 }

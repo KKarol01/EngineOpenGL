@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <imgui/imgui.h>
+#include <iterator>
 
 #include "../../engine.hpp"
 
@@ -295,7 +296,145 @@ void RenderGraphGUI::draw_nodes() {
 void RenderGraphGUI::draw_node_contents(Node *node) {
 
     switch (node->type) {
-    case NodeType::VAO: draw_menu_bar("VAO", node); draw_vao_node_contents(node);
+    case NodeType::VAO: {
+
+        draw_menu_bar("VAO", node);
+
+        if (ImGui::BeginChild("content")) {
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) { printf("WINDOW FOCUSED"); }
+
+            ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
+            auto &table_height = *std::any_cast<float>(&node->storage.at("bindings_table_height"));
+            if (ImGui::BeginTable("vao_bindings_table",
+                                  4,
+                                  ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                  ImVec2(0, table_height))) {
+                ImGui::TableSetupColumn("id");
+                ImGui::TableSetupColumn("binding");
+                ImGui::TableSetupColumn("stride");
+                ImGui::TableSetupColumn("offset");
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableHeadersRow();
+
+                auto &desc     = *std::any_cast<eng::GLVaoDescriptor>(&node->storage.at("descriptor"));
+                auto &bindings = desc.buff_bindings;
+
+                for (int i = 0; i < bindings.size(); ++i) {
+                    auto &b = bindings[i];
+                    auto a  = desc.get_attrib_by_binding(b.binding);
+
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    if (ImGui::Selectable(std::to_string(b.binding).c_str(),
+                                          false,
+                                          ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
+                                          ImVec2(0, ImGui::GetFrameHeight()))) {}
+                    if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
+                        int dir = ImGui::GetMouseDragDelta(0).y > 0.f ? 1 : -1;
+
+                        if ((i + dir) >= 0 && i + dir < bindings.size()) {
+                            auto temp            = bindings.at(i);
+                            bindings.at(i)       = bindings.at(i + dir);
+                            bindings.at(i + dir) = temp;
+                            ImGui::ResetMouseDragDelta();
+                        }
+                    }
+                    ImGui::PushID(node->id);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text(buffers_names.at(b.binding).c_str());
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (auto payload = ImGui::AcceptDragDropPayload("vao_binding")) {
+                            // binding.bindingid = *static_cast<uint32_t *>(payload->Data);
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    ImGui::TableSetColumnIndex(2);
+                    if (int input = a.size / 4; ImGui::InputInt("##stride", &input, 0, 0)) {
+                        //stride = glm::max(0, input);
+                    }
+                    ImGui::TableSetColumnIndex(3);
+                    if (int input = a.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
+                        binding.offset = glm::max(0, input);
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+            if (ImGui::Button("slider", ImVec2(FLT_MAX, 10.f))) {}
+            if (ImGui::IsItemActive()) {
+                can_move_nodes = false;
+                table_height += ImGui::GetMouseDragDelta(0, 0.f).y;
+                ImGui::ResetMouseDragDelta();
+            }
+            auto &attributes = *std::any_cast<std::vector<VaoAttrib>>(&node->storage.at("attribs"));
+            if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
+                VaoAttrib a;
+                a.id        = attributes.size();
+                a.bindingid = 0;
+                a.size      = 0;
+                a.offset    = 0;
+                a.gl_type   = eng::GL_FORMAT_FLOAT;
+                a.normalize = false;
+                attributes.push_back(a);
+            }
+
+            if (ImGui::BeginTable("vao_attributes_table",
+                                  6,
+                                  ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthStretch, 40.f);
+                ImGui::TableSetupColumn("binding", ImGuiTableColumnFlags_WidthStretch, 40.f);
+                ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthStretch, 40.f);
+                ImGui::TableSetupColumn("offset", ImGuiTableColumnFlags_WidthStretch, 40.f);
+                ImGui::TableSetupColumn("gl_type", ImGuiTableColumnFlags_WidthStretch, 75.f);
+                ImGui::TableSetupColumn("N", ImGuiTableColumnFlags_WidthStretch, 20.f);
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableHeadersRow();
+
+                for (auto i = 0u; i < attributes.size(); ++i) {
+                    auto &attrib = attributes.at(i);
+                    ImGui::TableNextRow();
+
+                    ImGui::PushID(i + 1);
+
+                    ImGui::TableSetColumnIndex(0);
+                    if (int input = attrib.id; ImGui::InputInt("##id", &input, 0, 0)) { attrib.id = fmaxf(0, input); }
+                    ImGui::TableSetColumnIndex(1);
+                    if (int input = attrib.bindingid; ImGui::InputInt("##binding", &input, 0, 0)) {
+                        attrib.bindingid = fmaxf(0, input);
+                    }
+                    ImGui::TableSetColumnIndex(2);
+                    if (int input = attrib.size; ImGui::InputInt("##size", &input, 0, 0)) {
+                        attrib.size = fmaxf(0, input);
+                    }
+                    ImGui::TableSetColumnIndex(3);
+                    if (int input = attrib.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
+                        attrib.offset = fmaxf(0, input);
+                    }
+                    ImGui::TableSetColumnIndex(4);
+                    const char *types[]{"GL_FLOAT"};
+                    if (ImGui::BeginCombo("##gl_type", types[(int)attrib.gl_type])) {
+                        for (int i = 0; i < IM_ARRAYSIZE(types); ++i) {
+                            if (ImGui::Selectable(types[i])) { attrib.gl_type = eng::GL_FORMAT_(i); }
+                        }
+
+                        ImGui::EndCombo();
+                    }
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Checkbox("##normalize", &attrib.normalize);
+                    ImGui::PopID();
+                }
+
+                ImGui::EndTable();
+            }
+            ImGui::PopStyleColor();
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleVar();
+        break;
+    }
     }
 
     /* switch (node->type) {
@@ -477,9 +616,8 @@ void RenderGraphGUI::add_node(NodeType type) {
     switch (type) {
     case NodeType::DepthTest: break;
     case NodeType::VAO:
-        n.size = glm::vec2{400.f, 500.f};
-        // n.storage["bindings"]              = std::vector<VaoBinding>{};
-        // n.storage["attribs"]               = std::vector<VaoAttrib>{};
+        n.size                             = glm::vec2{400.f, 500.f};
+        n.storage["descriptor"]            = std::vector<eng::GLVaoDescriptor>{};
         n.storage["bindings_table_height"] = n.size.y * .45f;
         break;
 
@@ -617,15 +755,4 @@ static void draw_menu_bar(const char *title, Node *node, bool foldable) {
     }
 }
 
-static void draw_vao_node_contents(Node *node) {
-    ImGui::GetStyle().WindowPadding.y=2.f;
-    if(ImGui::BeginChild("content",ImVec2(0,0), true, ImGuiWindowFlags_AlwaysUseWindowPadding)) {
-        if(ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-            printf("WINDOW FOCUSED");
-        }
-        ImGui::Button("test");
-    }
-
- ImGui::EndChild();        
-}
-
+static void draw_vao_node_contents(Node *node) {}

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <stdint.h>
 #include <vector>
 #include <initializer_list>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <variant>
+#include <cassert>
 
 #include "../../signal/signal.hpp"
 #include "../../types/types.hpp"
@@ -72,11 +74,33 @@ namespace eng {
         bool normalize{false};
     };
 
+    struct GLVaoBufferBinding {
+        uint32_t binding;
+        BufferID buffer;
+    };
+
     struct GLVaoDescriptor {
         GLVaoDescriptor() = default;
 
+        const GLVaoAttributeDescriptor &get_attrib_by_binding(uint32_t binding) const {
+            for (auto &attr : attributes) {
+                if (attr.binding == binding) { return attr; }
+            }
+
+            assert(("Non-existent binding" && false));
+            return *attributes.begin();
+        }
+        GLVaoAttributeDescriptor &get_attrib_by_binding(uint32_t binding) {
+            for (auto &attr : attributes) {
+                if (attr.binding == binding) { return attr; }
+            }
+
+            assert(("Non-existent binding" && false));
+            return *attributes.begin();
+        }
+
         std::vector<GLVaoAttributeDescriptor> attributes;
-        std::unordered_map<uint32_t, BufferID> buff_bindings;
+        std::vector<GLVaoBufferBinding> buff_bindings;
         BufferID ebo_buffer{0};
         bool ebo_set = false;
     };
