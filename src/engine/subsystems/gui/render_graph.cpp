@@ -197,6 +197,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
 
         if (ImGui::BeginChild("content")) {
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) { /*printf("WINDOW FOCUSED");*/
+                allow_node_interaction = false;
             }
 
             ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
@@ -204,16 +205,20 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
             auto &table_height = *std::any_cast<float>(&node->storage.at("bindings_table_height"));
             auto &desc         = *std::any_cast<eng::GLVaoDescriptor>(&node->storage.at("descriptor"));
             auto &bindings     = desc.buff_bindings;
+            eng::GLVaoBufferBinding *binding_to_delete = nullptr;
 
-            if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionMax().x, 0))) { bindings.emplace_back(); }
+            if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionMax().x, 0))) {
+                bindings.emplace_back();
+                bindings.back().binding = bindings.size() - 1;
+            }
 
             if (ImGui::BeginTable("vao_bindings_table",
                                   4,
                                   ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
                                   ImVec2(0, table_height))) {
 
-                ImGui::TableSetupColumn("id");
                 ImGui::TableSetupColumn("binding");
+                ImGui::TableSetupColumn("buffer");
                 ImGui::TableSetupColumn("stride");
                 ImGui::TableSetupColumn("offset");
                 ImGui::TableSetupScrollFreeze(0, 1);
@@ -228,6 +233,11 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                                           false,
                                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
                                           ImVec2(0, ImGui::GetFrameHeight()))) {}
+                    if (ImGui::BeginPopupContextWindow(std::to_string(b.binding).c_str(), ImGuiPopupFlags_MouseButtonRight)) {
+                        if (ImGui::Button("Delete")) { binding_to_delete = &b; }
+                        ImGui::EndPopup();
+                    }
+
                     if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
                         int dir = ImGui::GetMouseDragDelta(0).y > 0.f ? 1 : -1;
 
@@ -240,10 +250,10 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                     }
                     ImGui::PushID(node->id);
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text(buffers_names.at(b.binding).c_str());
+                    ImGui::Text(buffers_names.at(b.buffer).c_str());
                     if (ImGui::BeginDragDropTarget()) {
                         if (auto payload = ImGui::AcceptDragDropPayload("vao_binding")) {
-                            // binding.bindingid = *static_cast<uint32_t *>(payload->Data);
+                            b.buffer = *static_cast<uint32_t *>(payload->Data);
                         }
                         ImGui::EndDragDropTarget();
                     }
@@ -259,6 +269,15 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                     ImGui::PopID();
                 }
                 ImGui::EndTable();
+            }
+
+            if (binding_to_delete) {
+                for (auto i = 0u; i < bindings.size(); ++i) {
+                    if (bindings[i].binding == binding_to_delete->binding) {
+                        bindings.erase(bindings.begin() + i);
+                        break;
+                    }
+                }
             }
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
@@ -297,15 +316,18 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                         attrib.binding = fmaxf(0, input);
                     }
                     ImGui::TableSetColumnIndex(2);
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (int input = attrib.size; ImGui::InputInt("##size", &input, 0, 0)) {
                         attrib.size = fmaxf(0, input);
                     }
                     ImGui::TableSetColumnIndex(3);
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (int input = attrib.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
                         attrib.offset = fmaxf(0, input);
                     }
                     ImGui::TableSetColumnIndex(4);
                     const char *types[]{"GL_FLOAT"};
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (ImGui::BeginCombo("##gl_type", types[(int)attrib.gl_format])) {
                         for (int i = 0; i < IM_ARRAYSIZE(types); ++i) {
                             if (ImGui::Selectable(types[i])) { attrib.gl_format = eng::GL_FORMAT_(i); }
@@ -497,7 +519,7 @@ void RenderGraphGUI::draw_canvas() {
     for (auto &n : nodes) {
         ImGui::SetCursorPos(ivec2(n.position));
 
-        if (ImGui::BeginChild(n.id, ivec2(n.size), true, ImGuiWindowFlags_MenuBar )) { draw_node_contents(&n); }
+        if (ImGui::BeginChild(n.id, ivec2(n.size), true, ImGuiWindowFlags_MenuBar)) { draw_node_contents(&n); }
         ImGui::EndChild();
     }
 
