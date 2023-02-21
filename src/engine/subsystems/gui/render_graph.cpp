@@ -349,6 +349,8 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
 
                     ImGui::TableSetColumnIndex(4);
                     const char *types[]{"GL_FLOAT"};
+                    assert(("Not all attribute types are supported in render_graph"
+                            && IM_ARRAYSIZE(types) == eng::GL_FORMAT_FLOAT + 1));
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (ImGui::BeginCombo("##gl_type", types[(int)attrib.gl_format])) {
                         for (int i = 0; i < IM_ARRAYSIZE(types); ++i) {
