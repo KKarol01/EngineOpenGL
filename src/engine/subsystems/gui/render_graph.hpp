@@ -117,7 +117,7 @@ class RenderGraphGUI {
     bool open{true};
     bool canvas_panning{false};
     bool resource_dragging{false};
-    bool can_move_nodes{true};
+    bool allow_node_interaction{true};
 
     enum NodeAction_ {
         NodeAction_None,

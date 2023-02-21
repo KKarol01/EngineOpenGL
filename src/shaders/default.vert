@@ -1,7 +1,12 @@
 #version 460 core
 
-layout(location=0) in vec2 pos;
+layout(location = 0) in vec2 pos;
+
+out vec2 vpos;
 
 void main() {
-	gl_Position = vec4(pos.xy, 0.f, 1.f);
+    vec4 ndcpos = vec4(pos * 2. - 1., 0, 1.);
+    vpos        = ndcpos.xy;
+
+    gl_Position = ndcpos;
 }

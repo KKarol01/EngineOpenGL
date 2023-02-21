@@ -77,6 +77,7 @@ namespace eng {
     struct GLVaoBufferBinding {
         uint32_t binding;
         BufferID buffer;
+        uint32_t stride, offset;
     };
 
     struct GLVaoDescriptor {
