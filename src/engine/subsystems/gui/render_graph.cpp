@@ -148,45 +148,7 @@ void RenderGraphGUI::draw() {
     ImGui::PopStyleColor();
 }
 
-void RenderGraphGUI::draw_nodes() {
-
-    /* auto child_to_push_on_top = -1;
-
-     for (auto i = 0u; i < nodes.size(); ++i) {
-         auto &node            = nodes.at(i);
-         auto nsize            = node.size * scale;
-         const auto font_scale = nsize.y / node.size.y;
-
-         if (node.opened == false) { nsize.y = ImGui::GetFrameHeight(); }
-
-         ImGui::SetWindowFontScale(font_scale);
-         ImGui::SetCursorPos(ivec2(node.position));
-
-         ImGui::PushStyleColor(ImGuiCol_MenuBarBg, icol32(Colors::menubar.at(node.type)));
-         ImGui::PushStyleColor(ImGuiCol_ChildBg, icol32(Colors::node));
-         if (ImGui::BeginChild(node.id + 1,
-                               ivec2(nsize),
-                               true,
-                               ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar
-                                   | ImGuiWindowFlags_NoScrollWithMouse)) {
-             draw_node_contents(&node);
-         }
-
-         node.hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-         node.down    = node.hovered && ImGui::IsMouseDown(0);
-         node.clicked = node.hovered && ImGui::IsMouseClicked(0);
-         if (node.clicked) { child_to_push_on_top = (int)i; }
-
-         ImGui::EndChild();
-         ImGui::PopStyleColor(2);
-     }
-
-     if (child_to_push_on_top != -1) {
-         auto last                      = nodes.back();
-         nodes.back()                   = std::move(nodes.at(child_to_push_on_top));
-         nodes.at(child_to_push_on_top) = std::move(last);
-     }*/
-}
+void RenderGraphGUI::draw_nodes() {}
 
 void RenderGraphGUI::draw_node_contents(Node *node) {
 
@@ -196,9 +158,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         draw_menu_bar("VAO", node);
 
         if (ImGui::BeginChild("content")) {
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) { /*printf("WINDOW FOCUSED");*/
-                allow_node_interaction = false;
-            }
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) { allow_node_interaction = false; }
 
             ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
 
@@ -210,6 +170,12 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
             if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionMax().x, 0))) {
                 bindings.emplace_back();
                 bindings.back().binding = bindings.size() - 1;
+            }
+
+            ImGui::InvisibleButton("push_to_right", ImVec2(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("Vao >===").x, 10.f));
+            ImGui::SameLine();
+            if(ImGui::SmallButton("Vao >")) {
+                //add line drawing here
             }
 
             if (ImGui::BeginTable("vao_bindings_table",
