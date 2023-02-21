@@ -233,7 +233,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                                           false,
                                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
                                           ImVec2(0, ImGui::GetFrameHeight()))) {}
-                    if (ImGui::BeginPopupContextItem(NULL, ImGuiPopupFlags_MouseButtonRight)) {
+                    if (ImGui::BeginPopupContextItem(NULL)) {
                         if (ImGui::Button("Delete")) { binding_to_delete = &b; }
                         ImGui::EndPopup();
                     }
@@ -291,7 +291,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                 ImGui::ResetMouseDragDelta();
             }
             if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
-                desc.attributes.emplace_back(desc.attributes.size(), 0, 0, 0);
+                desc.attributes.emplace_back(desc.attributes.size() > 0 ? desc.attributes.back().idx + 1 : 0, 0, 0, 0);
             }
 
             if (ImGui::BeginTable("vao_attributes_table",
@@ -306,6 +306,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableHeadersRow();
 
+                eng::GLVaoAttributeDescriptor *attribute_to_delete = nullptr;
                 for (auto i = 0u; i < desc.attributes.size(); ++i) {
                     auto &attrib = desc.attributes.at(i);
                     ImGui::TableNextRow();
@@ -313,21 +314,39 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                     ImGui::PushID(i + 1);
 
                     ImGui::TableSetColumnIndex(0);
-                    if (int input = attrib.idx; ImGui::InputInt("##id", &input, 0, 0)) { attrib.idx = fmaxf(0, input); }
+                    {
+                        auto c = ImGui::GetCursorPos();
+                        ImGui::Selectable(("##" + std::to_string(attrib.idx)).c_str(),
+                                          false,
+                                          ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
+                                          ImVec2(0, ImGui::GetFrameHeight()));
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Delete")) { attribute_to_delete = &attrib; }
+                            ImGui::EndPopup();
+                        }
+                        ImGui::SetCursorPos(c);
+                        if (int input = attrib.idx; ImGui::InputInt("##id", &input, 0, 0)) {
+                            attrib.idx = fmaxf(0, input);
+                        }
+                    }
+
                     ImGui::TableSetColumnIndex(1);
                     if (int input = attrib.binding; ImGui::InputInt("##binding", &input, 0, 0)) {
                         attrib.binding = fmaxf(0, input);
                     }
+
                     ImGui::TableSetColumnIndex(2);
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (int input = attrib.size; ImGui::InputInt("##size", &input, 0, 0)) {
                         attrib.size = fmaxf(0, input);
                     }
+
                     ImGui::TableSetColumnIndex(3);
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (int input = attrib.offset; ImGui::InputInt("##offset", &input, 0, 0)) {
                         attrib.offset = fmaxf(0, input);
                     }
+
                     ImGui::TableSetColumnIndex(4);
                     const char *types[]{"GL_FLOAT"};
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -338,9 +357,22 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
 
                         ImGui::EndCombo();
                     }
+
                     ImGui::TableSetColumnIndex(5);
                     ImGui::Checkbox("##normalize", &attrib.normalize);
                     ImGui::PopID();
+                }
+
+                if (attribute_to_delete) {
+                    for (auto i = 0u; i < desc.attributes.size(); ++i) {
+                        if (desc.attributes[i].idx == attribute_to_delete->idx) {
+                            desc.attributes.erase(desc.attributes.begin() + i);
+                            attribute_to_delete = nullptr;
+                            break;
+                        }
+                    }
+
+                    assert(("Could not find attribute to delete" && attribute_to_delete == nullptr));
                 }
 
                 ImGui::EndTable();
