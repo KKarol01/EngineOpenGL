@@ -233,7 +233,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                                           false,
                                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap,
                                           ImVec2(0, ImGui::GetFrameHeight()))) {}
-                    if (ImGui::BeginPopupContextWindow(std::to_string(b.binding).c_str(), ImGuiPopupFlags_MouseButtonRight)) {
+                    if (ImGui::BeginPopupContextItem(NULL, ImGuiPopupFlags_MouseButtonRight)) {
                         if (ImGui::Button("Delete")) { binding_to_delete = &b; }
                         ImGui::EndPopup();
                     }
@@ -275,9 +275,12 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                 for (auto i = 0u; i < bindings.size(); ++i) {
                     if (bindings[i].binding == binding_to_delete->binding) {
                         bindings.erase(bindings.begin() + i);
+                        binding_to_delete = nullptr;
                         break;
                     }
                 }
+
+                assert(("Could not find the binding to delete" && binding_to_delete == nullptr));
             }
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
