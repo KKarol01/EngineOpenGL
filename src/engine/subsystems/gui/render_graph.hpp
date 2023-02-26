@@ -13,6 +13,12 @@ struct ImDrawList;
 typedef uint32_t NodeID;
 enum class NodeType { DepthTest, VAO, Stage };
 
+struct NodeIO {
+    NodeID origin{0}, target{0};
+    glm::vec2 line_start, line_end;
+    bool is_input{false};
+};
+
 struct Node {
   public:
     Node() { id = gid++; }
@@ -48,23 +54,15 @@ struct Node {
     auto end() const { return position + size; }
 
     NodeID id;
-    NodeType type{0u};
+    NodeType type;
     glm::vec2 position{0.f};
     glm::vec2 min_size{0.f}, max_size{0.f};
     glm::vec2 size{150.f, 50.f};
 
-    glm::vec2 drag_start{0.f}, drag_end{0.f};
-    bool clicked{false}, hovered{false}, down{false};
-    bool resizing{false}, moving{false};
-    bool dragging_new_link{false};
     bool opened{true};
-    std::string hovered_dot;
     std::unordered_map<std::string, std::any> storage;
 
-    inline static float corner_rounding = 5.f;
-    inline static float border_size     = .7f;
-    inline static float padding         = 2.f;
-    inline static uint32_t gid          = 1u;
+    inline static uint32_t gid = 1u;
 };
 
 class RenderGraphGUI {
@@ -78,6 +76,8 @@ class RenderGraphGUI {
 
         inline static glm::u8vec4 menubar_vao{227, 177, 39, 255};
         inline static glm::u8vec4 menubar_stage{86, 56, 150, 255};
+
+        inline static glm::u8vec4 node_connection_line{113, 204, 225, 255};
     };
 
   public:
@@ -90,18 +90,24 @@ class RenderGraphGUI {
     Node *get_node(NodeID);
 
   private:
-    void draw_nodes();
-    void draw_node_contents(Node *);
-    void draw_resource_list();
     void add_node(NodeType type);
     void mouse_node_interactions();
+    void move_node_to_front(NodeID id);
+    void start_connection();
+
+    inline void enable_node_interaction() { allow_node_interaction = true; }
+    inline void disable_node_interaction() { allow_node_interaction = false; }
+
+    void draw_background();
     void draw_buffer_list();
     void draw_canvas();
-    void move_node_to_front(NodeID id);
+    void draw_nodes();
+    void draw_node_contents(Node *);
+    void draw_connection_button(Node *node, const char *name, bool is_output);
 
-    int inode = -1;
     std::vector<Node> nodes{};
     std::unordered_map<uint32_t, std::string> buffers_names;
+    std::unordered_map<NodeID, NodeIO> connections;
     int editing_buffer_name;
     char *new_buffer_name{nullptr};
 
@@ -130,7 +136,12 @@ class RenderGraphGUI {
     NodeID active_node_id{0u};
 
     bool line_dragging{false};
-    uint32_t line_dragging_node_of_origin;
-    glm::vec2 line_dragging_start;
+    bool draw_line = false;
+
+    struct {
+        NodeID from{0}, to{0};
+        glm::vec2 line_dragging_start, line_dragging_end;
+
+    } node_connection;
     std::string line_dragging_name;
 };

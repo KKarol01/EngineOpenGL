@@ -10,7 +10,7 @@
 RenderGraphGUI::RenderGraphGUI() {
     buffers_names[0] = "empty";
     add_node(NodeType::VAO);
-    add_node(NodeType::VAO);
+    add_node(NodeType::Stage);
     // add_node(NodeType::Stage);
 }
 
@@ -117,20 +117,44 @@ static bool line_cubic_bezier(glm::vec2 l0, glm::vec2 l1, glm::vec2 c0, glm::vec
 
 static void draw_menu_bar(const char *title, Node *node, bool foldable = true);
 
-static void draw_vao_node_contents(Node *n);
-
 void RenderGraphGUI::draw() {
     bgdraw_list = ImGui::GetBackgroundDrawList();
-    mouse_node_interactions();
 
-    allow_node_interaction = true;
+    enable_node_interaction();
 
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
     if (ImGui::Begin("render graph", &open)) {
         window_start = gvec2(ImGui::GetCursorScreenPos()) - gvec2(ImGui::GetStyle().WindowPadding);
         window_size  = gvec2(ImGui::GetContentRegionAvail()) + 2.f * gvec2(ImGui::GetStyle().WindowPadding);
 
-        bgdraw_list->AddRectFilled(ivec2(window_start), ivec2(window_start + window_size), icol32(Colors::window));
+        draw_background();
+
+        if (line_dragging) {
+            disable_node_interaction();
+
+            float dist   = glm::distance(node_connection.line_dragging_start, gvec2(ImGui::GetMousePos()));
+            float offset = glm::mix(50.f, 200.f, dist / glm::length(canvas_size) * 3.f);
+
+            const auto p1
+                = canvas_start + get_node(node_connection.from)->position + node_connection.line_dragging_start;
+            const auto p4 = gvec2(ImGui::GetMousePos());
+            const auto p2 = p1 + glm::vec2{offset, 0.f};
+            const auto p3 = p4 - glm::vec2{offset, 0.f};
+
+            bgdraw_list->AddBezierCubic(ivec2(p1), ivec2(p2), ivec2(p3), ivec2(p4), IM_COL32(255, 0, 0, 255), 3.f);
+        }
+        if (draw_line) {
+            float dist   = glm::distance(node_connection.line_dragging_start, node_connection.line_dragging_end);
+            float offset = glm::mix(50.f, 200.f, dist / glm::length(canvas_size) * 3.f);
+
+            const auto p1
+                = canvas_start + get_node(node_connection.from)->position + node_connection.line_dragging_start;
+            const auto p4 = canvas_start + get_node(node_connection.to)->position + node_connection.line_dragging_end;
+            const auto p2 = p1 + glm::vec2{offset, 0.f};
+            const auto p3 = p4 - glm::vec2{offset, 0.f};
+
+            bgdraw_list->AddBezierCubic(ivec2(p1), ivec2(p2), ivec2(p3), ivec2(p4), IM_COL32(255, 0, 0, 255), 3.f);
+        }
 
         if (ImGui::BeginChild("buffer list", ImVec2(250, 0), true, ImGuiWindowFlags_NoMove)) { draw_buffer_list(); }
         ImGui::EndChild();
@@ -146,6 +170,21 @@ void RenderGraphGUI::draw() {
     }
     ImGui::End();
     ImGui::PopStyleColor();
+
+    static auto is_mouse_down = false;
+    if (ImGui::IsAnyItemHovered() || is_mouse_down) {
+
+        if (is_mouse_down == false && ImGui::IsMouseClicked(0)) {
+            is_mouse_down = true;
+        } else if (ImGui::IsMouseReleased(0)) {
+            is_mouse_down = false;
+        }
+
+        disable_node_interaction();
+    }
+    if (line_dragging && ImGui::IsMouseReleased(0) == true) { line_dragging = false; }
+
+    mouse_node_interactions();
 }
 
 void RenderGraphGUI::draw_nodes() {}
@@ -154,12 +193,9 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
 
     switch (node->type) {
     case NodeType::VAO: {
-
         draw_menu_bar("VAO", node);
 
         if (ImGui::BeginChild("content")) {
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) { allow_node_interaction = false; }
-
             ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, icol32(glm::vec4{Colors::node} * 1.55f));
 
             auto &table_height = *std::any_cast<float>(&node->storage.at("bindings_table_height"));
@@ -167,15 +203,11 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
             auto &bindings     = desc.buff_bindings;
             eng::GLVaoBufferBinding *binding_to_delete = nullptr;
 
+            draw_connection_button(node, "Vao >", true);
+
             if (ImGui::Button("Add binding", ImVec2(ImGui::GetContentRegionMax().x, 0))) {
                 bindings.emplace_back();
                 bindings.back().binding = bindings.size() - 1;
-            }
-
-            ImGui::InvisibleButton("push_to_right", ImVec2(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("Vao >===").x, 10.f));
-            ImGui::SameLine();
-            if(ImGui::SmallButton("Vao >")) {
-                //add line drawing here
             }
 
             if (ImGui::BeginTable("vao_bindings_table",
@@ -350,6 +382,14 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         ImGui::EndChild();
         break;
     }
+
+    case NodeType::Stage: {
+        draw_menu_bar("Stage", node);
+
+        if (ImGui::BeginChild("content")) { draw_connection_button(node, "> Vao", false); }
+
+        ImGui::EndChild();
+    }
     }
 }
 
@@ -384,10 +424,7 @@ Node *RenderGraphGUI::get_node(NodeID id) {
     return nullptr;
 }
 
-void RenderGraphGUI::draw_resource_list() {}
-
 void RenderGraphGUI::mouse_node_interactions() {
-
     if (allow_node_interaction == false) { return; }
 
     // Helper function - find node based on predicate
@@ -539,6 +576,44 @@ void RenderGraphGUI::move_node_to_front(NodeID id) {
     std::rotate(it, it + 1, nodes.end());
 }
 
+void RenderGraphGUI::start_connection() {}
+
+void RenderGraphGUI::draw_connection_button(Node *node, const char *name, bool is_output) {
+    const auto cx = ImGui::GetCursorPosX();
+    const auto cr = ImGui::GetContentRegionAvail().x;
+    const auto ts = ImGui::CalcTextSize("a").x * (strlen(name) + 2); // +2 for padding
+
+    glm::vec2 connection_button_start, connection_button_end;
+    glm::vec2 connection_point;
+
+    ImGui::SetCursorPosX(cx + is_output ? (cr - ts) : 0.f);
+    connection_button_start = gvec2(ImGui::GetCursorPos());
+    if (ImGui::Button(name, ImVec2(ts, 0.f))) {}
+    connection_button_end = glm::vec2{connection_button_start.x + ts, ImGui::GetFrameHeightWithSpacing()};
+
+    connection_point = connection_button_start + 0.5f * (connection_button_end - connection_button_start);
+    connection_point += gvec2({0.f, ImGui::GetFrameHeightWithSpacing()});
+
+    if (is_output && line_dragging == false && ImGui::IsItemActive()) {
+        line_dragging                       = true;
+        node_connection.from                = node->id;
+        node_connection.line_dragging_start = connection_point;
+
+    } else if (is_output == false && line_dragging
+               && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+        if (ImGui::IsMouseReleased(0)) {
+            draw_line                         = true;
+            line_dragging                     = false;
+            node_connection.to                = node->id;
+            node_connection.line_dragging_end = connection_point;
+        }
+    }
+}
+
+void RenderGraphGUI::draw_background() {
+    bgdraw_list->AddRectFilled(ivec2(window_start), ivec2(window_start + window_size), icol32(Colors::window));
+}
+
 static void draw_menu_bar(const char *title, Node *node, bool foldable) {
     if (ImGui::BeginMenuBar()) {
         std::string arrow_id = title;
@@ -554,5 +629,3 @@ static void draw_menu_bar(const char *title, Node *node, bool foldable) {
         ImGui::EndMenuBar();
     }
 }
-
-static void draw_vao_node_contents(Node *node) {}
