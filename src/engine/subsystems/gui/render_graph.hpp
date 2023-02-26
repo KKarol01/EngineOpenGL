@@ -6,17 +6,34 @@
 #include <any>
 #include <unordered_map>
 #include <functional>
+#include <compare>
 
 #include <glm/glm.hpp>
 
+#include "../../engine/types/types.hpp"
+
 struct ImDrawList;
 typedef uint32_t NodeID;
-enum class NodeType { DepthTest, VAO, Stage };
+enum class NodeType {
+    None,
+    PipelineBegin,
+    Stage,
+    DepthTest,
+    VAO,
+};
 
 struct NodeIO {
+    NodeIO(NodeID origin, NodeID target, glm::vec2 line_start, glm::vec2 line_end)
+        : origin{origin}, target{target}, line_start{line_start}, line_end{line_end} {}
+
+    auto operator<=>(const NodeIO &o) const {
+        if (auto cmp = origin <=> o.origin; cmp != 0) { return cmp; }
+        return target <=> o.target;
+    }
+    auto operator==(const NodeIO &o) const { return origin == o.origin && target == o.target; }
+
     NodeID origin{0}, target{0};
     glm::vec2 line_start, line_end;
-    bool is_input{false};
 };
 
 struct Node {
@@ -52,9 +69,24 @@ struct Node {
 
     auto start() const { return position; }
     auto end() const { return position + size; }
+    auto set_position(glm::vec2 npos) { position = npos; }
+    auto set_size(glm::vec2 nsize) {
+        if (opened == false) { return; }
+        size = nsize;
+    }
+    auto get_size() const {
+        if (opened) { return size; }
+        return glm::vec2{100.f, 20.f};
+    }
+    auto is_opened() const { return opened; }
+    auto toggle_open() { return opened = !opened; }
+    const auto &get_storage() const { return storage; }
+    auto &get_storage() { return storage; }
 
     NodeID id;
-    NodeType type;
+    NodeType type{NodeType::None};
+
+  private:
     glm::vec2 position{0.f};
     glm::vec2 min_size{0.f}, max_size{0.f};
     glm::vec2 size{150.f, 50.f};
@@ -93,7 +125,6 @@ class RenderGraphGUI {
     void add_node(NodeType type);
     void mouse_node_interactions();
     void move_node_to_front(NodeID id);
-    void start_connection();
 
     inline void enable_node_interaction() { allow_node_interaction = true; }
     inline void disable_node_interaction() { allow_node_interaction = false; }
@@ -106,8 +137,8 @@ class RenderGraphGUI {
     void draw_connection_button(Node *node, const char *name, bool is_output);
 
     std::vector<Node> nodes{};
+    eng::SortedVectorUnique<NodeIO> ios;
     std::unordered_map<uint32_t, std::string> buffers_names;
-    std::unordered_map<NodeID, NodeIO> connections;
     int editing_buffer_name;
     char *new_buffer_name{nullptr};
 
@@ -136,12 +167,10 @@ class RenderGraphGUI {
     NodeID active_node_id{0u};
 
     bool line_dragging{false};
-    bool draw_line = false;
 
     struct {
         NodeID from{0}, to{0};
-        glm::vec2 line_dragging_start, line_dragging_end;
-
+        glm::vec2 line_dragging_start{0.f}, line_dragging_end{0.f};
     } node_connection;
     std::string line_dragging_name;
 };
