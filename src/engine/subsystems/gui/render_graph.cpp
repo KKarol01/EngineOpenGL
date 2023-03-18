@@ -402,6 +402,11 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
         if (ImGui::BeginChild("content")) { draw_connection_button(node, "> Vao", false); }
 
         ImGui::EndChild();
+        break;
+    }
+    case NodeType::PipelineBegin: {
+
+        break;
     }
     }
 }

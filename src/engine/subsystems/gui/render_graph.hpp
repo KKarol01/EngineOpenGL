@@ -151,7 +151,7 @@ class RenderGraphGUI {
     const float scale_min{0.01f}, scale_max{3.f};
 
     ImDrawList *bgdraw_list{nullptr};
-    bool open{true};
+    bool open{false};
     bool canvas_panning{false};
     bool resource_dragging{false};
     bool allow_node_interaction{true};

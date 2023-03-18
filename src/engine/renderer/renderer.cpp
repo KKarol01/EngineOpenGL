@@ -86,7 +86,9 @@ std::vector<float> eng::ModelPipelineAdapter::convert(const Model &model) {
 
 eng::DrawElementsInstancedCMD::DrawElementsInstancedCMD(BufferID buffer, uint32_t instances) : instances{instances} {}
 
-void eng::DrawElementsInstancedCMD::draw() {}
+void eng::DrawElementsInstancedCMD::draw() {
+    glDrawElementsInstanced(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0, instances);
+}
 
 eng::DrawCMD::DrawCMD() { gl_mode = GL_TRIANGLES; }
 

@@ -1,11 +1,18 @@
 #version 460 core
 
-layout(location=0) in vec3 pos;
+#define INSTANCES 100.
+
+
+layout(location=0) in vec2 pos;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+out vec3 vpos;
+
 void main() {
-	gl_Position = projection * view * model * vec4(pos, 1.);
+	vec3 p = vec3(pos.x, 0.f, pos.y);
+	vpos = p;
+	gl_Position = projection * view * model * vec4(p, 1.);
 }

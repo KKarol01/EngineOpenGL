@@ -52,29 +52,52 @@ int main() {
     auto gjk_test_plane = imp.import_model("3dmodels/simple_shapes/plane.obj", aiProcess_Triangulate);
 
     auto pp2 = engine.renderer_->pipelines.emplace();
-    PipelineStage pp2s1, pp2s2;
+    PipelineStage pp2s1;
     auto pp2s1vao = engine.renderer_->vaos.emplace();
-    pp2s1vao->configure_binding(0, pp2->vbo, 12, 0);
-    pp2s1vao->configure_attributes(GL_FORMAT_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 3}});
+    pp2s1vao->configure_ebo(pp2->ebo);
+    pp2s1vao->configure_binding(0, pp2->vbo, 8, 0);
+    pp2s1vao->configure_attributes(GL_FORMAT_FLOAT, 4, {GLVaoAttributeSameType{0, 0, 2}});
+
+    engine.gui_->add_draw([&]() {
+        if (ImGui::Begin("test")) { 
+            if(ImGui::Button("Recompile shader")) {
+                engine.renderer_->programs[pp2s1.program].recompile();
+            }
+            
+            static char buff[512];
+
+            
+            if(ImGui::InputTextMultiline("code", buff, 512, ImVec2(0,0))) {
+                printf("char");
+            }
+        }
+
+        ImGui::End();
+    });
+
     {
-        float line_verts[]{0.f, 0.f, -50.f, 0.f, 0.f, 50.f};
-        engine.renderer_->buffers[pp2->vbo].push_data(line_verts, sizeof(line_verts));
+        uint32_t indices[4]{0, 2, 1, 3};
+        glm::vec2 vertices[4]{
+            {0.f, 0.f},
+            {1.f, 0.f},
+            {0.f, 1.f},
+            {1.f, 1.f},
+        };
+
+        engine.renderer_->buffers[pp2->vbo].push_data(vertices, sizeof(vertices));
+        engine.renderer_->buffers[pp2->ebo].push_data(indices, sizeof(indices));
     }
     pp2s1.vao            = pp2s1vao;
-    pp2s1.program        = rect_program.id;
-    pp2s1.draw_cmd       = std::make_shared<DrawArraysInstancedBaseInstanceCMD>(2, 101, 0, 0, GL_LINES);
-    pp2s2.draw_cmd       = std::make_shared<DrawArraysInstancedBaseInstanceCMD>(2, 101, 0, 102, GL_LINES);
+    pp2s1.program        = default_program.id;
+    pp2s1.draw_cmd       = std::make_shared<DrawElementsInstancedCMD>(pp2->ebo, 1000000);
     pp2s1.on_stage_start = [&] {
-        rect_program->set("model", glm::mat4{1.f});
-        rect_program->set("view", cam.view_matrix());
-        rect_program->set("projection", cam.perspective_matrix());
+        default_program->set("model", glm::mat4{1.f});
+        default_program->set("view", cam.view_matrix());
+        default_program->set("projection", cam.perspective_matrix());
+        default_program->set("cam_pos", cam.position());
     };
-    pp2s2.on_stage_start = [&] {
-        static const auto R = glm::rotate(glm::mat4{1.f}, 3.14f / 2.f, glm::vec3{0, 1, 0});
-        rect_program->set("model", R);
-    };
+
     pp2->stages.push_back(std::move(pp2s1));
-    pp2->stages.push_back(std::move(pp2s2));
 
     while (!window->should_close()) {
         float time = glfwGetTime();

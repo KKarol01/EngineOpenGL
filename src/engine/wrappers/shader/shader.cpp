@@ -14,7 +14,8 @@
 static unsigned compile_shader(const std::string &path, unsigned type);
 
 ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name} {
-    // auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto &entry) {
+    // auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto
+    // &entry) {
     //                  auto fname  = entry.path().filename().string();
     //                  auto substr = fname.substr(0, fname.rfind('.'));
     //                  return substr == file_name;
@@ -23,15 +24,12 @@ ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name
 
     std::vector<std::string> files;
 
-    for(auto i : std::filesystem::directory_iterator{SHADERS_DIR}) {
-        auto file = i.path().string();
+    for (auto i : std::filesystem::directory_iterator{SHADERS_DIR}) {
+        auto file     = i.path().string();
         auto filename = i.path().filename().string();
-        auto substr = filename.substr(0, filename.rfind('.'));
+        auto substr   = filename.substr(0, filename.rfind('.'));
 
-
-        if(substr != file_name) {
-            continue;
-        }
+        if (substr != file_name) { continue; }
 
         files.push_back(file);
     }
@@ -61,25 +59,22 @@ ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name
         for (const auto &h : ids) { glDeleteShader(h); }
     };
 
-    try {
-        if (present_shaders & ((unsigned)VERTEX | (unsigned)FRAGMENT)) {
-            std::vector<uint32_t> shader_handles{
-                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".vert"), GL_VERTEX_SHADER),
-                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".frag"), GL_FRAGMENT_SHADER)};
+    if (present_shaders & ((unsigned)VERTEX | (unsigned)FRAGMENT)) {
+        std::vector<uint32_t> shader_handles{
+            compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".vert"), GL_VERTEX_SHADER),
+            compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".frag"), GL_FRAGMENT_SHADER)};
 
-            if (present_shaders & ((unsigned)TESS_C | (unsigned)TESS_E)) {
-                shader_handles.push_back(
-                    compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tesc"), GL_TESS_CONTROL_SHADER));
-                shader_handles.push_back(compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tese"),
-                                                        GL_TESS_EVALUATION_SHADER));
-            }
-
-            link_program(shader_handles);
-        } else if (present_shaders & (uint32_t)(COMPUTE)) {
-            link_program(
-                {compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".comp"), GL_COMPUTE_SHADER)});
+        if (present_shaders & ((unsigned)TESS_C | (unsigned)TESS_E)) {
+            shader_handles.push_back(
+                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tesc"), GL_TESS_CONTROL_SHADER));
+            shader_handles.push_back(
+                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tese"), GL_TESS_EVALUATION_SHADER));
         }
-    } catch (std::runtime_error err) { std::cout << err.what() << "\n"; }
+
+        link_program(shader_handles);
+    } else if (present_shaders & (uint32_t)(COMPUTE)) {
+        link_program({compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".comp"), GL_COMPUTE_SHADER)});
+    }
 }
 
 ShaderProgram::ShaderProgram(const ShaderProgram &s) noexcept { *this = s; }
@@ -103,13 +98,14 @@ ShaderProgram::~ShaderProgram() { glDeleteProgram(program_id); }
 
 void ShaderProgram::use() { glUseProgram(program_id); }
 
-
-
 void ShaderProgram::recompile() {
 
     glFinish();
     glUseProgram(0);
-    *this = ShaderProgram{file_name};
+    try {
+        auto prog = ShaderProgram{file_name};
+        *this     = std::move(prog);
+    } catch (std::runtime_error &error) { std::cout << error.what(); }
 }
 
 static unsigned compile_shader(const std::string &path, unsigned type) {
