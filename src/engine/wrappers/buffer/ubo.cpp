@@ -5,7 +5,7 @@
 #include "../../engine.hpp"
 #include "../../renderer/renderer.hpp"
 
-eng::UBO::UBO(INIT_LIST init) {
+eng::UBO::UBO(InitList init) {
     fill_entries(init, 1);
     create_storage(total_size, STORAGE_FLAGS);
 
@@ -17,7 +17,7 @@ eng::UBO::UBO(INIT_LIST init) {
     }
 }
 
-eng::UBO::UBO(INIT_LIST init, const std::vector<const void *> &data) {
+eng::UBO::UBO(InitList init, const std::vector<const void *> &data) {
     fill_entries(init, data.size());
 
     // recalculation because of std140 struct alignment rules
@@ -39,19 +39,20 @@ eng::UBO::UBO(INIT_LIST init, const std::vector<const void *> &data) {
 }
 
 void eng::UBO::bind(uint32_t binding_idx) const {
-    glBindBufferBase(
-        GL_UNIFORM_BUFFER, binding_idx, (eng::Engine::instance().renderer_->buffers)[storage].descriptor.handle);
+    glBindBufferBase(GL_UNIFORM_BUFFER,
+                     binding_idx,
+                     eng::Engine::instance().renderer_->get_buffer(storage_buffer_id).descriptor.handle);
 }
 
 void eng::UBO::create_storage(size_t size, uint32_t flags) {
-    storage = eng::Engine::instance().renderer_->buffers.emplace(eng::GLBufferDescriptor{flags});
+    storage_buffer_id = eng::Engine::instance().renderer_->create_buffer(flags);
 
-    auto &buff = eng::Engine::instance().renderer_->buffers[storage];
+    auto &buff = eng::Engine::instance().renderer_->get_buffer(storage_buffer_id);
     buff.push_data(nullptr, size);
     map_buffer(GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 }
 
-eng::GLBuffer &eng::UBO::get_storage() { return eng::Engine::instance().renderer_->buffers[storage]; }
+eng::GLBuffer &eng::UBO::get_storage() { return eng::Engine::instance().renderer_->get_buffer(storage_buffer_id); }
 
 void eng::UBO::map_buffer(uint32_t flags) {
     ptr = glMapNamedBufferRange(get_storage().descriptor.handle, 0, total_size, flags);
@@ -65,7 +66,7 @@ void eng::UBO::unmap_buffer() {
     mapped = false;
 }
 
-void eng::UBO::fill_entries(const INIT_LIST &list, size_t num_entries) {
+void eng::UBO::fill_entries(const InitList &list, size_t num_entries) {
     for (auto &[name, type] : list) {
         BufferEntry entry;
 
@@ -84,9 +85,9 @@ void eng::UBO::fill_entries(const INIT_LIST &list, size_t num_entries) {
     num_elems = num_entries;
 }
 
-size_t eng::UBO::get_data_size(const TS &t) {
+size_t eng::UBO::get_data_size(const Types &t) {
     return std::visit([](auto &&t) { return sizeof(t); }, t);
 }
 
 const uint32_t eng::UBO::STORAGE_FLAGS
-    = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT ;
+    = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;

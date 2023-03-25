@@ -8,9 +8,12 @@
 
 #include <glad/glad.h>
 
-eng::GLBuffer::GLBuffer(GLBufferDescriptor desc) : descriptor{desc} { glCreateBuffers(1, &descriptor.handle); }
+eng::GLBuffer::GLBuffer(uint32_t flags) {
+    descriptor.flags = flags;
+    glCreateBuffers(1, &descriptor.handle);
+}
 
-eng::GLBuffer::GLBuffer(void *data, uint32_t size_bytes, GLBufferDescriptor desc) : GLBuffer(desc) {
+eng::GLBuffer::GLBuffer(void *data, uint32_t size_bytes, uint32_t flags) : GLBuffer(flags) {
     push_data(data, size_bytes);
 }
 
@@ -37,6 +40,7 @@ void eng::GLBuffer::push_data(const void *data, size_t data_size) {
     }
 
     descriptor.size += data_size;
+    on_handle_change.emit(descriptor);
 }
 
 void eng::GLBuffer::resize(size_t required_size) {
@@ -52,96 +56,70 @@ void eng::GLBuffer::resize(size_t required_size) {
 
     descriptor.handle   = new_handle;
     descriptor.capacity = new_capacity;
-    descriptor.on_handle_change.emit(descriptor.handle);
 }
 
 eng::GLBuffer::~GLBuffer() { glDeleteBuffers(1, &descriptor.handle); }
 
-eng::GLVao::GLVao() { glCreateVertexArrays(1, &handle); }
+eng::GLVao::GLVao() { glCreateVertexArrays(1, &descriptor.handle); }
 
 eng::GLVao::GLVao(GLVao &&other) noexcept { *this = std::move(other); }
 
 eng::GLVao &eng::GLVao::operator=(GLVao &&other) noexcept {
-    handle       = other.handle;
-    other.handle = 0u;
+    descriptor = std::move(other.descriptor);
+
+    other.descriptor.handle = 0u;
 
     return *this;
 }
 
-eng::GLVao::~GLVao() { glDeleteVertexArrays(1, &handle); }
+eng::GLVao::~GLVao() { glDeleteVertexArrays(1, &descriptor.handle); }
 
-void eng::GLVao::bind() const { glBindVertexArray(handle); }
+void eng::GLVao::bind() const { glBindVertexArray(descriptor.handle); }
 
 void eng::GLVao::configure_binding(uint32_t id, BufferID bufferid, size_t stride, size_t offset) {
     descriptor.buff_bindings.push_back(GLVaoBufferBinding{id, bufferid});
 
-    auto &buffer = Engine::instance().renderer_->buffers[bufferid];
-    glVertexArrayVertexBuffer(handle, id, buffer.descriptor.handle, offset, stride);
+    auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
+    glVertexArrayVertexBuffer(descriptor.handle, id, buffer.descriptor.handle, offset, stride);
 
-    buffer.descriptor.on_handle_change.connect([this, handle = this->handle, id, offset, stride](uint32_t nh) {
-        glVertexArrayVertexBuffer(handle, id, nh, offset, stride);
+    buffer.on_handle_change.connect([id, offset, stride, handle = descriptor.handle](const auto &buff_desc) {
+        glVertexArrayVertexBuffer(handle, id, buff_desc.handle, offset, stride);
     });
 }
 
 void eng::GLVao::configure_ebo(BufferID bufferid) {
+    descriptor.ebo_buffer_id = bufferid;
 
-    descriptor.ebo_set    = true;
-    descriptor.ebo_buffer = bufferid;
+    auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
+    glVertexArrayElementBuffer(descriptor.handle, buffer.descriptor.handle);
 
-    auto &buffer = Engine::instance().renderer_->buffers[bufferid];
-    glVertexArrayElementBuffer(handle, buffer.descriptor.handle);
-
-    buffer.descriptor.on_handle_change.connect(
-        [handle = this->handle](uint32_t nh) { glVertexArrayElementBuffer(handle, nh); });
+    buffer.on_handle_change.connect(
+        [handle = descriptor.handle](const auto &buff_desc) { glVertexArrayElementBuffer(handle, buff_desc.handle); });
 }
 
-void eng::GLVao::configure_attributes(const std::vector<GLVaoAttributeDescriptor> &attributes) {
-    descriptor.attributes = attributes;
-    configure_attributes();
-}
+void eng::GLVao::configure_attribute(GL_ATTR_ attribute_idx,
+                                      uint32_t binding_id,
+                                      uint32_t size,
+                                      uint32_t byte_offset,
+                                      GL_FORMAT_ format,
+                                      bool normalize) {
+    descriptor.attributes.emplace_back(attribute_idx, binding_id, size, byte_offset, format, normalize);
+    glEnableVertexArrayAttrib(descriptor.handle, static_cast<uint32_t>(attribute_idx));
+    glVertexArrayAttribBinding(descriptor.handle, attribute_idx, binding_id);
 
-void eng::GLVao::configure_attributes(uint32_t size,
-                                      GL_FORMAT_ gl_format,
-                                      uint32_t type_size_bytes,
-                                      const std::vector<GLVaoAttributeSameFormat> &attributes) {
-    std::unordered_map<uint32_t, uint32_t> binding_offset;
-    for (const auto &a : attributes) {
-        descriptor.attributes.emplace_back(a.idx, a.binding, size, binding_offset[a.binding], gl_format, a.normalize);
-        binding_offset[a.binding] += type_size_bytes * size;
-    }
-
-    configure_attributes();
-}
-
-void eng::GLVao::configure_attributes(GL_FORMAT_ gl_format,
-                                      uint32_t type_size_bytes,
-                                      const std::vector<GLVaoAttributeSameType> &attributes) {
-    std::unordered_map<uint32_t, uint32_t> binding_offset;
-    for (const auto &a : attributes) {
-        descriptor.attributes.emplace_back(a.idx, a.binding, a.size, binding_offset[a.binding], gl_format, a.normalize);
-        binding_offset[a.binding] += type_size_bytes * a.size;
-    }
-
-    configure_attributes();
-}
-
-void eng::GLVao::configure_attributes() {
-    for (const auto &a : descriptor.attributes) {
-        glEnableVertexArrayAttrib(handle, a.idx);
-        glVertexArrayAttribBinding(handle, a.idx, a.binding);
-
-        switch (a.gl_format) {
-        case GL_FORMAT_FLOAT: glVertexArrayAttribFormat(handle, a.idx, a.size, GL_FLOAT, a.normalize, a.offset); break;
-        default: throw std::runtime_error{"Unrecognised gl_func"};
-        }
+    switch (format) {
+    case eng::GL_FORMAT_FLOAT:
+        glVertexArrayAttribFormat(descriptor.handle, (uint32_t)attribute_idx, size, GL_FLOAT, normalize, byte_offset);
+        break;
+    default: assert(("unhandled format" && false));
     }
 }
 
-eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset)
+eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(GL_ATTR_ idx, uint32_t binding, uint32_t size, uint32_t offset)
     : idx{idx}, binding{binding}, size{size}, offset{offset} {}
 
 eng::GLVaoAttributeDescriptor::GLVaoAttributeDescriptor(
-    uint32_t idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize)
+    GL_ATTR_ idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize)
     : GLVaoAttributeDescriptor(idx, binding, size, offset) {
     this->normalize = normalize;
     this->gl_format = gl_format;

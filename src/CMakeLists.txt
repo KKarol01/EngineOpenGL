@@ -18,7 +18,11 @@ add_executable(opengl_engine "main.cpp" "3rdparty/glad.c"
  "3rdparty/include/assimp/config.h"
  "engine/model/importers.cpp"
   "engine/wrappers/buffer/ubo.cpp"
- "engine/physics/gjk.cpp" "engine/subsystems/gui/render_graph.cpp")
+ "engine/physics/gjk.cpp" "engine/subsystems/gui/render_graph.cpp"
+
+ "3rdparty/include/imgui/imgui_stdlib.cpp" 
+ "3rdparty/include/imgui/imgui_stdlib.h"
+)
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 
 target_link_directories(opengl_engine PRIVATE "3rdparty/lib")

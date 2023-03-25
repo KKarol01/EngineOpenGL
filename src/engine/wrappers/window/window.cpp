@@ -28,6 +28,7 @@ Window::Window(std::string_view window_name, unsigned window_width, unsigned win
                                   .MINOR_VERSION  = GL_VER_MIN,
                                   .PROFILE        = GL_PROFILE,
                                   .FORWARD_COMPAT = GL_FORWARD_COMPAT});
+
 #elif
         throw std::runtime_error{"Default GLFW hints disabled, please, call configure_glfw_and_hints method yourself."};
 #endif

@@ -12,7 +12,6 @@
 
 #include <glm/glm.hpp>
 
-
 struct ShaderDataWrapper {
     using SupportedTypes = std::variant<std::reference_wrapper<int>,
                                         std::reference_wrapper<float>,
@@ -53,22 +52,10 @@ struct ShaderStorage {
 };
 
 class ShaderProgram {
-  private:
-    unsigned program_id{0u};
-    std::string file_name;
-    static inline const std::string SHADERS_DIR = "shaders/";
-    enum class SHADER_TYPE : unsigned {
-        VERTEX   = 1 << 0,
-        FRAGMENT = 1 << 1,
-        COMPUTE  = 1 << 2,
-        TESS_C   = 1 << 3,
-        TESS_E   = 1 << 4,
-    };
-
   public:
+    ShaderProgram() = default;
     ShaderProgram(const std::string &file_name);
 
-    ShaderProgram() = default;
     ShaderProgram(const ShaderProgram &) noexcept;
     ShaderProgram(ShaderProgram &&) noexcept;
     ShaderProgram &operator=(const ShaderProgram &) noexcept;
@@ -99,5 +86,17 @@ class ShaderProgram {
     void use();
     void recompile();
 
-    auto get_program() const { return program_id; }
+    auto get_handle() const { return program_id; }
+
+  private:
+    unsigned program_id{0u};
+    std::string file_name;
+    static inline const std::string SHADERS_DIR = "shaders/";
+    enum class SHADER_TYPE : unsigned {
+        VERTEX   = 1 << 0,
+        FRAGMENT = 1 << 1,
+        COMPUTE  = 1 << 2,
+        TESS_C   = 1 << 3,
+        TESS_E   = 1 << 4,
+    };
 };

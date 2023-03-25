@@ -10,16 +10,16 @@
 #include "../../wrappers/buffer/buffer.hpp"
 namespace eng {
     class UBO {
-        using TS        = std::variant<float, int, glm::vec4, glm::mat4>;
-        using INIT_LIST = std::initializer_list<std::pair<std::string, TS>>;
+        using Types    = std::variant<float, int, glm::vec4, glm::mat4>;
+        using InitList = std::initializer_list<std::pair<std::string, Types>>;
         struct BufferEntry {
             size_t offset{0};
             uint32_t size{0};
         };
 
       public:
-        UBO(INIT_LIST init);
-        UBO(INIT_LIST init, const std::vector<const void *> &data);
+        UBO(InitList init);
+        UBO(InitList init, const std::vector<const void *> &data);
 
         template <typename T = void> T *get(std::string_view name, size_t idx = 0u) {
             assert(mapped);
@@ -38,20 +38,20 @@ namespace eng {
         }
 
         void bind(uint32_t binding_idx) const;
-        BufferID get_bufferid() const { return storage; }
+        BufferID get_bufferid() const { return storage_buffer_id; }
 
       private:
         void create_storage(size_t size, uint32_t flags);
         GLBuffer &get_storage();
         void map_buffer(uint32_t flags);
         void unmap_buffer();
-        void fill_entries(const INIT_LIST &list, size_t num_entries);
-        size_t get_data_size(const TS &t);
+        void fill_entries(const InitList &list, size_t num_entries);
+        size_t get_data_size(const Types &t);
 
       private:
         bool mapped{false};
         void *ptr{nullptr};
-        BufferID storage;
+        BufferID storage_buffer_id;
         size_t total_size{0}, stride{0}, num_elems{0};
         std::unordered_map<std::string, BufferEntry> entries;
 

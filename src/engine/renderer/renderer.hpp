@@ -111,52 +111,59 @@ namespace eng {
         uint32_t base{0u};
     };
 
-    struct ModelPipelineAdapter {
-        enum ATTRIBUTES { ATTR_POSITION, ATTR_NORMAL, ATTR_TEXCOORDS };
-
-        ModelPipelineAdapter() = default;
-        ModelPipelineAdapter(std::initializer_list<ATTRIBUTES> vbo_layout);
-
-        bool uses_attribute(ATTRIBUTES attr) const {
-            return std::find(layout.begin(), layout.end(), attr) != layout.end();
-        }
-        std::vector<float> convert(const Model &model);
-
-        size_t stride{0};
-        std::vector<ATTRIBUTES> layout;
-    };
-
     struct PipelineStage {
-        VaoID vao{0};
         ProgramID program{0};
+        VaoID vao{0};
         std::shared_ptr<DrawCMD> draw_cmd;
         std::vector<std::shared_ptr<BufferBinder>> bufferbinders;
-
         std::function<void()> on_stage_start, on_stage_end;
     };
 
     class Pipeline {
       public:
-        Pipeline();
-        explicit Pipeline(ModelPipelineAdapter adapter);
         void render();
-        void add_model(const Model &m);
 
-        ModelPipelineAdapter adapter;
-        Signal<const Model &> on_model_add;
-        std::vector<PipelineStage> stages;
-        BufferID vbo{0}, ebo{0};
+        PipelineStage &create_stage() { return stages_.emplace_back(); }
+
+      private:
+        std::vector<PipelineStage> stages_;
     };
 
     class Renderer {
 
       public:
-        void render();
+        // Renderer();
+        //~Renderer();
 
-        IDAllocator<Pipeline> pipelines;
-        IDAllocator<GLVao> vaos;
-        IDAllocator<GLBuffer> buffers;
-        IDAllocator<ShaderProgram> programs;
+        void render_frame();
+
+      public:
+        template <typename... ARGS>
+        decltype(auto) create_pipeline(ARGS &&...args) requires std::constructible_from<Pipeline, ARGS...> {
+            return pipelines_.emplace(std::forward<ARGS>(args)...);
+        }
+        template <typename... ARGS>
+        decltype(auto) create_program(ARGS &&...args) requires std::constructible_from<ShaderProgram, ARGS...> {
+            return programs_.emplace(std::forward<ARGS>(args)...);
+        }
+        template <typename... ARGS>
+        decltype(auto) create_vao(ARGS &&...args) requires std::constructible_from<eng::GLVao, ARGS...> {
+            return vaos_.emplace(std::forward<ARGS>(args)...);
+        }
+        template <typename... ARGS>
+        decltype(auto) create_buffer(ARGS &&...args) requires std::constructible_from<eng::GLBuffer, ARGS...> {
+            return buffers_.emplace(std::forward<ARGS>(args)...);
+        }
+
+        auto &get_program(eng::ProgramID id) { return programs_.get(id); }
+        auto &get_vao(eng::VaoID id) { return vaos_.get(id); }
+        auto &get_buffer(eng::BufferID id) { return buffers_.get(id); }
+
+      private:
+        IDAllocator<Pipeline> pipelines_;
+        IDAllocator<ShaderProgram> programs_;
+        IDAllocator<eng::GLVao> vaos_;
+        IDAllocator<eng::GLBuffer> buffers_;
     };
 
 } // namespace eng

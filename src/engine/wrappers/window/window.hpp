@@ -39,9 +39,11 @@ class Window {
         window_height = h;
         adjust_glviewport();
     }
-    inline auto width() const { return window_height; }
-    inline auto height() const { return window_width; }
+    inline auto width() const { return window_width; }
+    inline auto height() const { return window_height; }
     inline auto aspect() const { return (float)(window_width) / (float)(window_height); }
+
+
 
   private:
     static void configure_glfw_and_hints(WINDOW_HINTS hints);

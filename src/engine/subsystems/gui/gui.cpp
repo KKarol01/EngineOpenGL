@@ -72,15 +72,15 @@ void GUI::draw() {
     ImGui::End();
 #endif
 
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::Button("Load...")) {}
-        if (ImGui::Button("RenderingPP graph")) { render_graph->open_widget(); }
-        if (ImGui::Button("Performance monitor")) {}
-        if (ImGui::Button("Gpu memory statistics")) {}
-        if (ImGui::Button("Window")) {}
-        if (ImGui::Button("HW info")) {}
-        ImGui::EndMainMenuBar();
-    }
+    //if (ImGui::BeginMainMenuBar()) {
+    //    if (ImGui::Button("Load...")) {}
+    //    if (ImGui::Button("RenderingPP graph")) { render_graph->open_widget(); }
+    //    if (ImGui::Button("Performance monitor")) {}
+    //    if (ImGui::Button("Gpu memory statistics")) {}
+    //    if (ImGui::Button("Window")) {}
+    //    if (ImGui::Button("HW info")) {}
+    //    ImGui::EndMainMenuBar();
+    //}
 
     if (render_graph->is_open()) render_graph->draw();
 

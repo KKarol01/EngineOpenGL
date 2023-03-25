@@ -26,7 +26,7 @@ class GUI {
     void remove_draw(uint32_t id) {
         if (!ui_draws.contains(id)) {
             char err[128];
-            sprintf(err, "Could not found ui draw function of specified id: %u.", id);
+            sprintf_s(err, "Could not found ui draw function of specified id: %u.", id);
             throw std::runtime_error{err};
         }
 

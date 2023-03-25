@@ -302,7 +302,11 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                 ImGui::ResetMouseDragDelta();
             }
             if (ImGui::Button("Add attribute", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
-                desc.attributes.emplace_back(desc.attributes.size() > 0 ? desc.attributes.back().idx + 1 : 0, 0, 0, 0);
+                desc.attributes.emplace_back(
+                    static_cast<eng::GL_ATTR_>(desc.attributes.size() > 0 ? desc.attributes.back().idx + 1 : 0),
+                    0,
+                    0,
+                    0);
             }
 
             if (ImGui::BeginTable("vao_attributes_table",
@@ -337,7 +341,7 @@ void RenderGraphGUI::draw_node_contents(Node *node) {
                         }
                         ImGui::SetCursorPos(c);
                         if (int input = attrib.idx; ImGui::InputInt("##id", &input, 0, 0)) {
-                            attrib.idx = fmaxf(0, input);
+                            attrib.idx = static_cast<eng::GL_ATTR_>(fmaxf(0, input));
                         }
                     }
 
