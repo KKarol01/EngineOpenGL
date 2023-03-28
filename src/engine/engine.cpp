@@ -1,12 +1,14 @@
 #include "engine.hpp"
 
 #include <iostream>
-#include <stdint>
+#include <cstdint>
 #include <string_view>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include "controller/controller.hpp"
+#include "controller/keyboard/keyboard.hpp"
 
 eng::Engine::~Engine() {
     window_->close();

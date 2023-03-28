@@ -5,11 +5,8 @@
 #include <numeric>
 
 #include "engine/engine.hpp"
-#include "engine/wrappers/include_all.hpp"
-#include "engine/wrappers/texture/texture.hpp"
 #include "engine/camera/camera.hpp"
 
-#include "engine/subsystems/gui/gui.hpp"
 #include "engine/controller/keyboard/keyboard.hpp"
 #include "engine/types/types.hpp"
 
@@ -33,42 +30,42 @@ const auto make_model = [](glm::vec3 t, glm::vec3 r, glm::vec3 s) -> glm::mat4 {
 };
 
 int main() {
-    //eng::Engine::initialise("window", 1920, 1080);
-    //auto &engine      = eng::Engine::instance();
-    //const auto window = engine.window();
-    //using namespace eng;
+    eng::Engine::initialise("window", 1920, 1080);
+    auto &engine      = eng::Engine::instance();
+    const auto window = engine.window();
+    using namespace eng;
 
-    //// auto rect_program    = engine.renderer_->programs.emplace("rect");
-    ///*auto gjk_test_cube  = imp.import_model("3dmodels/simple_shapes/cube.obj", aiProcess_Triangulate);
-    //auto gjk_test_plane = imp.import_model("3dmodels/simple_shapes/plane.obj", aiProcess_Triangulate);*/
+    // auto rect_program    = engine.renderer_->programs.emplace("rect");
+    /*auto gjk_test_cube  = imp.import_model("3dmodels/simple_shapes/cube.obj", aiProcess_Triangulate);
+     auto gjk_test_plane = imp.import_model("3dmodels/simple_shapes/plane.obj", aiProcess_Triangulate);*/
 
-    //engine.cam = new Camera{};
-    //Graph3D graph;
-    //Engine::instance().window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    //glClearColor(.25f, .25f, .25f, 0.f);
-    //while (!window->should_close()) {
-    //    float time = glfwGetTime();
-    //    glfwPollEvents();
+    engine.cam = new Camera{};
+    Graph3D graph;
+    Engine::instance().window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glClearColor(.25f, .25f, .25f, 0.f);
+    while (!window->should_close()) {
+        float time = glfwGetTime();
+        glfwPollEvents();
 
-    //    eng::Engine::instance().controller()->update();
-    //    engine.cam->update();
+        eng::Engine::instance().controller()->update();
+        engine.cam->update();
 
-    //    glEnable(GL_DEPTH_TEST);
-    //    glEnable(GL_BLEND);
-    //    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    //    glViewport(0, 0, (float)(window->width()) * .75f, (float)(window->height()) * .75f);
-    //    glBindFramebuffer(GL_FRAMEBUFFER, graph.fbo);
-    //    window->clear_framebuffer();
-    //    graph.render();
-    //    engine.renderer_->render_frame();
+        glViewport(0, 0, (float)(window->width()) * .75f, (float)(window->height()) * .75f);
+        glBindFramebuffer(GL_FRAMEBUFFER, graph.fbo);
+        window->clear_framebuffer();
+        graph.render();
+        engine.renderer_->render_frame();
 
-    //    window->adjust_glviewport();
-    //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //    window->clear_framebuffer();
-    //    eng::Engine::instance().gui_->draw();
-    //    window->swap_buffers();
-    //}
+        window->adjust_glviewport();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        window->clear_framebuffer();
+        eng::Engine::instance().gui_->draw();
+        window->swap_buffers();
+    }
 
     return 0;
 }

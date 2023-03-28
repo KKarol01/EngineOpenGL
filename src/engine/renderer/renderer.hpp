@@ -1,14 +1,24 @@
 #pragma once
 
+#include <cstdint>
+#include <vector>
+#include <concepts>
+
+#include "../types/idallocator.hpp"
+
+#include "typedefs.hpp"
 #include "../gpu/buffers/buffer.hpp"
+#include "../gpu/shaderprogram/shader.hpp"
 
 namespace eng {
-    typedef uint32_t BufferID;
-    typedef uint32_t VaoID;
-    typedef uint32_t TextureID;
-    typedef uint32_t FboID;
-    typedef uint32_t ProgramID;
-    typedef uint32_t PipelineID;
+
+
+    class ShaderProgram;
+    class GLBuffer;
+    class GLVao;
+} // namespace eng
+
+namespace eng {
 
     struct DrawCMD {
         DrawCMD();
@@ -141,15 +151,15 @@ namespace eng {
             return buffers_.emplace(std::forward<ARGS>(args)...);
         }
 
-        auto &get_program(eng::ProgramID id) { return programs_.get(id); }
-        auto &get_vao(eng::VaoID id) { return vaos_.get(id); }
-        auto &get_buffer(eng::BufferID id) { return buffers_.get(id); }
+        auto &get_program(ProgramID id) { return programs_.get(id); }
+        auto &get_vao(VaoID id) { return vaos_.get(id); }
+        auto &get_buffer(BufferID id) { return buffers_.get(id); }
 
       private:
         IDAllocator<Pipeline> pipelines_;
         IDAllocator<ShaderProgram> programs_;
-        IDAllocator<eng::GLVao> vaos_;
-        IDAllocator<eng::GLBuffer> buffers_;
+        IDAllocator<GLVao> vaos_;
+        IDAllocator<GLBuffer> buffers_;
     };
 
 } // namespace eng

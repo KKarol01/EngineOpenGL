@@ -4,7 +4,7 @@
 
 #include <imgui/imgui.h>
 
-#include "../../engine.hpp"
+#include "../engine.hpp"
 
 RenderGraphGUI::RenderGraphGUI() {
     buffers_names[0] = "empty";

@@ -37,7 +37,6 @@ class GUI {
   private:
     std::map<uint32_t, std::function<void()>> ui_draws;
     uint32_t ui_draws_count{0u};
-    ComponentGUI comp_gui;
     ImGuiIO *io{nullptr};
 
     std::unique_ptr<RenderGraphGUI> render_graph;

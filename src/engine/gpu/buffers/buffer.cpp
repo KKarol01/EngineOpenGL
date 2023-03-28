@@ -1,12 +1,12 @@
 #include "buffer.hpp"
 
-#include "../../engine/engine.hpp"
-#include "../../renderer/renderer.hpp"
-
 #include <stdexcept>
 #include <cassert>
 
 #include <glad/glad.h>
+
+#include "../../engine/engine.hpp"
+
 
 eng::GLBuffer::GLBuffer(uint32_t flags) {
     descriptor.flags = flags;
@@ -98,11 +98,11 @@ void eng::GLVao::configure_ebo(BufferID bufferid) {
 }
 
 void eng::GLVao::configure_attribute(GL_ATTR_ attribute_idx,
-                                      uint32_t binding_id,
-                                      uint32_t size,
-                                      uint32_t byte_offset,
-                                      GL_FORMAT_ format,
-                                      bool normalize) {
+                                     uint32_t binding_id,
+                                     uint32_t size,
+                                     uint32_t byte_offset,
+                                     GL_FORMAT_ format,
+                                     bool normalize) {
     descriptor.attributes.emplace_back(attribute_idx, binding_id, size, byte_offset, format, normalize);
     glEnableVertexArrayAttrib(descriptor.handle, static_cast<uint32_t>(attribute_idx));
     glVertexArrayAttribBinding(descriptor.handle, attribute_idx, binding_id);

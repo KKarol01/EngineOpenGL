@@ -10,6 +10,9 @@
 #include <imgui/imgui_stdlib.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+
+#include "../engine/engine.hpp"
 
 
 Graph3D::Graph3D() {
@@ -213,7 +216,7 @@ gl_Position = projection * view * model * vec4(p, 1.);})glsl";
     vert_sh.close();
     frag_sh.close();
     try {
-        ShaderProgram prog{"3dcalc"};
+        eng::ShaderProgram prog{"3dcalc"};
         eng::Engine::instance().renderer_->get_program(default_program) = std::move(prog);
     } catch (const std::exception &e) {
         std::cout << e.what();

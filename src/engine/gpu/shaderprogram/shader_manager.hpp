@@ -1,14 +1,18 @@
 #pragma once
 
-#include "shader.hpp"
 #include <map>
 #include <string>
 #include <optional>
 
-class ShaderManager {
-    std::map<std::string, ShaderProgram> shaders;
+#include "shader.hpp"
 
-  public:
-    ShaderProgram *get_shader(const std::string &name);
-    std::optional<const ShaderProgram *>get_shader(const std::string &name) const;
-};
+namespace eng {
+    class ShaderManager {
+      public:
+        ShaderProgram *get_shader(const std::string &name);
+        std::optional<const ShaderProgram *> get_shader(const std::string &name) const;
+
+      private:
+        std::map<std::string, ShaderProgram> shaders;
+    };
+} // namespace eng

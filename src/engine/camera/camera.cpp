@@ -1,7 +1,7 @@
 #include "camera.hpp"
 #include "../engine.hpp"
 #include "../controller/controller.hpp"
-#include "../wrappers/window/window.hpp"
+#include "../window/window.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <iostream>
 #include <GLFW/glfw3.h>

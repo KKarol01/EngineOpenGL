@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "../engine/types/types.hpp"
+#include "../engine/renderer/renderer.hpp"
 
 class Graph3D {
   public:

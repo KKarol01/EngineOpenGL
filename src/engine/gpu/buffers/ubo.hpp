@@ -2,12 +2,16 @@
 
 #include <variant>
 #include <vector>
-#include <glm/glm.hpp>
 #include <initializer_list>
 #include <unordered_map>
 #include <cstdint>
 #include <cassert>
-#include "../../wrappers/buffer/buffer.hpp"
+
+#include <glm/glm.hpp>
+
+#include "buffer.hpp"
+#include "../../renderer/renderer.hpp"
+
 namespace eng {
     class UBO {
         using Types    = std::variant<float, int, glm::vec4, glm::mat4>;

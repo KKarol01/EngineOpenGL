@@ -13,101 +13,103 @@
 
 static unsigned compile_shader(const std::string &path, unsigned type);
 
-ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name} {
-    // auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto
-    // &entry) {
-    //                  auto fname  = entry.path().filename().string();
-    //                  auto substr = fname.substr(0, fname.rfind('.'));
-    //                  return substr == file_name;
-    //              })
-    //              | std::views::transform([](const auto &entry) { return entry.path().string(); });
+namespace eng {
+    ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name} {
+        // auto files = std::filesystem::directory_iterator{SHADERS_DIR} | std::views::filter([&file_name](const auto
+        // &entry) {
+        //                  auto fname  = entry.path().filename().string();
+        //                  auto substr = fname.substr(0, fname.rfind('.'));
+        //                  return substr == file_name;
+        //              })
+        //              | std::views::transform([](const auto &entry) { return entry.path().string(); });
 
-    std::vector<std::string> files;
+        std::vector<std::string> files;
 
-    for (auto i : std::filesystem::directory_iterator{SHADERS_DIR}) {
-        auto file     = i.path().string();
-        auto filename = i.path().filename().string();
-        auto substr   = filename.substr(0, filename.rfind('.'));
+        for (auto i : std::filesystem::directory_iterator{SHADERS_DIR}) {
+            auto file     = i.path().string();
+            auto filename = i.path().filename().string();
+            auto substr   = filename.substr(0, filename.rfind('.'));
 
-        if (substr != file_name) { continue; }
+            if (substr != file_name) { continue; }
 
-        files.push_back(file);
-    }
+            files.push_back(file);
+        }
 
-    unsigned present_shaders = 0;
-    using enum SHADER_TYPE;
-    for (const auto &file : files) {
-        const auto ext = file.substr(file.rfind('.') + 1);
-        if (ext == "vert") {
-            present_shaders |= (unsigned)VERTEX;
-        } else if (ext == "frag") {
-            present_shaders |= (unsigned)FRAGMENT;
-        } else if (ext == "comp") {
-            present_shaders |= (unsigned)COMPUTE;
-        } else if (ext == "tesc") {
-            present_shaders |= (unsigned)TESS_C;
-        } else if (ext == "tese") {
-            present_shaders |= (unsigned)TESS_E;
+        unsigned present_shaders = 0;
+        using enum SHADER_TYPE;
+        for (const auto &file : files) {
+            const auto ext = file.substr(file.rfind('.') + 1);
+            if (ext == "vert") {
+                present_shaders |= (unsigned)VERTEX;
+            } else if (ext == "frag") {
+                present_shaders |= (unsigned)FRAGMENT;
+            } else if (ext == "comp") {
+                present_shaders |= (unsigned)COMPUTE;
+            } else if (ext == "tesc") {
+                present_shaders |= (unsigned)TESS_C;
+            } else if (ext == "tese") {
+                present_shaders |= (unsigned)TESS_E;
+            }
+        }
+
+        program_id = glCreateProgram();
+
+        const auto link_program = [this](const std::vector<unsigned> &ids) -> void {
+            for (const auto &h : ids) { glAttachShader(program_id, h); }
+            glLinkProgram(program_id);
+            for (const auto &h : ids) { glDeleteShader(h); }
+        };
+
+        if (present_shaders & ((unsigned)VERTEX | (unsigned)FRAGMENT)) {
+            std::vector<uint32_t> shader_handles{
+                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".vert"), GL_VERTEX_SHADER),
+                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".frag"), GL_FRAGMENT_SHADER)};
+
+            if (present_shaders & ((unsigned)TESS_C | (unsigned)TESS_E)) {
+                shader_handles.push_back(
+                    compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tesc"), GL_TESS_CONTROL_SHADER));
+                shader_handles.push_back(compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tese"),
+                                                        GL_TESS_EVALUATION_SHADER));
+            }
+
+            link_program(shader_handles);
+        } else if (present_shaders & (uint32_t)(COMPUTE)) {
+            link_program(
+                {compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".comp"), GL_COMPUTE_SHADER)});
         }
     }
 
-    program_id = glCreateProgram();
+    ShaderProgram::ShaderProgram(const ShaderProgram &s) noexcept { *this = s; }
 
-    const auto link_program = [this](const std::vector<unsigned> &ids) -> void {
-        for (const auto &h : ids) { glAttachShader(program_id, h); }
-        glLinkProgram(program_id);
-        for (const auto &h : ids) { glDeleteShader(h); }
-    };
+    ShaderProgram::ShaderProgram(ShaderProgram &&s) noexcept { *this = std::move(s); }
 
-    if (present_shaders & ((unsigned)VERTEX | (unsigned)FRAGMENT)) {
-        std::vector<uint32_t> shader_handles{
-            compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".vert"), GL_VERTEX_SHADER),
-            compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".frag"), GL_FRAGMENT_SHADER)};
-
-        if (present_shaders & ((unsigned)TESS_C | (unsigned)TESS_E)) {
-            shader_handles.push_back(
-                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tesc"), GL_TESS_CONTROL_SHADER));
-            shader_handles.push_back(
-                compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".tese"), GL_TESS_EVALUATION_SHADER));
-        }
-
-        link_program(shader_handles);
-    } else if (present_shaders & (uint32_t)(COMPUTE)) {
-        link_program({compile_shader(std::string{SHADERS_DIR}.append(file_name).append(".comp"), GL_COMPUTE_SHADER)});
+    ShaderProgram &ShaderProgram::operator=(const ShaderProgram &s) noexcept {
+        program_id = s.program_id;
+        file_name  = s.file_name;
+        return *this;
     }
-}
 
+    ShaderProgram &ShaderProgram::operator=(ShaderProgram &&s) noexcept {
+        program_id   = s.program_id;
+        s.program_id = 0;
+        file_name    = std::move(s.file_name);
+        return *this;
+    }
 
-ShaderProgram::ShaderProgram(const ShaderProgram &s) noexcept { *this = s; }
+    ShaderProgram::~ShaderProgram() { glDeleteProgram(program_id); }
 
-ShaderProgram::ShaderProgram(ShaderProgram &&s) noexcept { *this = std::move(s); }
+    void ShaderProgram::use() { glUseProgram(program_id); }
 
-ShaderProgram &ShaderProgram::operator=(const ShaderProgram &s) noexcept {
-    program_id = s.program_id;
-    file_name  = s.file_name;
-    return *this;
-}
+    void ShaderProgram::recompile() {
 
-ShaderProgram &ShaderProgram::operator=(ShaderProgram &&s) noexcept {
-    program_id   = s.program_id;
-    s.program_id = 0;
-    file_name    = std::move(s.file_name);
-    return *this;
-}
-
-ShaderProgram::~ShaderProgram() { glDeleteProgram(program_id); }
-
-void ShaderProgram::use() { glUseProgram(program_id); }
-
-void ShaderProgram::recompile() {
-
-    glFinish();
-    glUseProgram(0);
-    try {
-        auto prog = ShaderProgram{file_name};
-        *this     = std::move(prog);
-    } catch (std::runtime_error &error) { std::cout << error.what(); }
-}
+        glFinish();
+        glUseProgram(0);
+        try {
+            auto prog = ShaderProgram{file_name};
+            *this     = std::move(prog);
+        } catch (std::runtime_error &error) { std::cout << error.what(); }
+    }
+} // namespace eng
 
 static unsigned compile_shader(const std::string &path, unsigned type) {
     uint32_t shader_id;

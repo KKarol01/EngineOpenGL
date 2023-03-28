@@ -26,13 +26,6 @@ add_executable(opengl_engine
 "engine/gpu/texture/texture.cpp"
 "engine/gui/gui.cpp"
 "engine/gui/render_graph.cpp"
-"engine/legacy/model/animation.cpp"
-"engine/legacy/model/importers.cpp"
-"engine/legacy/model/model.cpp"
-"engine/legacy/physics/gjk.cpp"
-"engine/legacy/subsystems/ecs/ecs.cpp"
-"engine/legacy/subsystems/ecs/ecs.d.cpp"
-"engine/legacy/subsystems/renderer/systems.cpp"
 "engine/renderer/renderer.cpp"
 "engine/window/window.cpp"
 )

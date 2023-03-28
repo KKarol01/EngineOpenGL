@@ -5,9 +5,7 @@
 
 #include <imgui/include_me.hpp>
 
-#include "../../engine.hpp"
-#include "../ecs/ecs.hpp"
-#include "../../wrappers/window/window.hpp"
+#include "../engine.hpp"
 #include "render_graph.hpp"
 
 ImFont *font1;

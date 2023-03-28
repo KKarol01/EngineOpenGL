@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <initializer_list>
 #include <cstdint>
@@ -10,7 +10,7 @@
 #include <cassert>
 
 #include "../../types/types.hpp"
-#include "../../renderer/renderer.hpp"
+#include "../../renderer/typedefs.hpp"
 
 namespace eng {
     struct GLBufferDescriptor {
@@ -87,9 +87,9 @@ namespace eng {
     //};
 
     struct GLVaoBufferBinding {
-        uint32_t binding{0};
-        BufferID buffer{0};
-        uint32_t stride{0}, offset{0};
+        uint32_t binding{0u};
+        BufferID buffer{0u};
+        uint32_t stride{0u}, offset{0u};
     };
 
     struct GLVaoDescriptor {
