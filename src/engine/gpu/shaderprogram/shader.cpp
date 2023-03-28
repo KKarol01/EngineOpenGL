@@ -77,6 +77,7 @@ ShaderProgram::ShaderProgram(const std::string &file_name) : file_name{file_name
     }
 }
 
+
 ShaderProgram::ShaderProgram(const ShaderProgram &s) noexcept { *this = s; }
 
 ShaderProgram::ShaderProgram(ShaderProgram &&s) noexcept { *this = std::move(s); }

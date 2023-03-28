@@ -1,28 +1,14 @@
 #pragma once
 
-/*
-*
-* dla ognia:
-* vao, shader
-* narusyj ogien do 3 tekstur
-*
-*
-        pp {
-        buffer, drawing_cmd
-
-                s{
-                        fboid, bindings, vao, program
-                }
-        }
-*/
-
-#include "../wrappers/shader/shader.hpp"
-#include "../wrappers/buffer/buffer.hpp"
-#include "../allocators/idallocator.hpp"
-#include "../types/types.hpp"
-#include "../model/importers.hpp"
+#include "../gpu/buffers/buffer.hpp"
 
 namespace eng {
+    typedef uint32_t BufferID;
+    typedef uint32_t VaoID;
+    typedef uint32_t TextureID;
+    typedef uint32_t FboID;
+    typedef uint32_t ProgramID;
+    typedef uint32_t PipelineID;
 
     struct DrawCMD {
         DrawCMD();

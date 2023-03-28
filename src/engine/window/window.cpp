@@ -1,7 +1,5 @@
 #include "window.hpp"
 
-#include "../../engine/engine.hpp"
-
 #include <stdexcept>
 
 #include <glad/glad.h>

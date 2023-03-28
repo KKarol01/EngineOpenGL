@@ -54,7 +54,7 @@ struct ShaderStorage {
 class ShaderProgram {
   public:
     ShaderProgram() = default;
-    ShaderProgram(const std::string &file_name);
+    explicit ShaderProgram(const std::string &file_name);
 
     ShaderProgram(const ShaderProgram &) noexcept;
     ShaderProgram(ShaderProgram &&) noexcept;

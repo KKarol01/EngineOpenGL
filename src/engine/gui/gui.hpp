@@ -7,7 +7,6 @@
 #include <cstring>
 #include <memory>
 
-#include "ecs_comps.hpp"
 
 struct ImGuiIO;
 struct RenderGraphGUI;

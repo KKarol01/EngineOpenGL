@@ -9,8 +9,8 @@
 #include <variant>
 #include <cassert>
 
-#include "../../signal/signal.hpp"
 #include "../../types/types.hpp"
+#include "../../renderer/renderer.hpp"
 
 namespace eng {
     struct GLBufferDescriptor {
