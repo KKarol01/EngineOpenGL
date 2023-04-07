@@ -11,8 +11,6 @@
 #include "../gpu/shaderprogram/shader.hpp"
 
 namespace eng {
-
-
     class ShaderProgram;
     class GLBuffer;
     class GLVao;
@@ -108,8 +106,8 @@ namespace eng {
     };
 
     struct PipelineStage {
-        ProgramID program{0};
-        VaoID vao{0};
+        SharedResource<ShaderProgram> program;
+        SharedResource<eng::GLVao> vao;
         std::shared_ptr<DrawCMD> draw_cmd;
         std::vector<std::shared_ptr<BufferBinder>> bufferbinders;
         std::function<void()> on_stage_start, on_stage_end;

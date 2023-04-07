@@ -14,16 +14,15 @@
 
 #include "../engine/engine.hpp"
 
-
 Graph3D::Graph3D() {
     auto &engine = eng::Engine::instance();
     auto window  = engine.window();
 
     default_program = engine.renderer_->create_program();
     make_program();
-    auto vao        = engine.renderer_->create_vao();
-    auto vbo        = engine.renderer_->create_buffer();
-    auto ebo        = engine.renderer_->create_buffer();
+    auto vao = engine.renderer_->create_vao();
+    auto vbo = engine.renderer_->create_buffer();
+    auto ebo = engine.renderer_->create_buffer();
 
     {
         vao->configure_binding(0, vbo, 8, 0);
@@ -43,8 +42,8 @@ Graph3D::Graph3D() {
     }
 
     auto &renderer      = *engine.renderer_;
-    auto pp             = renderer.create_pipeline();
-    auto &pps1          = pp->create_stage();
+    pipeline             = renderer.create_pipeline();
+    auto &pps1          = pipeline->create_stage();
     pps1.program        = default_program;
     pps1.vao            = vao;
     pps1.draw_cmd       = std::make_shared<eng::DrawElementsInstancedCMD>(vbo, 1000000);
@@ -54,6 +53,13 @@ Graph3D::Graph3D() {
         p.set("view", engine.cam->view_matrix());
         p.set("projection", engine.cam->perspective_matrix());
         p.set("TIME", (float)glfwGetTime());
+        constants[0].value = std::to_string((float)glfwGetTime());
+
+        if (wireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        } else {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
     };
 
     glCreateFramebuffers(1, &fbo);
@@ -92,6 +98,7 @@ void Graph3D::draw_gui() {
             if (ImGui::Button("Open project")) {}
             if (ImGui::Button("Save project")) {}
             if (ImGui::Button("Save project as")) {}
+            ImGui::Checkbox("Wireframe mode", &wireframe);
             ImGui::EndMenuBar();
         }
 
@@ -103,29 +110,154 @@ void Graph3D::draw_gui() {
 
         ImGui::SameLine();
 
-        if (ImGui::BeginChild("##equation", ImVec2(0, 0), true)) {
+        if (ImGui::BeginChild("##equation", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar)) {
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if (ImGui::BeginCombo("##Add...", "Add...", ImGuiComboFlags_NoArrowButton)) {
-                if (ImGui::Selectable("Function")) { printf("aa"); }
-                if (ImGui::Selectable("Constant")) { printf("bb"); }
-                if (ImGui::Selectable("Slider")) { printf("cc"); }
+            if (ImGui::BeginCombo("##Add...", "Add...", ImGuiComboFlags_NoArrowButton | ImGuiComboFlags_HeightLarge)) {
+                if (ImGui::Selectable("Constant")) { add_constant(); }
+                if (ImGui::Selectable("Slider")) { add_slider(); }
+                if (ImGui::Selectable("Function")) { add_function(); }
                 ImGui::EndCombo();
             }
 
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
+            ImGui::Text("Constants:", "");
+            ImGui::Spacing();
 
-            if (ImGui::BeginListBox("##equations", ImVec2(ImGui::GetContentRegionAvail()))) {
-                ImGui::PopStyleColor();
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, {5, 5});
+            if (ImGui::BeginTable("const_table",
+                                  1,
+                                  ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                  ImVec2{ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionMax().y * .3f})) {
+
+                int const_to_delete = -1;
+                for (int i = 0; i < constants.size(); ++i) {
+                    ImGui::PushID(i + 1);
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+
+                    if (const_id != i) {
+                        ImGui::Text("%s=%s", constants[i].name.c_str(), constants[i].value.c_str());
+
+                        if (ImGui::BeginPopupContextItem("delete constant")) {
+                            if (ImGui::Button("Delete?")) { const_to_delete = i; }
+
+                            ImGui::EndPopup();
+                        }
+
+                    } else {
+                        if (ImGui::InputText("##new_const_name_val", &func_str, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            constants[i].name
+                                = std::string{func_str.begin(), func_str.begin() + func_str.find_first_of('=')};
+                            constants[i].value
+                                = std::string{func_str.begin() + func_str.find_first_of('=') + 1, func_str.end()};
+                            const_id = -1;
+                            make_program();
+                        }
+                    }
+
+                    if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered() && const_id == -1) {
+                        const_id = i;
+                        func_str = constants[i].name + "=" + constants[i].value;
+                    }
+
+                    ImGui::PopID();
+                }
+                if (const_to_delete > -1) { constants.erase(constants.begin() + const_to_delete); }
+
+                ImGui::EndTable();
+            }
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::Text("Sliders:");
+            ImGui::Spacing();
+            if (ImGui::BeginTable("slider_table",
+                                  3,
+                                  ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                  ImVec2{ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionMax().y * .3f})) {
+
+                int slider_to_delete = -1;
+                for (int i = 0; i < sliders.size(); ++i) {
+                    ImGui::PushID(i + 1);
+                    auto &s = sliders[i];
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::SetNextItemWidth(10.f);
+                    ImGui::Text("From: ", "");
+                    ImGui::SameLine();
+                    ImGui::InputFloat("##from", &s.from);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::SameLine();
+                    ImGui::Text("To: ", "");
+                    ImGui::SameLine();
+                    ImGui::InputFloat("##to", &s.to);
+                    ImGui::SameLine();
+                    ImGui::TableSetColumnIndex(2);
+
+                    if (slider_id != i) {
+                        if (ImGui::SliderFloat(s.name.c_str(), &s.value, s.from, s.to)) { make_program(); }
+                        if (ImGui::BeginPopupContextItem("delete_slider")) {
+                            if (ImGui::Button("Delete?")) { slider_to_delete = i; }
+                            ImGui::EndPopup();
+                        }
+                    } else {
+                        ImGui::SetKeyboardFocusHere(1);
+                        if (ImGui::InputText("##slider_new_name", &func_str, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            s.name    = func_str;
+                            slider_id = -1;
+                            make_program();
+                        }
+                    }
+
+                    if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered() && slider_id == -1) {
+                        slider_id = i;
+                        func_str  = s.name;
+                    }
+                    ImGui::PopID();
+                }
+
+                if (slider_to_delete > -1) { sliders.erase(sliders.begin() + slider_to_delete); }
+                ImGui::EndTable();
+            }
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+            ImGui::Text("Functions:", "");
+            ImGui::Spacing();
+
+            if (ImGui::BeginTable("func_table",
+                                  1,
+                                  ImGuiTableFlags_BordersH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                  ImVec2{ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionMax().y * .3f})) {
+
+                int func_to_delete = -1;
                 for (int i = 0; i < functions.size(); ++i) {
                     ImGui::PushID(i + 1);
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
                     ImGui::BeginGroup();
 
-                    // if (ImGui::IsItemActive() && ImGui::IsItemHovered() == false) {
-                    //     auto dir = ImGui::GetMouseDragDelta().y < 0.f ? -1 : 1;
-                    //     printf("%i", dir);
-                    //     // ImGui::ResetMouseDragDelta();
-                    // }
-                    ImGui::Text((functions[i].name + "(x,z)=").c_str());
+                    if (func_id != i) {
+                        ImGui::Text((functions[i].name + "(x,z)=").c_str());
+                        if (ImGui::BeginPopupContextItem("delete constant")) {
+                            if (ImGui::Button("Delete?")) { func_to_delete = i; }
+
+                            ImGui::EndPopup();
+                        }
+
+                    } else {
+                        if (ImGui::InputText("##new_func_name", &func_str, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            functions[i].name = func_str;
+                            func_id           = -1;
+                            make_program();
+                        }
+                    }
+
+                    if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered() && func_id == -1) {
+                        func_id  = i;
+                        func_str = functions[i].name;
+                    }
+
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     if (ImGui::InputText(("##" + functions[i].name).c_str(), &functions[i].equation)) {
@@ -136,18 +268,17 @@ void Graph3D::draw_gui() {
                         func.append("(x, z){return ");
                         func.append(functions[i].equation);
                         func.append(";}");
-
-                        printf("%s\n", func.c_str());
-
                         make_program();
                     }
                     ImGui::EndGroup();
 
                     ImGui::PopID();
                 }
-                ImGui::EndListBox();
+                if (func_to_delete > -1) { functions.erase(functions.begin() + func_to_delete); }
+                ImGui::EndTable();
             }
         }
+        ImGui::PopStyleVar();
         ImGui::EndChild();
 
         ImGui::SetCursorPos(cpos);
@@ -172,9 +303,24 @@ void Graph3D::make_program() {
     vert_sh << "uniform mat4 projection;\n";
     vert_sh << "uniform float TIME;\n";
 
-    for (const auto &f : functions) {
+    for (auto f = constants.crbegin(); f != constants.crend(); f++) {
+        if (f->name == "TIME") { break; }
+
         std::stringstream ss;
-        ss << "float " << f.name << "(float x,float z){return " << f.equation << ";}\n";
+        ss << "const float " << f->name << "=" << f->value << ";\n";
+        vert_sh << ss.str();
+    }
+    for (auto f = sliders.crbegin(); f != sliders.crend(); f++) {
+        if (f->name == "TIME") { break; }
+
+        std::stringstream ss;
+        ss << "const float " << f->name << "=" << f->value << ";\n";
+        vert_sh << ss.str();
+    }
+
+    for (auto f = functions.crbegin(); f != functions.crend(); f++) {
+        std::stringstream ss;
+        ss << "float " << f->name << "(float x,float z){return " << f->equation << ";}\n";
         vert_sh << ss.str();
     }
 
@@ -218,7 +364,21 @@ gl_Position = projection * view * model * vec4(p, 1.);})glsl";
     try {
         eng::ShaderProgram prog{"3dcalc"};
         eng::Engine::instance().renderer_->get_program(default_program) = std::move(prog);
-    } catch (const std::exception &e) {
-        std::cout << e.what();
-    }
+    } catch (const std::exception &e) { std::cout << e.what(); }
 }
+
+void Graph3D::add_constant() { constants.emplace_back("x", "0.f"); }
+
+void Graph3D::add_function() {
+    char name = 'f';
+    for (auto f = functions.rbegin(); f != functions.rend(); f++) {
+        if (f->name.length() == 1) {
+            name = f->name[0];
+            break;
+        }
+    }
+    name++;
+    functions.emplace_back(std::string{name}, "");
+}
+
+void Graph3D::add_slider() { sliders.emplace_back("slider", 0.f); }

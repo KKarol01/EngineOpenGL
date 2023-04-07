@@ -23,11 +23,11 @@ GUI::GUI() {
 
     render_graph = std::make_unique<RenderGraphGUI>();
 
-    // ImFontConfig fcfg;
-    // fcfg.OversampleH         = 2;
-    // fcfg.OversampleV         = 2;
-    // font1                    = ImGui::GetIO().Fonts->AddFontFromFileTTF("consola.ttf", 14, &fcfg);
-    // ImGui::GetIO().Fonts->Build();
+    ImFontConfig fcfg;
+    fcfg.OversampleH = 2;
+    fcfg.OversampleV = 2;
+    font1            = ImGui::GetIO().Fonts->AddFontFromFileTTF("calibri.ttf", 18, &fcfg);
+    io->Fonts->Build();
 
     io->IniFilename         = "imgui.ini";
     io->WantSaveIniSettings = true;
@@ -46,10 +46,9 @@ void GUI::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
-    // ImGui::PushFont(font1);
-
+    ImGui::PushFont(font1);
     for (const auto &[_, draw] : ui_draws) { draw(); }
-
+    ImGui::PopFont();
 #if 0 == 1
     //   auto s = Engine::instance().sceneinstance().();
     auto ww = eng::Engine::instance().window()->width();
@@ -70,15 +69,15 @@ void GUI::draw() {
     ImGui::End();
 #endif
 
-    //if (ImGui::BeginMainMenuBar()) {
-    //    if (ImGui::Button("Load...")) {}
-    //    if (ImGui::Button("RenderingPP graph")) { render_graph->open_widget(); }
-    //    if (ImGui::Button("Performance monitor")) {}
-    //    if (ImGui::Button("Gpu memory statistics")) {}
-    //    if (ImGui::Button("Window")) {}
-    //    if (ImGui::Button("HW info")) {}
-    //    ImGui::EndMainMenuBar();
-    //}
+    // if (ImGui::BeginMainMenuBar()) {
+    //     if (ImGui::Button("Load...")) {}
+    //     if (ImGui::Button("RenderingPP graph")) { render_graph->open_widget(); }
+    //     if (ImGui::Button("Performance monitor")) {}
+    //     if (ImGui::Button("Gpu memory statistics")) {}
+    //     if (ImGui::Button("Window")) {}
+    //     if (ImGui::Button("HW info")) {}
+    //     ImGui::EndMainMenuBar();
+    // }
 
     if (render_graph->is_open()) render_graph->draw();
 

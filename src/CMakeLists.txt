@@ -28,7 +28,7 @@ add_executable(opengl_engine
 "engine/gui/render_graph.cpp"
 "engine/renderer/renderer.cpp"
 "engine/window/window.cpp"
-)
+ "engine/gpu/framebuffer/framebuffer.cpp")
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 
 target_link_directories(opengl_engine PRIVATE "3rdparty/lib")
