@@ -18,17 +18,13 @@ namespace eng {
         explicit GLBufferDescriptor(uint32_t flags) : flags{flags} {}
         bool operator==(const GLBufferDescriptor &other) const noexcept { return handle == other.handle; }
 
-        BufferID id{gid++};
         std::uint32_t handle{0u}, flags{0u};
         std::size_t size{0u}, capacity{0u};
-
-      private:
-        static inline BufferID gid{1u};
     };
 
-    struct GLBuffer {
+    struct GLBuffer : public RendererResource {
         GLBuffer() = default;
-        GLBuffer(GLBuffer &&) noexcept;
+        explicit GLBuffer(GLBuffer &&) noexcept;
         GLBuffer &operator=(GLBuffer &&) noexcept;
         ~GLBuffer();
 
@@ -38,6 +34,7 @@ namespace eng {
         GLBuffer(std::vector<T> &data, uint32_t flags) : GLBuffer(data.data(), data.size() * sizeof(T), flags) {}
 
         void push_data(const void *data, size_t size_bytes);
+        void clear_invalidate();
 
         GLBufferDescriptor descriptor;
         Signal<const GLBufferDescriptor &> on_handle_change;
@@ -88,7 +85,7 @@ namespace eng {
 
     struct GLVaoBufferBinding {
         uint32_t binding{0u};
-        BufferID buffer{0u};
+        GLBufferID buffer{0u};
         uint32_t stride{0u}, offset{0u};
     };
 
@@ -117,10 +114,10 @@ namespace eng {
         uint32_t handle{0u};
         std::vector<GLVaoAttributeDescriptor> attributes;
         std::vector<GLVaoBufferBinding> buff_bindings;
-        BufferID ebo_buffer_id{0u};
+        GLBufferID ebo_buffer_id{0u};
     };
 
-    struct GLVao {
+    struct GLVao : public RendererResource {
         GLVao();
         GLVao(GLVao &&) noexcept;
         GLVao &operator=(GLVao &&) noexcept;
@@ -128,15 +125,15 @@ namespace eng {
 
         void bind() const;
 
-        void configure_binding(uint32_t id, BufferID bufferid, size_t stride, size_t offset = 0u);
-        void configure_ebo(BufferID bufferid);
+        void configure_binding(uint32_t id, GLBufferID bufferid, size_t stride, size_t offset = 0u);
+        void configure_ebo(GLBufferID bufferid);
 
         void configure_attribute(GL_ATTR_ attribute_idx,
-                                  uint32_t binding_id,
-                                  uint32_t size,
-                                  uint32_t byte_offset,
-                                  GL_FORMAT_ format = GL_FORMAT_FLOAT,
-                                  bool normalize    = false);
+                                 uint32_t binding_id,
+                                 uint32_t size,
+                                 uint32_t byte_offset,
+                                 GL_FORMAT_ format = GL_FORMAT_FLOAT,
+                                 bool normalize    = false);
 
         GLVaoDescriptor descriptor;
     };

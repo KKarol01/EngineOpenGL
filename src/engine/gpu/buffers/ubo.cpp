@@ -39,20 +39,18 @@ eng::UBO::UBO(InitList init, const std::vector<const void *> &data) {
 }
 
 void eng::UBO::bind(uint32_t binding_idx) const {
-    glBindBufferBase(GL_UNIFORM_BUFFER,
-                     binding_idx,
-                     eng::Engine::instance().renderer_->get_buffer(storage_buffer_id).descriptor.handle);
+    glBindBufferBase(GL_UNIFORM_BUFFER, binding_idx, storage_buffer->descriptor.handle);
 }
 
 void eng::UBO::create_storage(size_t size, uint32_t flags) {
-    storage_buffer_id = eng::Engine::instance().renderer_->create_buffer(flags);
+    //storage_buffer = eng::Engine::instance().renderer_->create_buffer(GLBuffer{flags});
 
-    auto &buff = eng::Engine::instance().renderer_->get_buffer(storage_buffer_id);
+    auto &buff = *storage_buffer;
     buff.push_data(nullptr, size);
     map_buffer(GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 }
 
-eng::GLBuffer &eng::UBO::get_storage() { return eng::Engine::instance().renderer_->get_buffer(storage_buffer_id); }
+eng::GLBuffer &eng::UBO::get_storage() { return *storage_buffer; }
 
 void eng::UBO::map_buffer(uint32_t flags) {
     ptr = glMapNamedBufferRange(get_storage().descriptor.handle, 0, total_size, flags);

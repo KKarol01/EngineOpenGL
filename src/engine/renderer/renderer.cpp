@@ -4,94 +4,77 @@
 
 #include "../engine.hpp"
 
-void eng::Renderer::render_frame() {
-    pipelines_.for_each([](Pipeline &p) { p.render(); });
+eng::Renderer::Renderer() {
+    glCreateVertexArrays(1, &vao);
+
+    glVertexArrayAttribBinding(vao, 0, 0);
+    glVertexArrayAttribFormat(vao,0,3,GL_FLOAT, GL_FALSE, 0);
+    glEnableVertexArrayAttrib(vao, 0);
 }
 
-// eng::Pipeline::Pipeline(ModelPipelineAdapter adapter) : Pipeline() { this->adapter = adapter; }
+void eng::MeshPass::refresh(Renderer *r) {
+    needs_refresh = false;
 
-void eng::Pipeline::render() {
-    auto &r = *eng::Engine::instance().renderer_.get();
+    std::unordered_map<uint32_t, uint32_t> po_bid;
 
-    for (auto &stage : stages_) {
-        if (stage.program != 0) r.get_program(stage.program).use();
-        if (stage.vao != 0) r.get_vao(stage.vao).bind();
-        for (auto &b : stage.bufferbinders) b->bind();
+    while (unbatched.empty() == false) {
+        const auto rh  = *unbatched.begin();
+        const auto &ro = r->get_render_object(rh);
+        unbatched.erase(unbatched.begin());
 
-        if (stage.on_stage_start) stage.on_stage_start();
-        stage.draw_cmd->draw();
-        if (stage.on_stage_end) stage.on_stage_end();
+        PassObject po;
+        po.material   = PassMaterial{r->get_material(ro.material)->original->passes.at(PipelinePass::Forward)};
+        po.mesh       = ro.mesh;
+        po.original   = rh;
+        po.custom_key = objects.size() + 1;
+        objects.push_back(po);
+        po_bid[po.custom_key] = assign_batch_id(ro);
     }
+
+    flatbatches.clear();
+    indirectbatches.clear();
+    multibatches.clear();
+
+    for (const auto &po : objects) {
+        RenderBatch rb;
+        rb.id     = po_bid.at(po.custom_key);
+        rb.object = Handle<PassObject>{po.custom_key};
+        flatbatches.push_back(rb);
+    }
+
+    std::sort(flatbatches.begin(), flatbatches.end(), [](auto &&a, auto &&b) { return a.id < b.id; });
+
+    PassMaterial prev_mat;
+    uint32_t prev_handle;
+    for (auto i = 0ull; i < flatbatches.size(); ++i) {
+        auto material = objects[flatbatches[i].object.handle - 1].material;
+        auto mesh     = objects[flatbatches[i].object.handle - 1].mesh;
+
+        if (i == 0ull || (material.prog != prev_mat.prog || prev_handle != mesh.handle)) {
+            indirectbatches.emplace_back();
+            indirectbatches.back().first    = i;
+            indirectbatches.back().count    = 1;
+            indirectbatches.back().material = material;
+            indirectbatches.back().mesh     = mesh;
+            prev_mat.prog                   = material.prog;
+            prev_handle                     = mesh.handle;
+            continue;
+        }
+
+        indirectbatches.back().count++;
+    }
+
+    multibatches.emplace_back(0, indirectbatches.size());
 }
 
-// void eng::Pipeline::add_model(const Model &m) {
-//     auto &r = *Engine::instance().renderer_.get();
-//
-//     auto vbo_data = adapter.convert(m);
-//
-//     on_model_add.emit(m);
-//     r.buffers[vbo].push_data(vbo_data.data(), vbo_data.size() * sizeof(float));
-//     r.buffers[ebo].push_data(m.indices.data(), m.indices.size() * sizeof(unsigned));
-// }
+uint32_t eng::MeshPass::assign_batch_id(const RenderObject &ro) {
+    const auto p  = std::make_pair(ro.mesh.handle, ro.material.handle);
+    const auto it = std::find(batch_ids.cbegin(), batch_ids.cend(), p);
 
-eng::DrawElementsCMD::DrawElementsCMD(BufferID buffer) {
-    auto &r = *Engine::instance().renderer_.get();
-    count   = r.get_buffer(buffer).descriptor.size / sizeof(uint32_t);
-}
+    if (it == batch_ids.cend()) {
+        batch_ids.push_back(p);
+        return batch_ids.size();
+    }
 
-void eng::DrawElementsCMD::draw() { glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, 0); }
-
-void eng::BufferBasedBinder::bind() {
-    glBindBufferBase(gl_target, base, Engine::instance().renderer_->get_buffer(buffer).descriptor.handle);
-}
-
-// eng::ModelPipelineAdapter::ModelPipelineAdapter(std::initializer_list<ATTRIBUTES> vbo_layout) : layout{vbo_layout} {
-//     assert(vbo_layout.size() > 0);
-//
-//     for (auto l : vbo_layout) {
-//         switch (l) {
-//         case eng::ModelPipelineAdapter::ATTR_POSITION:
-//         case eng::ModelPipelineAdapter::ATTR_NORMAL: stride += 3; break;
-//         case eng::ModelPipelineAdapter::ATTR_TEXCOORDS: stride += 2;
-//         default: throw std::runtime_error{"Wrong attribute"};
-//         }
-//     }
-// }
-
-// std::vector<float> eng::ModelPipelineAdapter::convert(const Model &model) {
-//
-//     auto add_position = std::find(layout.begin(), layout.end(), ATTR_POSITION) != layout.end();
-//
-//     std::vector<float> model_data;
-//
-//     for (const auto &m : model.meshes) {
-//
-//         if (add_position) {
-//             for (auto v : m.vertices) {
-//                 model_data.push_back(model.vertices[v].x);
-//                 model_data.push_back(model.vertices[v].y);
-//                 model_data.push_back(model.vertices[v].z);
-//             }
-//         }
-//     }
-//
-//     assert(model_data.size() > 0);
-//
-//     return model_data;
-// }
-
-eng::DrawElementsInstancedCMD::DrawElementsInstancedCMD(BufferID buffer, uint32_t instances) : instances{instances} {}
-
-void eng::DrawElementsInstancedCMD::draw() {
-    glDrawElementsInstanced(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_INT, 0, instances);
-}
-
-eng::DrawCMD::DrawCMD() { gl_mode = GL_TRIANGLES; }
-
-eng::DrawCMD::DrawCMD(uint32_t gl_mode) { this->gl_mode = gl_mode; }
-
-void eng::DrawArraysInstancedCMD::draw() { glDrawArraysInstanced(gl_mode, first, vertex_count, instance_count); }
-
-void eng::DrawArraysInstancedBaseInstanceCMD::draw() {
-    glDrawArraysInstancedBaseInstance(gl_mode, first, vertex_count, instance_count, base_instance);
+    return std::distance(batch_ids.cbegin(), it) + 1;
 }

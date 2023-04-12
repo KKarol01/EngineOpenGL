@@ -42,7 +42,7 @@ namespace eng {
         }
 
         void bind(uint32_t binding_idx) const;
-        BufferID get_bufferid() const { return storage_buffer_id; }
+        GLBufferID get_bufferid() const { return storage_buffer->id; }
 
       private:
         void create_storage(size_t size, uint32_t flags);
@@ -55,7 +55,7 @@ namespace eng {
       private:
         bool mapped{false};
         void *ptr{nullptr};
-        BufferID storage_buffer_id;
+        SharedResource<GLBuffer> storage_buffer;
         size_t total_size{0}, stride{0}, num_elems{0};
         std::unordered_map<std::string, BufferEntry> entries;
 

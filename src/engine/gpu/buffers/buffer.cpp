@@ -43,6 +43,11 @@ void eng::GLBuffer::push_data(const void *data, size_t data_size) {
     on_handle_change.emit(descriptor);
 }
 
+void eng::GLBuffer::clear_invalidate() {
+    glInvalidateBufferData(descriptor.handle);
+    descriptor.size = 0;
+}
+
 void eng::GLBuffer::resize(size_t required_size) {
     size_t new_capacity = fmaxl(required_size * GROWTH_FACTOR, 1.);
 
@@ -76,25 +81,27 @@ eng::GLVao::~GLVao() { glDeleteVertexArrays(1, &descriptor.handle); }
 
 void eng::GLVao::bind() const { glBindVertexArray(descriptor.handle); }
 
-void eng::GLVao::configure_binding(uint32_t id, BufferID bufferid, size_t stride, size_t offset) {
+void eng::GLVao::configure_binding(uint32_t id, GLBufferID bufferid, size_t stride, size_t offset) {
     descriptor.buff_bindings.push_back(GLVaoBufferBinding{id, bufferid});
 
-    auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
-    glVertexArrayVertexBuffer(descriptor.handle, id, buffer.descriptor.handle, offset, stride);
+//    auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
+  //  glVertexArrayVertexBuffer(descriptor.handle, id, buffer.descriptor.handle, offset, stride);
 
-    buffer.on_handle_change.connect([id, offset, stride, handle = descriptor.handle](const auto &buff_desc) {
-        glVertexArrayVertexBuffer(handle, id, buff_desc.handle, offset, stride);
-    });
+  //  buffer.on_handle_change.connect([id, offset, stride, handle = descriptor.handle](const auto &buff_desc) {
+ //       glVertexArrayVertexBuffer(handle, id, buff_desc.handle, offset, stride);
+  //  });
 }
 
-void eng::GLVao::configure_ebo(BufferID bufferid) {
+void eng::GLVao::configure_ebo(GLBufferID bufferid) {
     descriptor.ebo_buffer_id = bufferid;
 
-    auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
-    glVertexArrayElementBuffer(descriptor.handle, buffer.descriptor.handle);
+  //  auto &buffer = Engine::instance().renderer_->get_buffer(bufferid);
+   // glVertexArrayElementBuffer(descriptor.handle, buffer.descriptor.handle);
 
-    buffer.on_handle_change.connect(
-        [handle = descriptor.handle](const auto &buff_desc) { glVertexArrayElementBuffer(handle, buff_desc.handle); });
+  //  buffer.on_handle_change.connect(
+  //      [handle = descriptor.handle](const auto &buff_desc) { 
+  //      glVertexArrayElementBuffer(handle, buff_desc.handle); 
+  //  });
 }
 
 void eng::GLVao::configure_attribute(GL_ATTR_ attribute_idx,

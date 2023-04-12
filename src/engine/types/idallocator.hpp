@@ -7,55 +7,19 @@
 #include "sorted_vec.hpp"
 
 namespace eng {
+
     template <typename T> class IDAllocator;
-
-    template <typename T> struct SharedResource {
-
+    template <typename T> class IDData {
       public:
-        SharedResource() = default;
+        T &operator->();
+        T &operator*();
 
-        SharedResource(const SharedResource &dp) noexcept { *this = dp; }
-        SharedResource(SharedResource &&dp) noexcept { *this = std::move(dp); }
-        SharedResource &operator=(const SharedResource &dp) noexcept {
-            printf("Incrementing: %i\n", ++gg);
-            id    = dp.id;
-            this_ = dp.this_;
-            this_->on_proxy_add(this);
-            return *this;
-        }
-        SharedResource &operator=(SharedResource &&dp) noexcept {
-            id       = dp.id;
-            this_    = dp.this_;
-            dp.this_ = nullptr;
-            return *this;
-        }
-
-        ~SharedResource() {
-            if(this_==nullptr){return;}
-            printf("Decrementing: %i\n", --gg);
-            if(gg < 0) {
-                int x = 1;
-            }
-            if (this_ != nullptr) { 
-                this_->on_proxy_delete(this); 
-            }
-        }
+        IDAllocator<T>::ID id;
 
       private:
-        typedef uint32_t ID;
+        IDData(IDAllocator<T> *parent, IDAllocator<T>::ID id) : _storage{parent}, id{id} {}
 
-        SharedResource(ID id, IDAllocator<T> *this_) : id{id}, this_{this_} {}
-
-      public:
-        T *operator->() { return &this_->get(id); }
-        const T *operator->() const { return &this_->get(id); }
-        operator ID() const { return id; }
-
-        ID id{0u};
-        static inline int gg{0u};
-      private:
-        IDAllocator<T> *this_{nullptr};
-
+        IDAllocator<T> *_storage{nullptr};
         friend class IDAllocator<T>;
     };
 
@@ -63,36 +27,31 @@ namespace eng {
       public:
         typedef uint32_t ID;
 
-        SharedResource<T> insert(const T &t) {
+        IDData<T> insert(const T &t) {
             auto &dt = storage.insert(DataWrapper{t});
-            return SharedResource{dt.id, this};
+            return {this, dt.id};
         }
-        SharedResource<T> insert(T &&t) {
+        IDData<T> insert(T &&t) {
             auto &dt = storage.insert(DataWrapper{std::move(t)});
-            return SharedResource{dt.id, this};
+            return {this, dt.id};
         }
-        template <typename... ARGS> SharedResource<T> emplace(ARGS &&...args) {
+        template <typename... ARGS> IDData<T> emplace(ARGS &&...args) {
             auto &dt = storage.emplace(std::forward<ARGS>(args)...);
-            return SharedResource{dt.id, this};
+            return {this, dt.id};
         }
 
         T &get(ID id) { return storage.find(id)->data; }
         const T &get(ID id) const { return storage.find(id)->data; }
+
+        T& find(auto val, auto cb) {
+            return storage.find(val, cb);
+        }
 
         void for_each(std::function<void(T &)> f) {
             std::for_each(storage.begin(), storage.end(), [&f](DataWrapper &dw) { f(dw.data); });
         }
         void for_each(std::function<void(const T &)> f) const {
             std::for_each(storage.begin(), storage.end(), [&f](const DataWrapper &dw) { f(dw.data); });
-        }
-
-      private:
-        void on_proxy_add(SharedResource<T> *p) { ++storage.find(p->id)->ref_count; }
-        void on_proxy_delete(SharedResource<T> *p) {
-            auto pdata = storage.find(p->id);
-            --pdata->ref_count;
-
-            if (pdata->ref_count == 0u) { printf("Deleting\n"); }
         }
 
       private:
@@ -108,13 +67,13 @@ namespace eng {
             auto operator==(ID other) const { return id == other; }
 
             ID id{gid++};
-            uint32_t ref_count{1u};
             T data;
             static inline ID gid{1u};
         };
 
         eng::SortedVectorUnique<DataWrapper> storage;
-
-        friend struct SharedResource<T>;
     };
+
+    template <typename T> inline T &IDData<T>::operator->() { return _storage->get(id); }
+    template <typename T> inline T &IDData<T>::operator*() { return _storage->get(id); }
 } // namespace eng

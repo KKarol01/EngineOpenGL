@@ -12,6 +12,8 @@
 
 #include <glm/glm.hpp>
 
+#include "../../renderer/typedefs.hpp"
+
 namespace eng {
     struct ShaderDataWrapper {
         using SupportedTypes = std::variant<std::reference_wrapper<int>,
@@ -52,7 +54,7 @@ namespace eng {
         ShaderDataWrapper &operator[](const std::string &name) { return data[name]; }
     };
 
-    class ShaderProgram {
+    class ShaderProgram :public RendererResource{
       public:
         ShaderProgram() = default;
         explicit ShaderProgram(const std::string &file_name);

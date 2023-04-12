@@ -10,8 +10,6 @@
 #include "engine/controller/keyboard/keyboard.hpp"
 #include "engine/types/types.hpp"
 
-#include "3dcalc/3dcalc.hpp"
-
 #include <GLFW/glfw3.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
@@ -34,37 +32,68 @@ int main() {
     auto &engine      = eng::Engine::instance();
     const auto window = engine.window();
     using namespace eng;
-    // auto rect_program    = engine.renderer_->programs.emplace("rect");
-    /*auto gjk_test_cube  = imp.import_model("3dmodels/simple_shapes/cube.obj", aiProcess_Triangulate);
-     auto gjk_test_plane = imp.import_model("3dmodels/simple_shapes/plane.obj", aiProcess_Triangulate);*/
 
-    /*engine.cam = new Camera{};
-    Graph3D graph;
-    engine.cam->set_position(glm::vec3{1.f,3.f,5.f});
+    engine.cam = new Camera{};
+    engine.cam->set_position(glm::vec3{1.f, 3.f, 5.f});
     Engine::instance().window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    glClearColor(.25f, .25f, .25f, 0.f);*/
+    glClearColor(.25f, .25f, .25f, 0.f);
+
+    std::vector<float> verts{
+        0.f, 0.f, 0.f,
+        1.f, 0.f, 0.f,
+        0.f, 1.f, 0.f,
+        1.f, 1.f, 0.f,
+    };
+    std::vector<unsigned> inds {0, 1, 2, 2, 1, 3};
+
+    auto prog = ShaderProgram{"a"};
+
+    Renderer r;
+
+    MaterialPass forward_pass;
+    forward_pass.passes[PipelinePass::Forward] = &prog;
+    Material def_mat;
+    def_mat.original = &forward_pass;
+
+    Mesh mesh_triangle;
+    mesh_triangle.vertices = verts;
+    mesh_triangle.indices = inds;
+    mesh_triangle.layout = {4u, 12u};
+    mesh_triangle.material = &def_mat;
+    mesh_triangle.sortkey = 1u;
+
+    r.register_object(&mesh_triangle);
+    mesh_triangle.sortkey = 1u;
+    mesh_triangle.transform = glm::mat4{2.f};
+    r.register_object(&mesh_triangle);
+
+    verts = {
+        0.f, 0.f, 0.f,
+        1.f, 0.f, 0.f,
+        .5f, .5f, 0.f,
+    };
+    inds = {0,1,2};
+    mesh_triangle.vertices = verts;
+    mesh_triangle.indices = inds;
+    mesh_triangle.layout = {4u, 12u};
+    mesh_triangle.material = &def_mat;
+    mesh_triangle.sortkey = 2u;
+    r.register_object(&mesh_triangle);
+
+
     while (!window->should_close()) {
-        //float time = glfwGetTime();
-        //glfwPollEvents();
+        float time = glfwGetTime();
+        glfwPollEvents();
 
-        //eng::Engine::instance().controller()->update();
-        //engine.cam->update();
+        eng::Engine::instance().controller()->update();
+        engine.cam->update();
 
-        //glEnable(GL_DEPTH_TEST);
-        //glEnable(GL_BLEND);
-        //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        window->clear_framebuffer();
+        r.render();
+        prog.set("v", engine.cam->view_matrix());
+        prog.set("p", engine.cam->perspective_matrix());
 
-        //glViewport(0, 0, 1920.f * .75f, 1080.f* .75f);
-        //glBindFramebuffer(GL_FRAMEBUFFER, graph.fbo);
-        //window->clear_framebuffer();
-        //graph.render();
-        //engine.renderer_->render_frame();
-
-        //window->adjust_glviewport();
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        //window->clear_framebuffer();
-        //eng::Engine::instance().gui_->draw();
-        //window->swap_buffers();
+        window->swap_buffers();
     }
 
     return 0;
