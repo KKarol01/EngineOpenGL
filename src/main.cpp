@@ -18,6 +18,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_stdlib.h>
 #include <glm/gtx/euler_angles.hpp>
+#include "engine/renderer/renderer.hpp"
 
 const auto make_model = [](glm::vec3 t, glm::vec3 r, glm::vec3 s) -> glm::mat4 {
     static constexpr auto I = glm::mat4{1.f};
@@ -38,6 +39,8 @@ int main() {
     Engine::instance().window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(.25f, .25f, .25f, 0.f);
 
+    Renderer r;
+
     std::vector<float> verts{
         0.f, 0.f, 0.f,
         1.f, 0.f, 0.f,
@@ -46,40 +49,41 @@ int main() {
     };
     std::vector<unsigned> inds {0, 1, 2, 2, 1, 3};
 
-    auto prog = ShaderProgram{"a"};
+    auto prog = r.empty_program();
+    *prog = ShaderProgram{"a"};
+    
+    MaterialPass* forward_untextured_pass = r.empty_material_pass();
+    forward_untextured_pass->pipelines[PipelinePass::Forward] = prog;
 
-    Renderer r;
-
-    MaterialPass forward_pass;
-    forward_pass.passes[PipelinePass::Forward] = &prog;
     Material def_mat;
-    def_mat.original = &forward_pass;
+    def_mat.pass = forward_untextured_pass;
 
-    Mesh mesh_triangle;
-    mesh_triangle.vertices = verts;
-    mesh_triangle.indices = inds;
-    mesh_triangle.layout = {4u, 12u};
-    mesh_triangle.material = &def_mat;
-    mesh_triangle.sortkey = 1u;
-
-    r.register_object(&mesh_triangle);
-    mesh_triangle.sortkey = 1u;
-    mesh_triangle.transform = glm::mat4{2.f};
-    r.register_object(&mesh_triangle);
-
-    verts = {
-        0.f, 0.f, 0.f,
-        1.f, 0.f, 0.f,
-        .5f, .5f, 0.f,
+    Mesh mesh_rectangle {
+        .id = 1,
+        .material = &def_mat,
+        .transform = glm::translate(glm::mat4{1.f}, glm::vec3{3.f, 0.f, 0.f}),
+        .vertices = verts,
+        .indices = inds
     };
-    inds = {0,1,2};
-    mesh_triangle.vertices = verts;
-    mesh_triangle.indices = inds;
-    mesh_triangle.layout = {4u, 12u};
-    mesh_triangle.material = &def_mat;
-    mesh_triangle.sortkey = 2u;
-    r.register_object(&mesh_triangle);
+    Mesh mesh_triangle {
+        .id = 2,
+        .material = &def_mat,
+        .vertices = verts,
+        .indices = {0, 1, 2}
+    };
 
+    Object rectangle {
+        .id = 1,
+        .meshes = {mesh_rectangle}
+    };
+    Object triangle {
+        .id = 2,
+        .meshes = {mesh_triangle}
+    };
+    
+    r.register_object(&triangle);
+    r.register_object(&rectangle);
+    r.render();
 
     while (!window->should_close()) {
         float time = glfwGetTime();
@@ -90,8 +94,6 @@ int main() {
 
         window->clear_framebuffer();
         r.render();
-        prog.set("v", engine.cam->view_matrix());
-        prog.set("p", engine.cam->perspective_matrix());
 
         window->swap_buffers();
     }

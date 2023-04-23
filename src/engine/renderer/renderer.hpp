@@ -4,15 +4,15 @@
 #include <vector>
 #include <concepts>
 #include <unordered_map>
+#include <algorithm>
+#include <compare>
+#include <utility>
 
-#include "../types/idallocator.hpp"
-
-#include "typedefs.hpp"
-
-#include "../types/shared_resource.hpp"
-#include "../gpu/buffers/buffer.hpp"
-#include "../gpu/shaderprogram/shader.hpp"
-#include "glm/glm.hpp"
+#include <engine/gpu/shaderprogram/shader.hpp>
+#include <engine/gpu/buffers/buffer.hpp>
+#include <engine/types/idallocator.hpp>
+#include <engine/renderer/typedefs.hpp>
+#include <glm/glm.hpp>
 
 namespace eng {
     class ShaderProgram;
@@ -27,18 +27,45 @@ namespace eng {
         static inline uint32_t gid{1u};
     };
     template <typename T> struct Handle {
-        static auto get() { return Handle<T>{HandleCounter<T>::request_handle()}; }
+        explicit Handle() = default;
+        explicit Handle(uint32_t h) : handle{h} {}
+        explicit operator uint32_t() { return handle; }
+        auto operator<=>(const Handle<T> &) const = default;
+
+        static inline Handle<T> get() { return Handle<T>(HandleCounter<T>::request_handle()); }
+
         uint32_t handle{0u};
     };
+
+    template <typename T> class HandleVec {
+      public:
+        Handle<T> push_back(const T &t) { return _storage.emplace_back(Handle<T>::get(), T{t}).first; }
+        T *try_find(Handle<T> handle) {
+            auto it = std::lower_bound(
+                _storage.begin(), _storage.end(), handle, [](auto &&e, auto &&v) { return e.first.handle < v.handle; });
+
+            if (it == _storage.end() || it->first.handle != handle.handle) { return nullptr; }
+
+            return &it->second;
+        }
+
+        decltype(auto) begin() { return _storage.begin(); }
+        decltype(auto) end() { return _storage.end(); }
+        decltype(auto) operator[](size_t i) { return _storage[i].second; }
+        decltype(auto) operator[](Handle<T> handle) { return *try_find(handle); }
+
+      private:
+        std::vector<std::pair<Handle<T>, T>> _storage;
+    };
+
     enum class PipelinePass { Forward };
-    using PerPassData = std::unordered_map<PipelinePass, ShaderProgram *>;
 
     struct MaterialPass {
-        PerPassData passes;
+        std::unordered_map<PipelinePass, ShaderProgram *> pipelines;
     };
 
     struct Material {
-        MaterialPass *original;
+        MaterialPass *pass{nullptr};
     };
 
     struct VertexLayout {
@@ -47,25 +74,24 @@ namespace eng {
     };
 
     struct Mesh {
-        uint32_t sortkey{0u};
+        uint32_t id;
+        Material *material{nullptr};
+        VertexLayout layout;
+        bool use_forward_pass{true};
+        glm::mat4 transform{1.f};
         std::vector<float> vertices;
         std::vector<unsigned> indices;
-        VertexLayout layout;
-        Material *material{nullptr};
-        glm::mat4 transform{1.f};
-        bool use_forward_pass{true};
     };
 
     struct RenderObject;
 
     struct PassMaterial {
-        ShaderProgram *prog;
+        ShaderProgram *program;
     };
     struct PassObject {
         PassMaterial material;
         Handle<Mesh> mesh;
         Handle<RenderObject> original;
-        uint32_t custom_key;
     };
 
     struct RenderBatch {
@@ -87,12 +113,10 @@ namespace eng {
 
         void refresh(Renderer *r);
 
-        std::vector<PassObject> objects;
-
+        HandleVec<PassObject> objects;
         std::vector<MultiBatch> multibatches;
         std::vector<IndirectBatch> indirectbatches;
         std::vector<RenderBatch> flatbatches;
-
         std::vector<Handle<RenderObject>> unbatched;
 
         bool needs_refresh{false};
@@ -100,15 +124,16 @@ namespace eng {
       private:
         uint32_t assign_batch_id(const RenderObject &ro);
 
-        std::vector<std::pair<uint32_t, uint32_t>> batch_ids;
+        using BatchId = uint32_t;
+        std::map<std::pair<Handle<Mesh>, Handle<Material>>, BatchId> batch_ids;
     };
 
-    struct SceneObject {
+    struct Object {
+        uint32_t id;
         std::vector<Mesh> meshes;
     };
 
     struct RenderObject {
-        uint32_t sortkey;
         Handle<Material> material;
         Handle<Mesh> mesh;
         glm::mat4 transform;
@@ -118,138 +143,72 @@ namespace eng {
       public:
         Renderer();
 
-        Handle<RenderObject> register_object(Mesh *mesh) {
-            RenderObject robj;
-            robj.sortkey   = mesh->sortkey;
-            robj.material  = get_material_handle(mesh->material);
-            robj.mesh      = get_mesh_handle(mesh);
-            robj.transform = mesh->transform;
-            robj.sortkey   = mesh->sortkey;
+        Handle<RenderObject> register_object(const Object *object);
 
-            renderables.push_back(std::move(robj));
-            auto handle = Handle<RenderObject>{static_cast<uint32_t>(renderables.size())};
-
-            if (mesh->use_forward_pass) {
-                if (mesh->material->original->passes.contains(PipelinePass::Forward)) {
-                    // add to pass
-                    forward_pass.unbatched.push_back(handle);
-                    forward_pass.needs_refresh = true;
-                }
-            }
-
-            dirty_objects.push_back(handle);
-
-            return handle;
+        ShaderProgram *empty_program() {
+            return programs.emplace_back(Handle<ShaderProgram>::get(), std::make_unique<ShaderProgram>()).second.get();
+        }
+        MaterialPass *empty_material_pass() {
+            return material_passes.emplace_back(Handle<MaterialPass>::get(), std::make_unique<MaterialPass>())
+                .second.get();
+        }
+        Material *get_material(Handle<Material> handle) { return &find_resource_by_handle(handle, materials).second; }
+        MaterialPass *get_material_pass(Handle<MaterialPass> handle) {
+            return find_resource_by_handle(handle, material_passes).second.get();
+        }
+        RenderObject *get_render_object(Handle<RenderObject> handle) {
+            return &find_resource_by_handle(handle, renderables).second;
         }
 
-        void render() {
-            while (dirty_objects.empty() == false) {
-                auto h = dirty_objects.front();
-                dirty_objects.erase(dirty_objects.begin());
-                auto &ro = renderables[h.handle - 1];
-                auto &m  = meshes[ro.mesh.handle - 1];
-                MeshDrawInfo minfo;
-                minfo.first_index   = mesh_buffer_location.size() == 0 ? 0
-                                                                       : mesh_buffer_location.back().first_index
-                                                                           + mesh_buffer_location.back().index_count;
-                minfo.index_count   = m.indices.size();
-                minfo.vertex_offset = mesh_buffer_location.size() == 0 ? 0
-                                                                       : mesh_buffer_location.back().vertex_offset
-                                                                             + mesh_buffer_location.back().vertex_count;
-                minfo.vertex_count  = m.vertices.size() / 3;
-
-                mesh_buffer_location.push_back(minfo);
-                geometry_buffer.push_data(m.vertices.data(), m.vertices.size() * sizeof(float));
-                index_buffer.push_data(m.indices.data(), m.indices.size() * sizeof(unsigned));
-
-                glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 12);
-                glVertexArrayElementBuffer(vao, index_buffer.descriptor.handle);
-            }
-
-            if (forward_pass.needs_refresh) { forward_pass.refresh(this); }
-
-            draw_buffer.clear_invalidate();
-            commands.clear();
-
-            for (const auto &m : forward_pass.multibatches) {
-                DrawElementsIndirectCommand cmd;
-
-                for (auto i = m.first; i < m.first + m.count; ++i) {
-                    const auto &in  = forward_pass.indirectbatches[i];
-                    const auto &mbl = mesh_buffer_location[in.mesh.handle - 1];
-
-                    cmd.firstIndex    = mbl.first_index;
-                    cmd.baseVertex    = mbl.vertex_offset;
-                    cmd.baseInstance  = 0;
-                    cmd.count         = mbl.index_count;
-                    cmd.instanceCount = in.count;
-                    commands.push_back(cmd);
-                }
-            }
-
-            draw_buffer.push_data(commands.data(), commands.size() * sizeof(DrawElementsIndirectCommand));
-
-            materials[0]->original->passes.at(PipelinePass::Forward)->use();
-            glBindVertexArray(vao);
-            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_buffer.descriptor.handle);
-            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, commands.size(), 0);
-        }
-
-        RenderObject &get_render_object(Handle<RenderObject> h) { return renderables[h.handle - 1]; }
-        Material *get_material(Handle<Material> h) { return materials[h.handle - 1]; }
+        void render();
 
       private:
-        Handle<Material> get_material_handle(Material *mat) {
-            auto it = std::find_if(
-                materials.cbegin(), materials.cend(), [mat](auto &&val) { return mat->original == val->original; });
-
-            if (it == materials.cend()) {
-                materials.push_back(mat);
-                it = materials.cend() - 1;
-            }
-
-            return Handle<Material>{static_cast<uint32_t>(std::distance(materials.cbegin(), it) + 1)};
-        }
-
-        Handle<Mesh> get_mesh_handle(Mesh *mesh) {
-            auto it = std::find_if(
-                meshes.cbegin(), meshes.cend(), [mesh](auto &&val) { return val.sortkey == mesh->sortkey; });
-
-            if (it == meshes.cend()) {
-                meshes.push_back(*mesh);
-                it = meshes.cend() - 1;
-            }
-
-            return Handle<Mesh>{static_cast<uint32_t>(std::distance(meshes.cbegin(), it) + 1)};
-        }
-
-        MeshPass forward_pass;
-
-        std::vector<RenderObject> renderables;
-        std::vector<Mesh> meshes;
-        std::vector<Material *> materials;
-
-        struct MeshDrawInfo {
-            uint32_t vertex_offset, vertex_count;
-            uint32_t first_index, index_count;
-        };
-        typedef struct {
+        struct DrawElementsIndirectCommand {
             uint32_t count;
             uint32_t instanceCount;
             uint32_t firstIndex;
             int baseVertex;
             uint32_t baseInstance;
-        } DrawElementsIndirectCommand;
+        };
+        struct MeshBufferLocation {
+            bool operator==(Handle<Mesh> handle) const { return mesh == handle; }
 
-        std::vector<DrawElementsIndirectCommand> commands;
+            Handle<Mesh> mesh;
+            uint32_t first_index, index_count;
+            int first_vertex;
+            uint32_t vertex_count;
+        };
+        
+        template <typename T, typename Iterable> decltype(auto) find_resource_by_handle(Handle<T> h, Iterable &it) {
+            return *std::lower_bound(
+                it.begin(), it.end(), h, [](auto &&e, auto &&v) { return e.first.handle < v.handle; });
+        }
 
-        std::vector<MeshDrawInfo> mesh_buffer_location;
+        Handle<Material> get_material_handle(const Material *mat);
+        Handle<Mesh> get_mesh_handle(const Mesh *m);
 
-        std::vector<Handle<RenderObject>> dirty_objects;
+        MeshPass forward_pass;
+
+        template <typename T> using vec_pair_handle_type  = std::vector<std::pair<Handle<T>, T>>;
+        template <typename T> using vec_pair_handle_ptype = std::vector<std::pair<Handle<T>, std::unique_ptr<T>>>;
+        vec_pair_handle_ptype<ShaderProgram> programs;
+        vec_pair_handle_ptype<MaterialPass> material_passes;
+
+        HandleVec<Mesh> meshes;
+        std::vector<MeshBufferLocation> mesh_buffer_locations;
+        vec_pair_handle_type<Material> materials;
+
+        std::vector<Handle<Mesh>> nongpu_resident_meshes;
+
+        vec_pair_handle_type<RenderObject> renderables;
+        std::vector<Handle<RenderObject>> newly_added_objects;
+        std::vector<DrawElementsIndirectCommand> draw_commands;
+
         GLBuffer geometry_buffer{GL_DYNAMIC_STORAGE_BIT}, index_buffer{GL_DYNAMIC_STORAGE_BIT};
         GLBuffer draw_buffer{GL_DYNAMIC_STORAGE_BIT};
+        GLBuffer ssbo{GL_DYNAMIC_STORAGE_BIT};
 
-        uint32_t vao;
+        GLVaoID vao;
     };
 
 } // namespace eng

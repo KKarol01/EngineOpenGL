@@ -15,45 +15,6 @@
 #include "../../renderer/typedefs.hpp"
 
 namespace eng {
-    struct ShaderDataWrapper {
-        using SupportedTypes = std::variant<std::reference_wrapper<int>,
-                                            std::reference_wrapper<float>,
-                                            std::reference_wrapper<glm::vec2>,
-                                            std::reference_wrapper<glm::vec3>,
-                                            std::reference_wrapper<glm::mat4>>;
-
-        ShaderDataWrapper() = default;
-
-        template <typename T> ShaderDataWrapper(T &&t) {
-            if constexpr (std::is_pointer_v<T>) {
-                data      = std::shared_ptr<void>{t, [](void *) {}};
-                conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T>(ptr)}; };
-            } else if constexpr (std::is_lvalue_reference_v<decltype(t)>) {
-                data      = std::shared_ptr<void>{new std::remove_cvref_t<T>{t}};
-                conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T *>(ptr)}; };
-            } else if constexpr (std::is_rvalue_reference_v<decltype(t)>) {
-                data      = std::shared_ptr<void>{new std::remove_cvref_t<T>{std::move(t)}};
-                conv_func = [](void *ptr) { return SupportedTypes{*static_cast<T *>(ptr)}; };
-            }
-        }
-
-        SupportedTypes operator()() { return conv_func(data.get()); };
-        const SupportedTypes operator()() const { return conv_func(data.get()); };
-
-        std::shared_ptr<void> data;
-        SupportedTypes (*conv_func)(void *) = [](void *) {
-            assert("type not initialised." && false);
-            int x;
-            return SupportedTypes{x};
-        };
-    };
-
-    struct ShaderStorage {
-        std::unordered_map<std::string, ShaderDataWrapper> data;
-
-        ShaderDataWrapper &operator[](const std::string &name) { return data[name]; }
-    };
-
     class ShaderProgram :public RendererResource{
       public:
         ShaderProgram() = default;
@@ -64,6 +25,10 @@ namespace eng {
         ShaderProgram &operator=(const ShaderProgram &) noexcept;
         ShaderProgram &operator=(ShaderProgram &&) noexcept;
         ~ShaderProgram();
+
+        bool operator==(const ShaderProgram& other) const {
+            return file_name == other.file_name;
+        }
 
       public:
         template <typename T>
