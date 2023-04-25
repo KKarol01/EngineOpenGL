@@ -4,11 +4,11 @@
 #include <memory>
 #include <numeric>
 
-#include "engine/engine.hpp"
-#include "engine/camera/camera.hpp"
-
-#include "engine/controller/keyboard/keyboard.hpp"
-#include "engine/types/types.hpp"
+#include <engine/engine.hpp>
+#include <engine/camera/camera.hpp>
+#include <engine/controller/keyboard/keyboard.hpp>
+#include <engine/types/types.hpp>
+#include <engine/renderer/renderer.hpp>
 
 #include <GLFW/glfw3.h>
 #include <assimp/scene.h>
@@ -18,7 +18,6 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_stdlib.h>
 #include <glm/gtx/euler_angles.hpp>
-#include "engine/renderer/renderer.hpp"
 
 const auto make_model = [](glm::vec3 t, glm::vec3 r, glm::vec3 s) -> glm::mat4 {
     static constexpr auto I = glm::mat4{1.f};
@@ -41,48 +40,78 @@ int main() {
 
     Renderer r;
 
-    std::vector<float> verts{
-        0.f, 0.f, 0.f,
-        1.f, 0.f, 0.f,
-        0.f, 1.f, 0.f,
-        1.f, 1.f, 0.f,
-    };
-    std::vector<unsigned> inds {0, 1, 2, 2, 1, 3};
+    auto prog = &(*r.empty_program() = ShaderProgram{"a"});
 
-    auto prog = r.empty_program();
-    *prog = ShaderProgram{"a"};
-    
-    MaterialPass* forward_untextured_pass = r.empty_material_pass();
+    MaterialPass *forward_untextured_pass                     = r.empty_material_pass();
     forward_untextured_pass->pipelines[PipelinePass::Forward] = prog;
 
     Material def_mat;
     def_mat.pass = forward_untextured_pass;
+    ShaderData object_attributes{.data = {}, .bytes_per_instance = 16};
 
-    Mesh mesh_rectangle {
-        .id = 1,
-        .material = &def_mat,
-        .transform = glm::translate(glm::mat4{1.f}, glm::vec3{3.f, 0.f, 0.f}),
-        .vertices = verts,
-        .indices = inds
-    };
-    Mesh mesh_triangle {
-        .id = 2,
-        .material = &def_mat,
-        .vertices = verts,
-        .indices = {0, 1, 2}
-    };
+    def_mat.data = &object_attributes;
 
-    Object rectangle {
-        .id = 1,
-        .meshes = {mesh_rectangle}
-    };
-    Object triangle {
-        .id = 2,
-        .meshes = {mesh_triangle}
-    };
-    
-    r.register_object(&triangle);
-    r.register_object(&rectangle);
+    {
+        Assimp::Importer i;
+        auto scene = i.ReadFile("3dmodels/cube.obj", aiProcess_Triangulate);
+
+        std::vector<Mesh> meshes;
+
+        std::function<void(const aiScene *scene, const aiNode *node)> parse_scene;
+        parse_scene = [&](const aiScene *scene, const aiNode *node) {
+            for (auto i = 0u; i < node->mNumMeshes; ++i) {
+                auto mesh = scene->mMeshes[node->mMeshes[i]];
+
+                std::vector<float> mesh_vertices;
+                std::vector<unsigned> mesh_indices;
+
+                for (auto j = 0u; j < mesh->mNumVertices; ++j) {
+                    auto &v = mesh->mVertices[j];
+                    
+                    mesh_vertices.push_back(v.x);
+                    mesh_vertices.push_back(v.y);
+                    mesh_vertices.push_back(v.z);
+                    mesh_vertices.push_back(mesh->mNormals[i].x);
+                    mesh_vertices.push_back(mesh->mNormals[i].y);
+                    mesh_vertices.push_back(mesh->mNormals[i].z);
+
+                    auto n = glm::mix(glm::vec3{0.f}, glm::vec3{1.f}, (float)j/(float)mesh->mNumVertices);
+                    def_mat.data->data.push_back(mesh->mNormals[j].x);
+                    def_mat.data->data.push_back(mesh->mNormals[j].y);
+                    def_mat.data->data.push_back(mesh->mNormals[j].z);
+                }
+
+                for (auto j = 0u; j < mesh->mNumFaces; ++j) {
+                    auto &face = mesh->mFaces[j];
+
+                    assert((face.mNumIndices == 3 && "Accepting only triangular faces"));
+
+                    mesh_indices.push_back(face.mIndices[0]);
+                    mesh_indices.push_back(face.mIndices[1]);
+                    mesh_indices.push_back(face.mIndices[2]);
+                }
+
+                Material mat{.pass = def_mat.pass};
+
+                meshes.push_back(Mesh{.id        = (uint32_t)meshes.size() + 1,
+                                      .material  = &def_mat,
+                                      .transform = glm::mat4{1.f},
+                                      .vertices  = mesh_vertices,
+                                      .indices   = mesh_indices});
+            }
+
+            for (auto i = 0u; i < node->mNumChildren; ++i) { parse_scene(scene, node->mChildren[i]); }
+        };
+
+        parse_scene(scene, scene->mRootNode);
+
+        uint32_t object_counter = 1;
+        for (const auto &m : meshes) {
+            Object o{.id = object_counter++, .meshes = {m}};
+            r.register_object(&o);
+        }
+    }
+
     r.render();
 
     while (!window->should_close()) {

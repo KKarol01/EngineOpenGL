@@ -64,19 +64,19 @@ namespace eng {
         std::unordered_map<PipelinePass, ShaderProgram *> pipelines;
     };
 
-    struct Material {
-        MaterialPass *pass{nullptr};
+    struct ShaderData {
+        std::vector<float> data;
+        uint32_t bytes_per_instance{0u};
     };
 
-    struct VertexLayout {
-        uint32_t data_type_size_bytes{sizeof(1.f)};
-        uint32_t stride{0u};
+    struct Material {
+        MaterialPass *pass{nullptr};
+        ShaderData *data{nullptr};
     };
 
     struct Mesh {
         uint32_t id;
         Material *material{nullptr};
-        VertexLayout layout;
         bool use_forward_pass{true};
         glm::mat4 transform{1.f};
         std::vector<float> vertices;
@@ -87,6 +87,7 @@ namespace eng {
 
     struct PassMaterial {
         ShaderProgram *program;
+        ShaderData *data;
     };
     struct PassObject {
         PassMaterial material;
@@ -178,7 +179,7 @@ namespace eng {
             int first_vertex;
             uint32_t vertex_count;
         };
-        
+
         template <typename T, typename Iterable> decltype(auto) find_resource_by_handle(Handle<T> h, Iterable &it) {
             return *std::lower_bound(
                 it.begin(), it.end(), h, [](auto &&e, auto &&v) { return e.first.handle < v.handle; });
@@ -206,7 +207,7 @@ namespace eng {
 
         GLBuffer geometry_buffer{GL_DYNAMIC_STORAGE_BIT}, index_buffer{GL_DYNAMIC_STORAGE_BIT};
         GLBuffer draw_buffer{GL_DYNAMIC_STORAGE_BIT};
-        GLBuffer ssbo{GL_DYNAMIC_STORAGE_BIT};
+        GLBuffer ssbo{GL_DYNAMIC_STORAGE_BIT}, ssbo_attributes{GL_DYNAMIC_STORAGE_BIT};
 
         GLVaoID vao;
     };

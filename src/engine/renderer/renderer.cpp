@@ -6,8 +6,11 @@ eng::Renderer::Renderer() {
     glCreateVertexArrays(1, &vao);
 
     glVertexArrayAttribBinding(vao, 0, 0);
+    glVertexArrayAttribBinding(vao, 1, 0);
     glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 0);
     glEnableVertexArrayAttrib(vao, 0);
+    glEnableVertexArrayAttrib(vao, 1);
 }
 
 namespace eng {
@@ -81,7 +84,7 @@ namespace eng {
                     .index_count = (uint32_t)mesh.indices.size(),
                     .first_vertex
                     = (mbls.empty() == false) ? (mbls.back().first_vertex + (int)mbls.back().vertex_count) : 0,
-                    .vertex_count = (uint32_t)mesh.vertices.size() / 3};
+                    .vertex_count = (uint32_t)mesh.vertices.size() / 6};
 
                 mesh_buffer_locations.push_back(mbl);
             }
@@ -89,7 +92,7 @@ namespace eng {
             geometry_buffer.push_data(floats.data(), floats.size() * sizeof(float));
             index_buffer.push_data(indices.data(), indices.size() * sizeof(unsigned));
 
-            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 12);
+            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 24);
             glVertexArrayElementBuffer(vao, index_buffer.descriptor.handle);
         }
 
@@ -118,11 +121,21 @@ namespace eng {
         glBindVertexArray(vao);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_buffer.descriptor.handle);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo.descriptor.handle);
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+
         for (const auto &mb : forward_pass.multibatches) {
-            auto program = forward_pass.indirectbatches[mb.first].material.program;
+            auto &material = forward_pass.indirectbatches[mb.first].material;
+            auto program   = forward_pass.indirectbatches[mb.first].material.program;
             program->use();
             program->set("v", Engine::instance().cam->view_matrix());
             program->set("p", Engine::instance().cam->perspective_matrix());
+
+            ssbo_attributes.clear_invalidate();
+            ssbo_attributes.push_data(material.data->data.data(), material.data->data.size() * sizeof(float));
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo_attributes.descriptor.handle);
 
             glMultiDrawElementsIndirect(
                 GL_TRIANGLES, GL_UNSIGNED_INT, (void *)(mb.first * sizeof(DrawElementsIndirectCommand)), mb.count, 0);
@@ -138,9 +151,9 @@ void eng::MeshPass::refresh(Renderer *r) {
         const auto rh = *unbatched.begin();
         const auto ro = r->get_render_object(rh);
         unbatched.erase(unbatched.begin());
-
-        PassObject po{.material
-                      = PassMaterial{r->get_material(ro->material)->pass->pipelines.at(PipelinePass::Forward)},
+        auto material = r->get_material(ro->material);
+        PassObject po{.material = PassMaterial{.program = material->pass->pipelines.at(PipelinePass::Forward),
+                                               .data    = material->data},
                       .mesh     = ro->mesh,
                       .original = rh};
 
@@ -172,6 +185,7 @@ void eng::MeshPass::refresh(Renderer *r) {
             indirectbatches.back().material = material;
             indirectbatches.back().mesh     = mesh;
             prev_mat.program                = material.program;
+            prev_mat.data                   = material.data;
             prev_handle                     = mesh.handle;
             continue;
         }
