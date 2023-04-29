@@ -1,7 +1,10 @@
 #version 460 core
 
-out vec4 FRAGCOL;
-in vec3 n;
+out vec4 FRAG_COL;
+
+//in V_OUT { vec3 vNorm; }
+//v_out;
+
 void main() {
-	FRAGCOL = vec4(n*0.5+0.5, 1.f);
+    FRAG_COL = vec4(1.0); 
 }

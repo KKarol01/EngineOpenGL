@@ -1,207 +1,249 @@
 #include "renderer.hpp"
-
-#include "../engine.hpp"
+#include <engine/engine.hpp>
 
 eng::Renderer::Renderer() {
     glCreateVertexArrays(1, &vao);
-
     glVertexArrayAttribBinding(vao, 0, 0);
-    glVertexArrayAttribBinding(vao, 1, 0);
     glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
-    glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 0);
     glEnableVertexArrayAttrib(vao, 0);
-    glEnableVertexArrayAttrib(vao, 1);
 }
 
 namespace eng {
-    Handle<RenderObject> Renderer::register_object(const Object *object) {
-        for (auto &m : object->meshes) {
-            RenderObject ro{
-                .material = get_material_handle(m.material), .mesh = get_mesh_handle(&m), .transform = m.transform};
 
-            auto &r = renderables.emplace_back(Handle<RenderObject>::get(), ro);
-            newly_added_objects.push_back(r.first);
+    void MeshPass::refresh(Renderer *r) {
 
-            if (m.use_forward_pass && m.material->pass->pipelines.contains(PipelinePass::Forward)) {
-                forward_pass.unbatched.push_back(r.first);
-                forward_pass.needs_refresh = true;
+        while (unbatched.empty() == false) {
+            auto h_ro = unbatched.front();
+            unbatched.erase(unbatched.begin());
+            auto &ro = r->get_render_object(h_ro);
+
+            PassObject po{.mat
+                          = {.prog = r->get_material(ro.material).passes.at(RenderPass::Forward)},
+                          .mesh          = ro.mesh,
+                          .render_object = h_ro};
+
+            pass_objects.push_back(po);
+        }
+
+        flat_batches.clear();
+        indirect_batches.clear();
+        multi_batches.clear();
+
+        for (const auto &po : pass_objects) {
+            auto &ro = r->get_render_object(po.render_object);
+            flat_batches.emplace_back(get_batch_id(po.mesh, ro.material),
+                                      Handle<PassObject>(po.id));
+            
+            if(flat_batches.back().batch_id==3) {
+                int x =1;
+                
             }
         }
 
-        return Handle<RenderObject>{0};
-    }
+        std::sort(flat_batches.begin(), flat_batches.end(), [](auto &&a, auto &&b) {
+            return a.batch_id < b.batch_id;
+        });
 
-    Handle<Material> Renderer::get_material_handle(const Material *mat) {
-        for (auto &[h, material] : materials) {
-            if (material.pass == mat->pass) { return h; }
+        FlatBatch *prev_fb = &flat_batches[0];
+        {
+            IndirectBatch ib{.mesh     = get_pass_object(prev_fb->object).mesh,
+                             .material = get_pass_object(prev_fb->object).mat,
+                             .first    = 0,
+                             .count    = 1};
+            indirect_batches.push_back(ib);
+        }
+        IndirectBatch *curr_ib = &indirect_batches[0];
+        for (auto i = 1u; i < flat_batches.size(); ++i) {
+            auto &fb = flat_batches[i];
+            if (fb.batch_id != prev_fb->batch_id) {
+                IndirectBatch ib{.mesh     = get_pass_object(fb.object).mesh,
+                                 .material = get_pass_object(fb.object).mat,
+                                 .first    = i,
+                                 .count    = 1};
+                indirect_batches.push_back(ib);
+                curr_ib = &indirect_batches.back();
+                prev_fb = &fb;
+                continue;
+            }
+            prev_fb = &fb;
+            curr_ib->count++;
         }
 
-        return materials.emplace_back(Handle<Material>::get(), Material{*mat}).first;
+        multi_batches.push_back(MultiBatch{.first = 0, .count = (uint32_t)indirect_batches.size()});
+
+        return;
     }
 
-    Handle<Mesh> Renderer::get_mesh_handle(const Mesh *m) {
-        for (auto &[h, mesh] : meshes) {
-            if (mesh.id == m->id) { return h; }
+    uint32_t MeshPass::get_batch_id(Handle<Mesh> mesh, Handle<Material> mat) {
+        auto it = std::find(_batch_ids.begin(), _batch_ids.end(), std::make_pair(mesh, mat));
+
+        if (it == _batch_ids.end()) {
+            _batch_ids.push_back(std::make_pair(mesh, mat));
+            it = _batch_ids.end()-1;
         }
 
-        auto handle = meshes.push_back(Mesh{*m});
-        nongpu_resident_meshes.push_back(handle);
-        return handle;
+        return std::distance(_batch_ids.begin(), it);
+    }
+
+    void Renderer::register_object(const Object *o) {
+
+        for (auto &m : o->meshes) {
+            RenderObject ro{
+                .object_id = o->id,
+                .mesh      = get_resource_handle(m),
+                .material  = get_resource_handle(*m.material),
+                .transform = m.transform
+            };
+
+            _renderables.push_back(ro);
+            _dirty_objects.emplace_back(ro.id);
+            _mesh_instance_count[m.id]++;
+
+            if (m.material->passes.contains(RenderPass::Forward)) {
+                forward_pass.unbatched.push_back(Handle<RenderObject>{ro.id});
+            }
+        }
     }
 
     void Renderer::render() {
+        if (_dirty_objects.empty() == false) {
+            _dirty_objects.clear();
 
-        if (newly_added_objects.empty() == false) {
-            std::vector<glm::mat4> transforms;
+            std::unordered_map<uint32_t, uint32_t> offsets;
+            std::vector<glm::mat4> mesh_data;
+            mesh_data.resize(_renderables.size());
 
-            while (newly_added_objects.empty() == false) {
-                auto obj_handle = newly_added_objects.front();
-                newly_added_objects.erase(newly_added_objects.begin());
-                auto obj = get_render_object(obj_handle);
-                transforms.push_back(obj->transform);
+            offsets[_meshes[0].id] = 0;
+            for (auto i = 1u, prev_offset = 0u; i < _meshes.size(); ++i) {
+                const auto &m0    = _meshes[i - 1];
+                const auto &m1    = _meshes[i];
+                const auto offset = _mesh_instance_count.at(m0.id) + prev_offset;
+                offsets[m1.id]    = offset;
+                prev_offset       = offset;
             }
 
-            ssbo.push_data(transforms.data(), transforms.size() * sizeof(glm::mat4));
-        }
-
-        if (nongpu_resident_meshes.empty() == false) {
-            std::vector<float> floats;
-            std::vector<unsigned> indices;
-
-            while (nongpu_resident_meshes.empty() == false) {
-                auto mesh_handle = nongpu_resident_meshes.front();
-                nongpu_resident_meshes.erase(nongpu_resident_meshes.begin());
-                auto &mesh = meshes[mesh_handle];
-
-                floats.insert(floats.end(), mesh.vertices.begin(), mesh.vertices.end());
-                indices.insert(indices.end(), mesh.indices.begin(), mesh.indices.end());
-
-                auto &mbls = mesh_buffer_locations;
-
-                MeshBufferLocation mbl{
-                    .mesh        = mesh_handle,
-                    .first_index = (mbls.empty() == false) ? mbls.back().first_index + mbls.back().index_count : 0,
-                    .index_count = (uint32_t)mesh.indices.size(),
-                    .first_vertex
-                    = (mbls.empty() == false) ? (mbls.back().first_vertex + (int)mbls.back().vertex_count) : 0,
-                    .vertex_count = (uint32_t)mesh.vertices.size() / 6};
-
-                mesh_buffer_locations.push_back(mbl);
+            for (const auto &r : _renderables) {
+                const auto offset = offsets.at(r.mesh.id)++;
+                const auto &mesh  = *try_find_idresource(r.mesh.id, _meshes);
+                mesh_data[offset] = r.transform;
             }
 
-            geometry_buffer.push_data(floats.data(), floats.size() * sizeof(float));
-            index_buffer.push_data(indices.data(), indices.size() * sizeof(unsigned));
+            mesh_data_buffer.clear_invalidate();
+            mesh_data_buffer.push_data(mesh_data.data(), mesh_data.size() * sizeof(glm::mat4));
 
-            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 24);
+            std::vector<float> mesh_vertices;
+            std::vector<unsigned> mesh_indices;
+            for (const auto &m : _meshes) {
+                mesh_vertices.insert(mesh_vertices.end(), m.vertices.begin(), m.vertices.end());
+                mesh_indices.insert(mesh_indices.end(), m.indices.begin(), m.indices.end());
+            }
+
+            geometry_buffer.clear_invalidate();
+            geometry_buffer.push_data(mesh_vertices.data(), mesh_vertices.size() * sizeof(float));
+
+            index_buffer.clear_invalidate();
+            index_buffer.push_data(mesh_indices.data(), mesh_indices.size() * sizeof(unsigned));
+
+            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 12);
             glVertexArrayElementBuffer(vao, index_buffer.descriptor.handle);
         }
 
-        if (forward_pass.needs_refresh) { forward_pass.refresh(this); }
+        if (forward_pass.unbatched.empty() == false) { forward_pass.refresh(this); }
 
-        draw_commands.clear();
-        for (const auto &mb : forward_pass.multibatches) {
-            for (uint32_t i = mb.first; i < mb.first + mb.count; ++i) {
-                const auto &mi   = forward_pass.indirectbatches[i];
-                const auto &mesh = meshes[mi.mesh];
-                const auto &mbl  = *std::find(mesh_buffer_locations.begin(), mesh_buffer_locations.end(), mi.mesh);
-
-                DrawElementsIndirectCommand cmd{.count         = mbl.index_count,
-                                                .instanceCount = mi.count,
-                                                .firstIndex    = mbl.first_index,
-                                                .baseVertex    = mbl.first_vertex,
-                                                .baseInstance  = (uint32_t)draw_commands.size()};
-
-                draw_commands.push_back(cmd);
+        struct DrawElementsIndirectCommandExtended : public DrawElementsIndirectCommand {
+            DrawElementsIndirectCommandExtended() = default;
+            DrawElementsIndirectCommandExtended(const DrawElementsIndirectCommand *cmd,
+                                                uint32_t vertex_count) {
+                *static_cast<DrawElementsIndirectCommand *>(this) = *cmd;
+                this->vertex_count                                = vertex_count;
             }
+
+            uint32_t vertex_count{0u};
+        } prev_cmd;
+
+        std::vector<DrawElementsIndirectCommand> draw_commands;
+
+        for (auto i = 0u; i < forward_pass.indirect_batches.size(); ++i) {
+            const auto &ib = forward_pass.indirect_batches[i];
+            const auto &m  = *try_find_idresource(ib.mesh.id, _meshes);
+            DrawElementsIndirectCommand cmd{
+                .count          = (uint32_t)m.indices.size(),
+                .instance_count = ib.count,
+                .first_index    = prev_cmd.first_index + prev_cmd.count,
+                .base_vertex    = prev_cmd.base_vertex + prev_cmd.vertex_count,
+                .base_instance  = prev_cmd.base_instance + prev_cmd.instance_count};
+            prev_cmd = DrawElementsIndirectCommandExtended{&cmd, (uint32_t)m.vertices.size() / 3u};
+            draw_commands.push_back(cmd);
         }
 
-        draw_buffer.clear_invalidate();
-        draw_buffer.push_data(draw_commands.data(), draw_commands.size() * sizeof(DrawElementsIndirectCommand));
+        commands_buffer.clear_invalidate();
+        commands_buffer.push_data(draw_commands.data(),
+                                  draw_commands.size() * sizeof(DrawElementsIndirectCommand));
 
         glBindVertexArray(vao);
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_buffer.descriptor.handle);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo.descriptor.handle);
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-
-        for (const auto &mb : forward_pass.multibatches) {
-            auto &material = forward_pass.indirectbatches[mb.first].material;
-            auto program   = forward_pass.indirectbatches[mb.first].material.program;
-            program->use();
-            program->set("v", Engine::instance().cam->view_matrix());
-            program->set("p", Engine::instance().cam->perspective_matrix());
-
-            ssbo_attributes.clear_invalidate();
-            ssbo_attributes.push_data(material.data->data.data(), material.data->data.size() * sizeof(float));
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo_attributes.descriptor.handle);
-
-            glMultiDrawElementsIndirect(
-                GL_TRIANGLES, GL_UNSIGNED_INT, (void *)(mb.first * sizeof(DrawElementsIndirectCommand)), mb.count, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mesh_data_buffer.descriptor.handle);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commands_buffer.descriptor.handle);
+        for (const auto &mb : forward_pass.multi_batches) {
+            forward_pass.indirect_batches[mb.first].material.prog->use();
+            forward_pass.indirect_batches[mb.first].material.prog->set(
+                "v", Engine::instance().cam->view_matrix());
+            forward_pass.indirect_batches[mb.first].material.prog->set(
+                "p", Engine::instance().cam->perspective_matrix());
+            forward_pass.indirect_batches[mb.first].material.prog->use();
+            glMultiDrawElementsIndirect(GL_TRIANGLES,
+                                        GL_UNSIGNED_INT,
+                                        (void *)(mb.first * sizeof(DrawElementsIndirectCommand)),
+                                        mb.count,
+                                        0);
         }
     }
 
+    RenderObject &Renderer::get_render_object(Handle<RenderObject> h) {
+        auto ptr_ro = try_find_idresource_binary(h.id, _renderables);
+        assert((ptr_ro != nullptr && "Invalid handle"));
+        return *ptr_ro;
+    }
+    Material &Renderer::get_material(Handle<Material> h) {
+        auto ptr_ro = try_find_idresource_binary(h.id, _materials);
+        assert((ptr_ro != nullptr && "Invalid handle"));
+        return *ptr_ro;
+    }
+
+    template <typename Resource> Handle<Resource> Renderer::get_resource_handle(const Resource &m) {
+
+        std::vector<Resource> *vec{nullptr};
+        if constexpr (std::is_same_v<Resource, Mesh>) {
+            vec = &_meshes;
+        } else if (std::is_same_v<Resource, Material>) {
+            vec = &_materials;
+        }
+
+        assert((vec != nullptr && "Resource not recognized"));
+
+        auto ptr_data = try_find_idresource(m.id, *vec);
+
+        if (ptr_data == nullptr) { vec->push_back(m); }
+
+        return Handle<Resource>{m.id};
+    }
+
+    template <typename Iter>
+    typename Iter::value_type *Renderer::try_find_idresource(uint32_t id, Iter &it) {
+
+        auto vec  = &it;
+        auto data = std::find_if(vec->begin(), vec->end(), [id](auto &&e) { return e.id == id; });
+
+        if (data != vec->end()) return &*data;
+        return nullptr;
+    }
+
+    template <typename Iter>
+    typename Iter::value_type *Renderer::try_find_idresource_binary(uint32_t id, Iter &it) {
+        auto data = std::lower_bound(
+            it.begin(), it.end(), id, [](auto &&e, auto &&v) { return e.id < v; });
+
+        if (data == it.end() || data->id != id) { return nullptr; }
+
+        return &*data;
+    }
 } // namespace eng
-
-void eng::MeshPass::refresh(Renderer *r) {
-    needs_refresh = false;
-
-    while (unbatched.empty() == false) {
-        const auto rh = *unbatched.begin();
-        const auto ro = r->get_render_object(rh);
-        unbatched.erase(unbatched.begin());
-        auto material = r->get_material(ro->material);
-        PassObject po{.material = PassMaterial{.program = material->pass->pipelines.at(PipelinePass::Forward),
-                                               .data    = material->data},
-                      .mesh     = ro->mesh,
-                      .original = rh};
-
-        auto po_handle = objects.push_back(po);
-    }
-
-    flatbatches.clear();
-    indirectbatches.clear();
-    multibatches.clear();
-
-    for (const auto &po : objects) {
-        RenderBatch rb{.object = po.first, .id = assign_batch_id(*r->get_render_object(po.second.original))};
-        flatbatches.push_back(rb);
-    }
-
-    std::sort(flatbatches.begin(), flatbatches.end(), [](auto &&a, auto &&b) { return a.id < b.id; });
-
-    PassMaterial prev_mat;
-    uint32_t prev_handle;
-    for (auto i = 0ull; i < flatbatches.size(); ++i) {
-        auto &obj     = objects[flatbatches[i].object];
-        auto material = obj.material;
-        auto mesh     = obj.mesh;
-
-        if (i == 0ull || (material.program != prev_mat.program || prev_handle != mesh.handle)) {
-            indirectbatches.emplace_back();
-            indirectbatches.back().first    = i;
-            indirectbatches.back().count    = 1;
-            indirectbatches.back().material = material;
-            indirectbatches.back().mesh     = mesh;
-            prev_mat.program                = material.program;
-            prev_mat.data                   = material.data;
-            prev_handle                     = mesh.handle;
-            continue;
-        }
-
-        indirectbatches.back().count++;
-    }
-
-    multibatches.emplace_back(0, indirectbatches.size());
-}
-
-uint32_t eng::MeshPass::assign_batch_id(const RenderObject &ro) {
-    const auto p = std::make_pair(ro.mesh, ro.material);
-
-    if (batch_ids.contains(p) == false) {
-        batch_ids[p] = (uint32_t)(Handle<std::pair<Handle<Mesh>, Handle<Material>>>::get());
-    }
-
-    return batch_ids.at(p);
-}

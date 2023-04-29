@@ -14,10 +14,10 @@ namespace eng {
         T &operator->();
         T &operator*();
 
-        IDAllocator<T>::ID id;
+        typename IDAllocator<T>::ID id;
 
       private:
-        IDData(IDAllocator<T> *parent, IDAllocator<T>::ID id) : _storage{parent}, id{id} {}
+        IDData(IDAllocator<T> *parent, typename IDAllocator<T>::ID id) : _storage{parent}, id{id} {}
 
         IDAllocator<T> *_storage{nullptr};
         friend class IDAllocator<T>;

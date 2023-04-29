@@ -21,3 +21,5 @@
 .vscode/*
 out/*
 build/*
+.cache
+.cache/clangd/*
