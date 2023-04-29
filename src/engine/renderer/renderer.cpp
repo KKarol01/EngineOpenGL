@@ -1,14 +1,75 @@
 #include "renderer.hpp"
 #include <engine/engine.hpp>
 
+// #define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 eng::Renderer::Renderer() {
     glCreateVertexArrays(1, &vao);
     glVertexArrayAttribBinding(vao, 0, 0);
-    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(vao, 1, 0);
     glEnableVertexArrayAttrib(vao, 0);
+    glEnableVertexArrayAttrib(vao, 1);
+    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 12);
 }
 
 namespace eng {
+
+    Texture::Texture(const std::string &texture_path) {
+        this->_texture_path  = texture_path;
+        std::string base_dir = "3dmodels/simplex/" + texture_path;
+        auto image_data
+            = stbi_load(base_dir.c_str(), (int *)&_sizex, (int *)&_sizey, (int *)&_channels, 0);
+
+        if (image_data == nullptr) {
+            fprintf(stderr, "Image not found at path: %s\n", texture_path.c_str());
+            assert(false);
+        }
+
+        glCreateTextures(GL_TEXTURE_2D, 1, &_texture_handle);
+        glTextureStorage2D(_texture_handle, 4, GL_RGB8, _sizex, _sizey);
+        glTextureSubImage2D(_texture_handle,
+                            0,
+                            0,
+                            0,
+                            _sizex,
+                            _sizey,
+                            _channels == 3 ? GL_RGB : GL_RGBA,
+                            GL_UNSIGNED_BYTE,
+                            (void *)image_data);
+        glGenerateTextureMipmap(_texture_handle);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        _image_data = std::shared_ptr<uint8_t>{image_data, stbi_image_free};
+    }
+
+    void Texture::bind(uint32_t unit) {
+        _bound_unit = unit;
+        _is_bound   = true;
+        glBindTextureUnit(unit, handle());
+    }
+
+    void Texture::unbind() {
+        _is_bound = false;
+        glBindTextureUnit(bound_unit(), handle());
+    }
+
+    void Texture::make_resident() {
+        if (bindless_handle() == 0ull) {
+            _texture_bindless_handle = glGetTextureHandleARB(handle());
+        }
+
+        _is_resident = true;
+        glMakeTextureHandleResidentARB(bindless_handle());
+    }
+
+    void Texture::make_non_resident() {
+        _is_resident = false;
+        glMakeTextureHandleNonResidentARB(bindless_handle());
+    }
 
     void MeshPass::refresh(Renderer *r) {
 
@@ -33,11 +94,8 @@ namespace eng {
             auto &ro = r->get_render_object(po.render_object);
             flat_batches.emplace_back(get_batch_id(po.mesh, ro.material),
                                       Handle<PassObject>(po.id));
-            
-            if(flat_batches.back().batch_id==3) {
-                int x =1;
-                
-            }
+
+            if (flat_batches.back().batch_id == 3) { int x = 1; }
         }
 
         std::sort(flat_batches.begin(), flat_batches.end(), [](auto &&a, auto &&b) {
@@ -79,7 +137,7 @@ namespace eng {
 
         if (it == _batch_ids.end()) {
             _batch_ids.push_back(std::make_pair(mesh, mat));
-            it = _batch_ids.end()-1;
+            it = _batch_ids.end() - 1;
         }
 
         return std::distance(_batch_ids.begin(), it);
@@ -88,14 +146,12 @@ namespace eng {
     void Renderer::register_object(const Object *o) {
 
         for (auto &m : o->meshes) {
-            RenderObject ro{
-                .object_id = o->id,
-                .mesh      = get_resource_handle(m),
-                .material  = get_resource_handle(*m.material),
-                .transform = m.transform
-            };
+            RenderObject ro{.object_id = o->id,
+                            .mesh      = get_resource_handle(m),
+                            .material  = get_resource_handle(*m.material),
+                            .transform = m.transform};
 
-            _renderables.push_back(ro);
+            _renderables.insert(ro);
             _dirty_objects.emplace_back(ro.id);
             _mesh_instance_count[m.id]++;
 
@@ -110,7 +166,12 @@ namespace eng {
             _dirty_objects.clear();
 
             std::unordered_map<uint32_t, uint32_t> offsets;
-            std::vector<glm::mat4> mesh_data;
+
+            struct Payload {
+                uint64_t texture_bindless_handle;
+            };
+
+            std::vector<Payload> mesh_data;
             mesh_data.resize(_renderables.size());
 
             offsets[_meshes[0].id] = 0;
@@ -124,8 +185,12 @@ namespace eng {
 
             for (const auto &r : _renderables) {
                 const auto offset = offsets.at(r.mesh.id)++;
-                const auto &mesh  = *try_find_idresource(r.mesh.id, _meshes);
-                mesh_data[offset] = r.transform;
+                const auto &mesh  = *_meshes.try_find(r.mesh);
+                mesh_data[offset]
+                    = {/*r.transform,*/
+                       mesh.material->textures.at(TextureType::Diffuse)->bindless_handle()};
+
+                ENG_DEBUG("Inserting %i at %i\n", mesh.id, offset);
             }
 
             mesh_data_buffer.clear_invalidate();
@@ -144,7 +209,7 @@ namespace eng {
             index_buffer.clear_invalidate();
             index_buffer.push_data(mesh_indices.data(), mesh_indices.size() * sizeof(unsigned));
 
-            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 12);
+            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 24);
             glVertexArrayElementBuffer(vao, index_buffer.descriptor.handle);
         }
 
@@ -165,20 +230,25 @@ namespace eng {
 
         for (auto i = 0u; i < forward_pass.indirect_batches.size(); ++i) {
             const auto &ib = forward_pass.indirect_batches[i];
-            const auto &m  = *try_find_idresource(ib.mesh.id, _meshes);
+            const auto &m  = *_meshes.try_find(ib.mesh);
             DrawElementsIndirectCommand cmd{
                 .count          = (uint32_t)m.indices.size(),
                 .instance_count = ib.count,
                 .first_index    = prev_cmd.first_index + prev_cmd.count,
                 .base_vertex    = prev_cmd.base_vertex + prev_cmd.vertex_count,
                 .base_instance  = prev_cmd.base_instance + prev_cmd.instance_count};
-            prev_cmd = DrawElementsIndirectCommandExtended{&cmd, (uint32_t)m.vertices.size() / 3u};
+            prev_cmd = DrawElementsIndirectCommandExtended{&cmd, (uint32_t)m.vertices.size() / 6u};
             draw_commands.push_back(cmd);
         }
 
         commands_buffer.clear_invalidate();
         commands_buffer.push_data(draw_commands.data(),
                                   draw_commands.size() * sizeof(DrawElementsIndirectCommand));
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
 
         glBindVertexArray(vao);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mesh_data_buffer.descriptor.handle);
@@ -199,19 +269,19 @@ namespace eng {
     }
 
     RenderObject &Renderer::get_render_object(Handle<RenderObject> h) {
-        auto ptr_ro = try_find_idresource_binary(h.id, _renderables);
+        auto ptr_ro = _renderables.try_find(h);
         assert((ptr_ro != nullptr && "Invalid handle"));
         return *ptr_ro;
     }
     Material &Renderer::get_material(Handle<Material> h) {
-        auto ptr_ro = try_find_idresource_binary(h.id, _materials);
+        auto ptr_ro = _materials.try_find(h);
         assert((ptr_ro != nullptr && "Invalid handle"));
         return *ptr_ro;
     }
 
     template <typename Resource> Handle<Resource> Renderer::get_resource_handle(const Resource &m) {
 
-        std::vector<Resource> *vec{nullptr};
+        SortedVector<Resource, IdResourceSortComp> *vec{nullptr};
         if constexpr (std::is_same_v<Resource, Mesh>) {
             vec = &_meshes;
         } else if (std::is_same_v<Resource, Material>) {
@@ -220,25 +290,15 @@ namespace eng {
 
         assert((vec != nullptr && "Resource not recognized"));
 
-        auto ptr_data = try_find_idresource(m.id, *vec);
+        auto ptr_data = vec->try_find(m);
 
-        if (ptr_data == nullptr) { vec->push_back(m); }
+        if (ptr_data == nullptr) { vec->insert(m); }
 
         return Handle<Resource>{m.id};
     }
 
     template <typename Iter>
     typename Iter::value_type *Renderer::try_find_idresource(uint32_t id, Iter &it) {
-
-        auto vec  = &it;
-        auto data = std::find_if(vec->begin(), vec->end(), [id](auto &&e) { return e.id == id; });
-
-        if (data != vec->end()) return &*data;
-        return nullptr;
-    }
-
-    template <typename Iter>
-    typename Iter::value_type *Renderer::try_find_idresource_binary(uint32_t id, Iter &it) {
         auto data = std::lower_bound(
             it.begin(), it.end(), id, [](auto &&e, auto &&v) { return e.id < v; });
 

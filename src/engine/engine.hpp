@@ -13,6 +13,12 @@
 #include "gui/gui.hpp"
 #include "camera/camera.hpp"
 
+#ifndef _DEBUG
+#define ENG_DEBUG(fmt, ...)
+#else
+#define ENG_DEBUG(fmt, ...) printf("[%s %s:%i] " fmt, __FILE__, __func__, __LINE__, __VA_ARGS__)
+#endif
+
 namespace eng {
     class Engine {
       public:

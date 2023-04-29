@@ -43,154 +43,75 @@ int main() {
 
     Renderer r;
 
-    // auto hprog            = r.empty_program();
-    // *r.get_program(hprog) = ShaderProgram{"a"};
-
-    // Handle<MaterialPass> forward_untextured_pass = r.empty_material_pass();
-    // r.get_material_pass(forward_untextured_pass)->pipelines[PipelinePass::Forward]
-    //     = r.get_program(hprog);
-
-    // Material def_mat;
-    // def_mat.pass = r.get_material_pass(forward_untextured_pass);
-    // ShaderData object_attributes{.data = {}, .bytes_per_instance = 16};
-
-    // def_mat.data = &object_attributes;
-
-    // {
-    //     Assimp::Importer i;
-    //     auto scene = i.ReadFile("3dmodels/bust/scene.gltf", aiProcess_Triangulate);
-
-    //     std::vector<Mesh> meshes;
-
-    //     std::function<void(const aiScene *scene, const aiNode *node)> parse_scene;
-    //     parse_scene = [&](const aiScene *scene, const aiNode *node) {
-    //         for (auto i = 0u; i < node->mNumMeshes; ++i) {
-    //             auto mesh = scene->mMeshes[node->mMeshes[i]];
-
-    //             std::vector<float> mesh_vertices;
-    //             std::vector<unsigned> mesh_indices;
-
-    //             for (auto j = 0u; j < mesh->mNumVertices; ++j) {
-    //                 auto &v = mesh->mVertices[j];
-
-    //                 mesh_vertices.push_back(v.x);
-    //                 mesh_vertices.push_back(v.y);
-    //                 mesh_vertices.push_back(v.z);
-    //                 mesh_vertices.push_back(mesh->mNormals[i].x);
-    //                 mesh_vertices.push_back(mesh->mNormals[i].y);
-    //                 mesh_vertices.push_back(mesh->mNormals[i].z);
-    //             }
-
-    //             for (auto j = 0u; j < mesh->mNumFaces; ++j) {
-    //                 auto &face = mesh->mFaces[j];
-
-    //                 assert((face.mNumIndices == 3 && "Accepting only triangular faces"));
-
-    //                 mesh_indices.push_back(face.mIndices[0]);
-    //                 mesh_indices.push_back(face.mIndices[1]);
-    //                 mesh_indices.push_back(face.mIndices[2]);
-    //             }
-
-    //             Material mat{.pass = def_mat.pass};
-
-    //             meshes.push_back(Mesh{.id        = (uint32_t)meshes.size() + 1,
-    //                                   .material  = &def_mat,
-    //                                   .transform = glm::mat4{1.f},
-    //                                   .vertices  = mesh_vertices,
-    //                                   .indices   = mesh_indices});
-    //         }
-
-    //         for (auto i = 0u; i < node->mNumChildren; ++i) {
-    //             parse_scene(scene, node->mChildren[i]);
-    //         }
-    //     };
-
-    //     parse_scene(scene, scene->mRootNode);
-
-    //     const auto swap = [](int a, int b, auto &v) {
-    //         auto t = v[a];
-    //         v[a]   = v[b];
-    //         v[b]   = t;
-    //     };
-
-    //     uint32_t object_counter = 1;
-    //     for (auto &m : meshes) {
-    //         m.transform = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -1.f});
-    //     }
-    //     Object o{.id = object_counter++, .meshes = meshes};
-
-    //     for (int i = 0; i < 3; ++i) {
-    //         o.meshes = meshes;
-    //         o.id++;
-    //         for (auto &m : o.meshes) {
-    //             m.transform = glm::rotate(
-    //                 m.transform, 3.14f / 2.f * ((float)i - 1.f), glm::vec3{0.f, 1.f, 0.f});
-    //         }
-
-    //         r.register_object(&o);
-    //     }
-    // }
-
-    //   r.render();
-    ShaderProgram prog{"a"};
-    Material m{.passes = {{RenderPass::Forward, &prog}}};
+    ShaderProgram prog;
+    try {
+        prog = ShaderProgram{"a"};
+    } catch (const std::exception &err) { fprintf(stderr, err.what()); }
 
     {
-        // clang-format off
-        std::array<std::initializer_list<float>, 3> meshes {
-            {
-                {
-                    0.f, 0.f, 0.f,
-                    1.f, 0.f, 0.f,
-                    0.f, 1.f, 0.f,
-                },
+        Assimp::Importer i;
+        auto scene = i.ReadFile("3dmodels/simplex/simplex.obj", aiProcess_Triangulate);
 
-                {
-                    0.f, 0.f, 0.f,
-                    1.f, 0.f, 0.f,
-                    0.f, 1.f, 0.f,
-                    1.f, 1.f, 0.f,
-                },
+        std::vector<Mesh> meshes;
 
-                {
-                   -1.f, 0.f, 0.f,
-                    1.f, 0.f, 0.f,
-                    0.f, 1.f, 0.f,
-                },
+        std::function<void(const aiScene *scene, const aiNode *node)> parse_scene;
+        parse_scene = [&](const aiScene *scene, const aiNode *node) {
+            for (auto i = 0u; i < node->mNumMeshes; ++i) {
+                auto mesh = scene->mMeshes[node->mMeshes[i]];
 
+                std::vector<float> mesh_vertices;
+                std::vector<unsigned> mesh_indices;
+
+                for (auto j = 0u; j < mesh->mNumVertices; ++j) {
+                    auto &v = mesh->mVertices[j];
+
+                    mesh_vertices.push_back(v.x);
+                    mesh_vertices.push_back(v.y);
+                    mesh_vertices.push_back(v.z);
+                    mesh_vertices.push_back(mesh->mTextureCoords[0][j].x);
+                    mesh_vertices.push_back(mesh->mTextureCoords[0][j].y);
+                    mesh_vertices.push_back(mesh->mTextureCoords[0][j].z);
+                }
+
+                for (auto j = 0u; j < mesh->mNumFaces; ++j) {
+                    auto &face = mesh->mFaces[j];
+
+                    assert((face.mNumIndices == 3 && "Accepting only triangular faces"));
+
+                    mesh_indices.push_back(face.mIndices[0]);
+                    mesh_indices.push_back(face.mIndices[1]);
+                    mesh_indices.push_back(face.mIndices[2]);
+                }
+
+                auto material = scene->mMaterials[mesh->mMaterialIndex];
+                aiString path;
+                material->GetTexture(aiTextureType_DIFFUSE, 0, &path);
+
+                Texture *def_txt  = new Texture{path.C_Str()};
+                Material *def_mat = new Material{.passes   = {{RenderPass::Forward, &prog}},
+                                                 .textures = {{TextureType::Diffuse, def_txt}}};
+                def_txt->make_resident();
+                meshes.push_back(
+                    Mesh{.material = def_mat, .vertices = mesh_vertices, .indices = mesh_indices});
+            }
+
+            for (auto i = 0u; i < node->mNumChildren; ++i) {
+                parse_scene(scene, node->mChildren[i]);
             }
         };
 
-        std::array<std::initializer_list<unsigned>, 3> indices {
-            {
-                {0, 1, 2},
-                {0, 1, 2, 2, 1, 3},
-                {0, 1, 2}
-            }
-        };
-        // clang-format on
+        parse_scene(scene, scene->mRootNode);
 
-        Object o;
-        for (int i = 0; i < 3; ++i) {
-            o.meshes.push_back(Mesh{.material = &m, .vertices = meshes[i], .indices = indices[i]});
-        }
+        Object o{.meshes = meshes};
 
-        std::vector<Object> objects;
-        for (int i = 0; i < 3; ++i) {
-            objects.push_back(o);
-            objects.back().id += i;
-        }
-
-        for (auto &o : objects) {
-            o.meshes.resize(o.id);
+        r.register_object(&o);
+        for (int i = 2; i < 1; ++i) {
+            o.meshes = meshes;
+            o.id++;
             for (auto &m : o.meshes) {
-                m.transform = glm::rotate(glm::mat4{1.f},
-                                          3.14f / 2.0f * (float)(o.id - 2),
-                                          glm::vec3{0.f, 1.f, 0.f})
-                              * glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -1.f});
+                m.transform = glm::rotate(
+                    m.transform, 3.14f / 2.f * ((float)i - 1.f), glm::vec3{0.f, 1.f, 0.f});
             }
-
-            r.register_object(&o);
         }
     }
 

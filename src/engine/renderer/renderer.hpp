@@ -41,6 +41,10 @@ namespace eng {
         }
     };
     template <typename Resource> struct IdResource {
+        auto operator<=>(const IdResource<Resource> &) const = default;
+        auto operator<=>(Handle<Resource> h) const { return id <=> h.id; }
+        auto operator==(Handle<Resource> h) const { return id == h.id; }
+
         uint32_t id{TypeIdGen<Resource>::unique()};
     };
 
@@ -48,7 +52,39 @@ namespace eng {
         Forward,
     };
 
+    enum class TextureType { Diffuse };
+
+    class Texture : public IdResource<Texture> {
+      public:
+        explicit Texture() = default;
+        explicit Texture(const std::string &texture_path);
+
+        void bind(uint32_t unit);
+        void unbind();
+        void make_resident();
+        void make_non_resident();
+
+        bool is_bound() const { return _is_bound; }
+        bool is_resident() const { return _is_resident; }
+
+        uint32_t handle() const { return _texture_handle; }
+        uint64_t bindless_handle() const { return _texture_bindless_handle; }
+        uint32_t bound_unit() const { return _bound_unit; }
+
+        std::pair<uint32_t, uint32_t> get_size() const { return {_sizex, _sizey}; }
+
+      private:
+        bool _is_bound{false}, _is_resident{false};
+        uint32_t _bound_unit{0};
+        uint32_t _sizex{0}, _sizey{0}, _channels{0};
+        uint32_t _texture_handle{0};
+        uint64_t _texture_bindless_handle{0};
+        std::string _texture_path;
+        std::shared_ptr<uint8_t> _image_data;
+    };
+
     struct Material : public IdResource<Material> {
+        std::unordered_map<TextureType, Texture *> textures;
         std::unordered_map<RenderPass, ShaderProgram *> passes;
     };
 
@@ -154,9 +190,12 @@ namespace eng {
         std::vector<Handle<RenderObject>> _dirty_objects;
 
         std::unordered_map<uint32_t, uint32_t> _mesh_instance_count;
-        std::vector<RenderObject> _renderables;
-        std::vector<Mesh> _meshes;
-        std::vector<Material> _materials;
+
+        using IdResourceSortComp
+            = decltype([](const auto &a, const auto &b) { return a.id < b.id; });
+        SortedVector<RenderObject, IdResourceSortComp> _renderables;
+        SortedVector<Mesh, IdResourceSortComp> _meshes;
+        SortedVector<Material, IdResourceSortComp> _materials;
 
         uint32_t vao;
         GLBuffer commands_buffer{GL_DYNAMIC_STORAGE_BIT};
