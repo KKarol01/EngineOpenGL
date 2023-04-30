@@ -46,6 +46,7 @@ int main() {
     ShaderProgram prog;
     try {
         prog = ShaderProgram{"a"};
+
     } catch (const std::exception &err) { fprintf(stderr, err.what()); }
 
     {
@@ -104,14 +105,15 @@ int main() {
 
         Object o{.meshes = meshes};
 
-        r.register_object(&o);
-        for (int i = 2; i < 1; ++i) {
+        for (int i = 0; i < 2; ++i) {
             o.meshes = meshes;
             o.id++;
             for (auto &m : o.meshes) {
-                m.transform = glm::rotate(
-                    m.transform, 3.14f / 2.f * ((float)i - 1.f), glm::vec3{0.f, 1.f, 0.f});
+                m.transform
+                    = glm::rotate(glm::mat4{1.f}, 3.14f / 4.f * (float)i, glm::vec3{0.f, 1.f, 0.f})
+                      * glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -2.f});
             }
+            r.register_object(&o);
         }
     }
 

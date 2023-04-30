@@ -202,7 +202,7 @@ namespace eng {
         GLBuffer geometry_buffer{GL_DYNAMIC_STORAGE_BIT};
         GLBuffer index_buffer{GL_DYNAMIC_STORAGE_BIT};
         GLBuffer mesh_data_buffer{GL_DYNAMIC_STORAGE_BIT};
-        // GLBuffer {GL_DYNAMIC_STORAGE_BIT};
+        GLBuffer bindless_handles_buffer{GL_DYNAMIC_STORAGE_BIT};
     };
 
 } // namespace eng

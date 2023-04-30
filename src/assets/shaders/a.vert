@@ -1,9 +1,11 @@
 #version 460 core
-// #extension GL_ARB_bindless_texture : require
-// #extension GL_ARB_gpu_shader_int64 : require
+#extension GL_ARB_bindless_texture : require
+#extension GL_ARB_gpu_shader_int64 : require
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNorm;
+
+layout(std430, binding = 0) buffer VTransforms { mat4 transforms[]; };
 
 uniform mat4 v;
 uniform mat4 p;
@@ -15,5 +17,5 @@ v_out;
 void main() {
     idx         = gl_BaseInstance + gl_InstanceID;
     v_out.vNorm = vNorm;
-    gl_Position = p * v * vec4(vPos, 1.0);
+    gl_Position = p * v * transforms[idx] * vec4(vPos, 1.0);
 }

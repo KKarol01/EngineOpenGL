@@ -168,11 +168,13 @@ namespace eng {
             std::unordered_map<uint32_t, uint32_t> offsets;
 
             struct Payload {
-                uint64_t texture_bindless_handle;
+                glm::mat4 transform;
             };
 
             std::vector<Payload> mesh_data;
+            std::vector<uint64_t> mesh_bindless_handle;
             mesh_data.resize(_renderables.size());
+            mesh_bindless_handle.resize(_renderables.size());
 
             offsets[_meshes[0].id] = 0;
             for (auto i = 1u, prev_offset = 0u; i < _meshes.size(); ++i) {
@@ -186,15 +188,22 @@ namespace eng {
             for (const auto &r : _renderables) {
                 const auto offset = offsets.at(r.mesh.id)++;
                 const auto &mesh  = *_meshes.try_find(r.mesh);
-                mesh_data[offset]
-                    = {/*r.transform,*/
-                       mesh.material->textures.at(TextureType::Diffuse)->bindless_handle()};
+                mesh_data[offset] = {
+                    r.transform,
+                };
+
+                mesh.material->textures.at(TextureType::Diffuse)->make_resident();
+                mesh_bindless_handle[offset]
+                    = (mesh.material->textures.at(TextureType::Diffuse)->bindless_handle());
 
                 ENG_DEBUG("Inserting %i at %i\n", mesh.id, offset);
             }
 
             mesh_data_buffer.clear_invalidate();
             mesh_data_buffer.push_data(mesh_data.data(), mesh_data.size() * sizeof(glm::mat4));
+            bindless_handles_buffer.clear_invalidate();
+            bindless_handles_buffer.push_data(mesh_bindless_handle.data(),
+                                              mesh_bindless_handle.size() * sizeof(uint64_t));
 
             std::vector<float> mesh_vertices;
             std::vector<unsigned> mesh_indices;
@@ -252,6 +261,7 @@ namespace eng {
 
         glBindVertexArray(vao);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mesh_data_buffer.descriptor.handle);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, bindless_handles_buffer.descriptor.handle);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commands_buffer.descriptor.handle);
         for (const auto &mb : forward_pass.multi_batches) {
             forward_pass.indirect_batches[mb.first].material.prog->use();
