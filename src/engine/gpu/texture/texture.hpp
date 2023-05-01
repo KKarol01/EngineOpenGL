@@ -1,53 +1,41 @@
 #pragma once
 
-#include <string>
-#include <string_view>
 #include <cstdint>
-#include "../../renderer/typedefs.hpp"
+#include <string>
+#include <memory>
+
+#include <engine/types/idresource.hpp>
 
 namespace eng {
-    struct FILTER_SETTINGS {
-        uint32_t min, mag;
 
-        constexpr explicit FILTER_SETTINGS();
-        constexpr explicit FILTER_SETTINGS(uint32_t minmag);
-        constexpr explicit FILTER_SETTINGS(uint32_t min, uint32_t mag);
-    };
-    struct WRAP_SETTINGS {
-        uint32_t s, t, r;
+    enum class TextureType { Diffuse, Normal, Metallic, Roughness, Emissive };
 
-        constexpr explicit WRAP_SETTINGS();
-        constexpr explicit WRAP_SETTINGS(uint32_t str);
-        constexpr explicit WRAP_SETTINGS(uint32_t s, uint32_t t);
-        constexpr explicit WRAP_SETTINGS(uint32_t s, uint32_t t, uint32_t r);
-    };
+    class Texture : public IdResource<Texture> {
+      public:
+        explicit Texture() = default;
+        explicit Texture(const std::string &texture_path);
 
-    struct GLTextureDescriptor {
-        GLTextureDescriptor() = default;
-        GLTextureDescriptor(GLTextureDescriptor &&other) noexcept;
-        GLTextureDescriptor &operator=(GLTextureDescriptor &&other) noexcept;
-        ~GLTextureDescriptor();
+        void bind(uint32_t unit);
+        void unbind();
+        void make_resident();
+        void make_non_resident();
 
-        bool operator==(const GLTextureDescriptor &other) const { return handle == other.handle; }
+        bool is_bound() const { return _is_bound; }
+        bool is_resident() const { return _is_resident; }
 
-        FILTER_SETTINGS filter;
-        WRAP_SETTINGS wrap;
-        TextureID handle{0u};
-        uint32_t mipmaps{0u}, dimensions{2u}, format{0u};
-        uint32_t width{0u}, height{0u};
-    };
+        uint32_t handle() const { return _texture_handle; }
+        uint64_t bindless_handle() const { return _texture_bindless_handle; }
+        uint32_t bound_unit() const { return _bound_unit; }
 
-    struct GLTexture {
-        GLTexture() = default;
-        explicit GLTexture(const FILTER_SETTINGS &filter);
-        GLTexture(const FILTER_SETTINGS &filter, const WRAP_SETTINGS &wrap);
+        std::pair<uint32_t, uint32_t> get_size() const { return {_sizex, _sizey}; }
 
-        void build2d(uint32_t levels, uint32_t format, uint32_t width, uint32_t height);
-        void build2d_mips(std::string_view path, uint32_t dimensions);
-        void build2d_ms(std::string_view path, uint32_t dimensions, uint32_t samples, bool fixedsamplelocations = true);
-        void buildcube(std::string *paths, uint32_t TIME_FORMAT);
-        // void buildattachment(uint32_t int_format, size_t width, size_t height);
-
-        GLTextureDescriptor descriptor;
+      private:
+        bool _is_bound{false}, _is_resident{false};
+        uint32_t _bound_unit{0};
+        uint32_t _sizex{0}, _sizey{0}, _channels{0};
+        uint32_t _texture_handle{0};
+        uint64_t _texture_bindless_handle{0};
+        std::string _texture_path;
+        std::shared_ptr<uint8_t> _image_data;
     };
 } // namespace eng

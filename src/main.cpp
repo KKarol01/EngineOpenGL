@@ -11,6 +11,7 @@
 #include <engine/controller/keyboard/keyboard.hpp>
 #include <engine/types/types.hpp>
 #include <engine/renderer/renderer.hpp>
+#include <engine/gpu/texture/texture.hpp>
 
 #include <GLFW/glfw3.h>
 #include <assimp/scene.h>
@@ -51,7 +52,8 @@ int main() {
 
     {
         Assimp::Importer i;
-        auto scene = i.ReadFile("3dmodels/simplex/simplex.obj", aiProcess_Triangulate);
+        auto scene
+            = i.ReadFile("3dmodels/bust/scene.gltf", aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
         std::vector<Mesh> meshes;
 
@@ -72,6 +74,12 @@ int main() {
                     mesh_vertices.push_back(mesh->mTextureCoords[0][j].x);
                     mesh_vertices.push_back(mesh->mTextureCoords[0][j].y);
                     mesh_vertices.push_back(mesh->mTextureCoords[0][j].z);
+                    mesh_vertices.push_back(mesh->mTangents[j].x);
+                    mesh_vertices.push_back(mesh->mTangents[j].y);
+                    mesh_vertices.push_back(mesh->mTangents[j].z);
+                    mesh_vertices.push_back(mesh->mBitangents[j].x);
+                    mesh_vertices.push_back(mesh->mBitangents[j].y);
+                    mesh_vertices.push_back(mesh->mBitangents[j].z);
                 }
 
                 for (auto j = 0u; j < mesh->mNumFaces; ++j) {
@@ -86,12 +94,33 @@ int main() {
 
                 auto material = scene->mMaterials[mesh->mMaterialIndex];
                 aiString path;
-                material->GetTexture(aiTextureType_DIFFUSE, 0, &path);
 
-                Texture *def_txt  = new Texture{path.C_Str()};
-                Material *def_mat = new Material{.passes   = {{RenderPass::Forward, &prog}},
-                                                 .textures = {{TextureType::Diffuse, def_txt}}};
-                def_txt->make_resident();
+                std::array<std::pair<aiTextureType, TextureType>, 5> textures_types{{
+                    {aiTextureType_DIFFUSE, TextureType::Diffuse},
+                    {aiTextureType_NORMALS, TextureType::Normal},
+                    {aiTextureType_METALNESS, TextureType::Metallic},
+                    {aiTextureType_DIFFUSE_ROUGHNESS, TextureType::Roughness},
+                    {aiTextureType_EMISSIVE, TextureType::Emissive},
+                }};
+
+                Material *def_mat = new Material{.passes = {{RenderPass::Forward, &prog}}};
+
+                for (const auto &[ait, t] : textures_types) {
+                    const auto ait_count = material->GetTextureCount(ait);
+
+                    if (ait_count == 0) { continue; }
+
+                    aiString path;
+                    std::string texture_path{"3dmodels/bust/"};
+
+                    material->GetTexture(ait, 0, &path);
+                    assert((path.length > 0 && "invalid path to texture"));
+                    texture_path += path.C_Str();
+
+                    auto texture         = new Texture{texture_path};
+                    def_mat->textures[t] = texture;
+                }
+
                 meshes.push_back(
                     Mesh{.material = def_mat, .vertices = mesh_vertices, .indices = mesh_indices});
             }
@@ -105,7 +134,7 @@ int main() {
 
         Object o{.meshes = meshes};
 
-        for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < 1; ++i) {
             o.meshes = meshes;
             o.id++;
             for (auto &m : o.meshes) {

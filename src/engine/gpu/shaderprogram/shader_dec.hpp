@@ -12,10 +12,8 @@
 
 #include <glm/glm.hpp>
 
-#include "../../renderer/typedefs.hpp"
-
 namespace eng {
-    class ShaderProgram :public RendererResource{
+    class ShaderProgram {
       public:
         ShaderProgram() = default;
         explicit ShaderProgram(const std::string &file_name);
@@ -26,9 +24,7 @@ namespace eng {
         ShaderProgram &operator=(ShaderProgram &&) noexcept;
         ~ShaderProgram();
 
-        bool operator==(const ShaderProgram& other) const {
-            return file_name == other.file_name;
-        }
+        bool operator==(const ShaderProgram &other) const { return file_name == other.file_name; }
 
       public:
         template <typename T>

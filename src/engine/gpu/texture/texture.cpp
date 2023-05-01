@@ -1,97 +1,64 @@
 #include "texture.hpp"
 
-#include <glad/glad.h>
-
-#include <array>
-#include <vector>
-#include <memory>
-#include <cstdint>
-#include <iostream>
-#include <algorithm>
-#include <unordered_map>
+#include <cassert>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <glad/glad.h>
 
 namespace eng {
-    constexpr FILTER_SETTINGS::FILTER_SETTINGS() : FILTER_SETTINGS(GL_LINEAR) {}
-    constexpr FILTER_SETTINGS::FILTER_SETTINGS(uint32_t minmag) : min{minmag}, mag{minmag} {}
-    constexpr FILTER_SETTINGS::FILTER_SETTINGS(uint32_t min, uint32_t mag) : min{min}, mag{mag} {}
-    constexpr WRAP_SETTINGS::WRAP_SETTINGS() : WRAP_SETTINGS(GL_CLAMP_TO_EDGE) {}
-    constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t str) : s{str}, t{str}, r{str} {}
-    constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t s, uint32_t t) : s{s}, t{t}, r{0u} {}
-    constexpr WRAP_SETTINGS::WRAP_SETTINGS(uint32_t s, uint32_t t, uint32_t r) : s{s}, t{t}, r{r} {}
+    Texture::Texture(const std::string &texture_path) {
+        this->_texture_path  = texture_path;
+        std::string base_dir = texture_path;
+        auto image_data
+            = stbi_load(base_dir.c_str(), (int *)&_sizex, (int *)&_sizey, (int *)&_channels, 0);
 
-    GLTextureDescriptor::GLTextureDescriptor(GLTextureDescriptor &&other) noexcept {
-        filter       = other.filter;
-        wrap         = other.wrap;
-        mipmaps      = other.mipmaps;
-        dimensions   = other.dimensions;
-        format       = other.format;
-        width        = other.width;
-        height       = other.height;
-        handle       = other.handle;
-        other.handle = 0u;
-    }
-    GLTextureDescriptor &GLTextureDescriptor::operator=(GLTextureDescriptor &&other) noexcept {
-        *this = std::move(other);
-        return *this;
-    }
-    GLTextureDescriptor::~GLTextureDescriptor() { glDeleteTextures(1, &handle); }
+        if (image_data == nullptr) {
+            fprintf(stderr, "Image not found at path: %s\n", texture_path.c_str());
+            assert(false);
+        }
 
-    GLTexture::GLTexture(const FILTER_SETTINGS &filter) { descriptor.filter = filter; }
-
-    GLTexture::GLTexture(const FILTER_SETTINGS &filter, const WRAP_SETTINGS &wrap) {
-        descriptor.filter = filter;
-        descriptor.wrap   = wrap;
+        glCreateTextures(GL_TEXTURE_2D, 1, &_texture_handle);
+        glTextureStorage2D(_texture_handle, 4, GL_RGB8, _sizex, _sizey);
+        glTextureSubImage2D(_texture_handle,
+                            0,
+                            0,
+                            0,
+                            _sizex,
+                            _sizey,
+                            _channels == 3 ? GL_RGB : GL_RGBA,
+                            GL_UNSIGNED_BYTE,
+                            (void *)image_data);
+        glGenerateTextureMipmap(_texture_handle);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        _image_data = std::shared_ptr<uint8_t>{image_data, stbi_image_free};
     }
 
-    void GLTexture::build2d(uint32_t levels, uint32_t format, uint32_t width, uint32_t height) {
-        auto &handle       = descriptor.handle;
-        const auto &filter = descriptor.filter;
-        const auto &wrap   = descriptor.wrap;
-
-        assert((handle == 0u, "Don't call building functions more than once on the same object."));
-
-        glCreateTextures(GL_TEXTURE_2D, 1, &handle);
-        glTextureStorage2D(handle, levels, format, width, height);
-        glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
-        glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);
-        glTextureParameteri(handle, GL_TEXTURE_WRAP_S, wrap.s);
-        glTextureParameteri(handle, GL_TEXTURE_WRAP_T, wrap.t);
+    void Texture::bind(uint32_t unit) {
+        _bound_unit = unit;
+        _is_bound   = true;
+        glBindTextureUnit(unit, handle());
     }
 
-    void GLTexture::build2d_mips(std::string_view path, uint32_t dimensions) { assert(false); }
-
-    void
-    GLTexture::build2d_ms(std::string_view path, uint32_t dimensions, uint32_t samples, bool fixedsamplelocations) {
-        assert(false);
+    void Texture::unbind() {
+        _is_bound = false;
+        glBindTextureUnit(bound_unit(), handle());
     }
 
-    void GLTexture::buildcube(std::string *path, uint32_t TIME_FORMAT) {
-        /* glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &handle);
-         glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter.min);
-         glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter.mag);
-         glTextureParameteri(handle, GL_TEXTURE_WRAP_S, wrap.s);
-         glTextureParameteri(handle, GL_TEXTURE_WRAP_T, wrap.t);
-         glTextureParameteri(handle, GL_TEXTURE_WRAP_R, wrap.r);
+    void Texture::make_resident() {
+        if (bindless_handle() == 0ull) {
+            _texture_bindless_handle = glGetTextureHandleARB(handle());
+        }
 
-         glBindTexture(GL_TEXTURE_CUBE_MAP, handle);
-         for (int i = 0; i < 6; ++i) {
-             int x, y, ch;
-             auto data = stbi_load(path[i].data(), &x, &y, &ch, 0);
-
-             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                          0,
-                          TIME_FORMAT,
-                          x,
-                          y,
-                          0,
-                          ch == 3 ? GL_RGB : GL_RGBA,
-                          GL_UNSIGNED_BYTE,
-                          data);
-             stbi_image_free(data);
-         }*/
+        _is_resident = true;
+        glMakeTextureHandleResidentARB(bindless_handle());
     }
 
+    void Texture::make_non_resident() {
+        _is_resident = false;
+        glMakeTextureHandleNonResidentARB(bindless_handle());
+    }
 } // namespace eng

@@ -9,20 +9,22 @@
 #include <variant>
 #include <cassert>
 
-#include "../../types/types.hpp"
-#include "../../renderer/typedefs.hpp"
+#include <engine/types/types.hpp>
+typedef uint32_t GLBufferID;
 
 namespace eng {
     struct GLBufferDescriptor {
         GLBufferDescriptor() = default;
         explicit GLBufferDescriptor(uint32_t flags) : flags{flags} {}
-        bool operator==(const GLBufferDescriptor &other) const noexcept { return handle == other.handle; }
+        bool operator==(const GLBufferDescriptor &other) const noexcept {
+            return handle == other.handle;
+        }
 
         std::uint32_t handle{0u}, flags{0u};
         std::size_t size{0u}, capacity{0u};
     };
 
-    struct GLBuffer : public RendererResource {
+    struct GLBuffer {
         GLBuffer() = default;
         explicit GLBuffer(GLBuffer &&) noexcept;
         GLBuffer &operator=(GLBuffer &&) noexcept;
@@ -31,7 +33,8 @@ namespace eng {
         explicit GLBuffer(uint32_t flags);
         GLBuffer(void *data, uint32_t size_bytes, uint32_t flags);
         template <typename T>
-        GLBuffer(std::vector<T> &data, uint32_t flags) : GLBuffer(data.data(), data.size() * sizeof(T), flags) {}
+        GLBuffer(std::vector<T> &data, uint32_t flags)
+            : GLBuffer(data.data(), data.size() * sizeof(T), flags) {}
 
         void push_data(const void *data, size_t size_bytes);
         void clear_invalidate();
@@ -58,8 +61,12 @@ namespace eng {
 
     struct GLVaoAttributeDescriptor {
         GLVaoAttributeDescriptor(GL_ATTR_ idx, uint32_t binding, uint32_t size, uint32_t offset);
-        GLVaoAttributeDescriptor(
-            GL_ATTR_ idx, uint32_t binding, uint32_t size, uint32_t offset, GL_FORMAT_ gl_format, bool normalize);
+        GLVaoAttributeDescriptor(GL_ATTR_ idx,
+                                 uint32_t binding,
+                                 uint32_t size,
+                                 uint32_t offset,
+                                 GL_FORMAT_ gl_format,
+                                 bool normalize);
 
         GL_ATTR_ idx;
         uint32_t size{0}, offset{0};
@@ -69,7 +76,8 @@ namespace eng {
     };
 
     // struct GLVaoAttributeSameType {
-    //     GLVaoAttributeSameType(uint32_t idx, uint32_t binding, uint32_t size, bool normalize = false)
+    //     GLVaoAttributeSameType(uint32_t idx, uint32_t binding, uint32_t size, bool normalize =
+    //     false)
     //         : idx{idx}, binding{binding}, size{size}, normalize{normalize} {}
 
     //    uint32_t idx, binding, size;
@@ -92,7 +100,9 @@ namespace eng {
     struct GLVaoDescriptor {
         GLVaoDescriptor() = default;
 
-        bool operator==(const GLVaoDescriptor &other) const noexcept { return handle == other.handle; }
+        bool operator==(const GLVaoDescriptor &other) const noexcept {
+            return handle == other.handle;
+        }
 
         const GLVaoAttributeDescriptor &get_attrib_by_binding(uint32_t binding) const {
             for (auto &attr : attributes) {
@@ -117,7 +127,7 @@ namespace eng {
         GLBufferID ebo_buffer_id{0u};
     };
 
-    struct GLVao : public RendererResource {
+    struct GLVao {
         GLVao();
         GLVao(GLVao &&) noexcept;
         GLVao &operator=(GLVao &&) noexcept;
