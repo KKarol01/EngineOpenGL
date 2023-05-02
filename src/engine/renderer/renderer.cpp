@@ -4,6 +4,14 @@
 // #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+eng::Texture bloom_tex, bloom_depth_tex;
+uint32_t bloom_fbo;
+eng::Texture mip_chain[4];
+uint32_t mip_fbo;
+
+uint32_t quad_vao;
+eng::GLBuffer quad_vbo, quad_ebo;
+
 eng::Renderer::Renderer() {
     glCreateVertexArrays(1, &vao);
     glVertexArrayAttribBinding(vao, 0, 0);
@@ -18,6 +26,44 @@ eng::Renderer::Renderer() {
     glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 12);
     glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, 24);
     glVertexArrayAttribFormat(vao, 3, 3, GL_FLOAT, GL_FALSE, 36);
+
+    bloom_tex = Texture{eng::TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
+                        eng::TextureImageDataDescriptor{"", 1920, 1080}};
+    bloom_depth_tex
+        = Texture{eng::TextureSettings{GL_DEPTH24_STENCIL8, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
+                  eng::TextureImageDataDescriptor{"", 1920, 1080}};
+
+    glCreateFramebuffers(1, &bloom_fbo);
+    glNamedFramebufferTexture(bloom_fbo, GL_COLOR_ATTACHMENT0, bloom_tex.handle(), 0);
+    glNamedFramebufferTexture(bloom_fbo, GL_DEPTH_STENCIL_ATTACHMENT, bloom_depth_tex.handle(), 0);
+    if (glCheckNamedFramebufferStatus(bloom_fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    }
+
+    glCreateFramebuffers(1, &mip_fbo);
+    for (int i = 0; i < 4; ++i) {
+        mip_chain[i] = Texture{eng::TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
+                               eng::TextureImageDataDescriptor{"", 1920 / (i + 2), 1080 / (i + 2)}};
+    }
+
+    glCreateVertexArrays(1, &quad_vao);
+    glVertexArrayAttribBinding(quad_vao, 0, 0);
+    glVertexArrayAttribBinding(quad_vao, 1, 0);
+    glEnableVertexArrayAttrib(quad_vao, 0);
+    glEnableVertexArrayAttrib(quad_vao, 1);
+    glVertexArrayAttribFormat(quad_vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribFormat(quad_vao, 1, 2, GL_FLOAT, GL_FALSE, 8);
+
+    float quad_vbo_data[]{
+        -1.f, -1.f, 0.f, 0.f, 1.f, -1.f, 1.f, 0.f, -1.f, 1.f, 0.f, 1.f, 1.f, 1.f, 1.f, 1.f};
+
+    unsigned quad_ebo_data[]{0, 1, 2, 2, 1, 3};
+
+    quad_vbo.push_data(quad_vbo_data, sizeof(quad_vbo_data));
+    quad_ebo.push_data(quad_ebo_data, sizeof(quad_ebo_data));
+
+    glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo.descriptor.handle, 0, 16);
+    glad_glVertexArrayElementBuffer(quad_vao, quad_ebo.descriptor.handle);
 }
 
 namespace eng {
@@ -223,13 +269,18 @@ namespace eng {
         glBindVertexArray(vao);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mesh_data_buffer.descriptor.handle);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commands_buffer.descriptor.handle);
+        glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         for (const auto &mb : forward_pass.multi_batches) {
             forward_pass.indirect_batches[mb.first].material.prog->use();
             forward_pass.indirect_batches[mb.first].material.prog->set(
                 "v", Engine::instance().cam->view_matrix());
-            forward_pass.indirect_batches[mb.first].material.prog->set( "p", Engine::instance().cam->perspective_matrix());
-            forward_pass.indirect_batches[mb.first].material.prog->set( "view_vec", Engine::instance().cam->forward_vec());
-            forward_pass.indirect_batches[mb.first].material.prog->set( "view_pos", Engine::instance().cam->position());
+            forward_pass.indirect_batches[mb.first].material.prog->set(
+                "p", Engine::instance().cam->perspective_matrix());
+            forward_pass.indirect_batches[mb.first].material.prog->set(
+                "view_vec", Engine::instance().cam->forward_vec());
+            forward_pass.indirect_batches[mb.first].material.prog->set(
+                "view_pos", Engine::instance().cam->position());
             forward_pass.indirect_batches[mb.first].material.prog->use();
             glMultiDrawElementsIndirect(GL_TRIANGLES,
                                         GL_UNSIGNED_INT,
@@ -237,6 +288,53 @@ namespace eng {
                                         mb.count,
                                         0);
         }
+        glFinish();
+
+        static ShaderProgram quad_prog{"rect"};
+        static ShaderProgram bloom_prog{"bloom"};
+        static ShaderProgram bloom_up_prog{"bloom_up"};
+
+        bloom_prog.use();
+        bloom_tex.bind(0);
+        glBindVertexArray(quad_vao);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, mip_fbo);
+        for (int i = 0; i < 4; ++i) {
+            if (i > 0) { mip_chain[i - 1].bind(0); }
+            glMemoryBarrier(GL_ALL_BARRIER_BITS);
+            glNamedFramebufferTexture(mip_fbo, GL_COLOR_ATTACHMENT0, mip_chain[i].handle(), 0);
+            glViewport(0, 0, 1920 / (i + 2), 1080 / (i + 2));
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+
+        bloom_up_prog.use();
+        bloom_up_prog.set("filterRadius", 0.005f);
+        bloom_tex.bind(1);
+        for (int i = 2; i >= -1; --i) {
+            mip_chain[i + 1].bind(0);
+
+            glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+            if (i > -1) {
+                glNamedFramebufferTexture(mip_fbo, GL_COLOR_ATTACHMENT0, mip_chain[i].handle(), 0);
+            }
+            glViewport(0, 0, 1920 / (i + 2), 1080 / (i + 2));
+            if(i==-1) {
+                glad_glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
+                bloom_up_prog.set("primary", 1.0f);
+            } else {
+                bloom_up_prog.set("primary", 0.0f);
+            }
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+        glViewport(0, 0, 1920, 1080);
+
+        bloom_tex.bind(0);
+        quad_prog.use();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 
     RenderObject &Renderer::get_render_object(Handle<RenderObject> h) {

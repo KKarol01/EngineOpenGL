@@ -120,7 +120,7 @@ int main() {
 
                     auto texture = new Texture{
                         TextureSettings{GL_RGB8, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, 7},
-                        {TextureImageDataDescriptor{texture_path}}};
+                        TextureImageDataDescriptor{texture_path}};
                     def_mat->textures[t] = texture;
                 }
 

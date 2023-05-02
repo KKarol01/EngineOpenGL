@@ -8,7 +8,7 @@
 
 namespace eng {
     Texture::Texture(const TextureSettings &settings,
-                     std::initializer_list<TextureImageDataDescriptor> data_descs,
+                     const TextureImageDataDescriptor &data_descs,
                      bool also_store_data_on_cpu)
         : _settings{settings} {
         _load(data_descs, also_store_data_on_cpu);
@@ -39,25 +39,31 @@ namespace eng {
         glMakeTextureHandleNonResidentARB(bindless_handle());
     }
 
-    void Texture::_load(std::initializer_list<TextureImageDataDescriptor> data_descs,
-                        bool also_store_data_on_cpu) {
+    void Texture::_load(const TextureImageDataDescriptor &data_desc, bool also_store_data_on_cpu) {
         glCreateTextures(_settings.type, 1, &_texture_handle);
 
         switch (_settings.type) {
         case GL_TEXTURE_2D: {
-            const auto &desc = *data_descs.begin();
-            auto &img_data   = _image_data.emplace_back();
+            const auto &desc = data_desc;
+            auto &img_data   = _image_data;
             img_data.path    = desc.path;
 
             // clang-format off
-            auto pixels = _load_image(desc.path, (int *)&img_data.sizex, (int *)&img_data.sizey, (int *)&img_data.channels, 0);
+            auto pixels = (uint8_t*)0;
+            if(img_data.path.empty()==false) {
+			    pixels = _load_image(desc.path, (int *)&img_data.sizex, (int *)&img_data.sizey, (int *)&img_data.channels, 0);
+            }else {
+				img_data.channels =3;
+				img_data.sizex = data_desc.xoffset;
+				img_data.sizey = data_desc.yoffset;
+            }
             glTextureStorage2D(_texture_handle, _settings.mip_count, _settings.format, img_data.sizex, img_data.sizey);
             glTextureSubImage2D(_texture_handle, 0, desc.xoffset,desc.yoffset, img_data.sizex, img_data.sizey, img_data.channels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, pixels);
             // clang-format on
 
             if (also_store_data_on_cpu) {
                 img_data.data = std::shared_ptr<uint8_t>(pixels, stbi_image_free);
-            } else {
+            } else if (pixels != nullptr) {
                 stbi_image_free(pixels);
             }
         } break;
@@ -82,8 +88,13 @@ namespace eng {
 
         return pixels;
     }
+
+    // clang-format off
+
     TextureSettings::TextureSettings() : TextureSettings(GL_TEXTURE_2D, GL_RGB8, GL_CLAMP_TO_EDGE, GL_LINEAR, 1) {}
     TextureSettings::TextureSettings(uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count) : TextureSettings(GL_TEXTURE_2D, format, wrap, filter, mip_count) {}
     TextureSettings::TextureSettings(uint32_t type, uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count) : TextureSettings(type, format, wrap, wrap, wrap, filter, filter, mip_count) {}
     TextureSettings::TextureSettings(uint32_t type, uint32_t format, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t filter_min, uint32_t filter_mag, uint32_t mip_count) : type{type}, format{format}, wrap_s{wrap_s}, wrap_t{wrap_t}, wrap_r{wrap_r}, filter_min{filter_min}, filter_mag{filter_mag}, mip_count{mip_count} {}
+
+    // clang-format on
 } // namespace eng

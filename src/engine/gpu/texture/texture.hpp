@@ -13,10 +13,12 @@ namespace eng {
 
     struct TextureSettings {
         // clang-format off
+
         explicit TextureSettings();
         explicit TextureSettings(uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count);
         explicit TextureSettings(uint32_t type, uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count);
         explicit TextureSettings(uint32_t type, uint32_t format, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t filter_min, uint32_t filter_mag, uint32_t mip_count=1);
+
         // clang-format on
 
         uint32_t type{0}, format{0};
@@ -26,7 +28,10 @@ namespace eng {
     };
 
     struct TextureImageDataDescriptor {
+        explicit TextureImageDataDescriptor() = default;
         explicit TextureImageDataDescriptor(const std::string &path) : path{path} {}
+        explicit TextureImageDataDescriptor(const std::string &path, int xoffset, int yoffset)
+            : path{path}, xoffset{xoffset}, yoffset{yoffset} {}
         std::string path;
         int xoffset{0}, yoffset{0};
     };
@@ -42,7 +47,7 @@ namespace eng {
       public:
         explicit Texture() = default;
         explicit Texture(const TextureSettings &settings,
-                         std::initializer_list<TextureImageDataDescriptor> data_descs,
+                         const TextureImageDataDescriptor &data_descs,
                          bool also_store_data_on_cpu = false);
 
         void bind(uint32_t unit);
@@ -57,18 +62,17 @@ namespace eng {
         uint64_t bindless_handle() const { return _texture_bindless_handle; }
         uint32_t bound_unit() const { return _bound_unit; }
 
-        std::pair<uint32_t, uint32_t> get_size(uint32_t idx = 0u) const {
-            return {_image_data.at(idx).sizex, _image_data.at(idx).sizey};
+        std::pair<uint32_t, uint32_t> get_size() const {
+            return {_image_data.sizex, _image_data.sizey};
         }
 
       private:
-        void _load(std::initializer_list<TextureImageDataDescriptor> data_descs,
-                   bool also_store_data_on_cpu);
+        void _load(const TextureImageDataDescriptor &data_desc, bool also_store_data_on_cpu);
         uint8_t *_load_image(
             std::string_view path, int *sizex, int *sizey, int *channels, int req_channels = 0);
 
         TextureSettings _settings;
-        std::vector<TextureImageData> _image_data;
+        TextureImageData _image_data;
 
         bool _is_bound{false}, _is_resident{false};
         uint32_t _bound_unit{0};

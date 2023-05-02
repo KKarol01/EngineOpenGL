@@ -20,6 +20,7 @@ struct A {
 };
 
 layout(std430, binding = 0) buffer VT { A a[]; };
+layout(binding=5) uniform sampler2D texas;
 
 flat in uint idx;
 flat in mat3 TBN;
@@ -99,7 +100,7 @@ vec4 BRDF(vec3 v) {
 		Lo += ((D*V) * F + diffuse_color*Fd_Lambert()) * NoH;
     } 
 	
-    vec3 color = Lo + emissive_color;
+    vec3 color = Lo + emissive_color * 30.0;
 
 	
     return vec4(color, 1.0);
