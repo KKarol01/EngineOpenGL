@@ -7,34 +7,11 @@
 #include <glad/glad.h>
 
 namespace eng {
-    Texture::Texture(const std::string &texture_path) {
-        this->_texture_path  = texture_path;
-        std::string base_dir = texture_path;
-        auto image_data
-            = stbi_load(base_dir.c_str(), (int *)&_sizex, (int *)&_sizey, (int *)&_channels, 0);
-
-        if (image_data == nullptr) {
-            fprintf(stderr, "Image not found at path: %s\n", texture_path.c_str());
-            assert(false);
-        }
-
-        glCreateTextures(GL_TEXTURE_2D, 1, &_texture_handle);
-        glTextureStorage2D(_texture_handle, 4, GL_RGB8, _sizex, _sizey);
-        glTextureSubImage2D(_texture_handle,
-                            0,
-                            0,
-                            0,
-                            _sizex,
-                            _sizey,
-                            _channels == 3 ? GL_RGB : GL_RGBA,
-                            GL_UNSIGNED_BYTE,
-                            (void *)image_data);
-        glGenerateTextureMipmap(_texture_handle);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        _image_data = std::shared_ptr<uint8_t>{image_data, stbi_image_free};
+    Texture::Texture(const TextureSettings &settings,
+                     std::initializer_list<TextureImageDataDescriptor> data_descs,
+                     bool also_store_data_on_cpu)
+        : _settings{settings} {
+        _load(data_descs, also_store_data_on_cpu);
     }
 
     void Texture::bind(uint32_t unit) {
@@ -45,7 +22,7 @@ namespace eng {
 
     void Texture::unbind() {
         _is_bound = false;
-        glBindTextureUnit(bound_unit(), handle());
+        glBindTextureUnit(bound_unit(), 0);
     }
 
     void Texture::make_resident() {
@@ -61,4 +38,52 @@ namespace eng {
         _is_resident = false;
         glMakeTextureHandleNonResidentARB(bindless_handle());
     }
+
+    void Texture::_load(std::initializer_list<TextureImageDataDescriptor> data_descs,
+                        bool also_store_data_on_cpu) {
+        glCreateTextures(_settings.type, 1, &_texture_handle);
+
+        switch (_settings.type) {
+        case GL_TEXTURE_2D: {
+            const auto &desc = *data_descs.begin();
+            auto &img_data   = _image_data.emplace_back();
+            img_data.path    = desc.path;
+
+            // clang-format off
+            auto pixels = _load_image(desc.path, (int *)&img_data.sizex, (int *)&img_data.sizey, (int *)&img_data.channels, 0);
+            glTextureStorage2D(_texture_handle, _settings.mip_count, _settings.format, img_data.sizex, img_data.sizey);
+            glTextureSubImage2D(_texture_handle, 0, desc.xoffset,desc.yoffset, img_data.sizex, img_data.sizey, img_data.channels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+            // clang-format on
+
+            if (also_store_data_on_cpu) {
+                img_data.data = std::shared_ptr<uint8_t>(pixels, stbi_image_free);
+            } else {
+                stbi_image_free(pixels);
+            }
+        } break;
+        deafult:
+            assert(false && "Unrecognized texture type");
+        }
+
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(_texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glGenerateTextureMipmap(_texture_handle);
+    }
+    uint8_t *Texture::_load_image(
+        std::string_view path, int *sizex, int *sizey, int *channels, int req_channels) {
+        auto pixels = stbi_load(path.data(), sizex, sizey, channels, req_channels);
+
+        if (pixels == nullptr) {
+            fprintf(stderr, "Image not found at path: %s\n", path.data());
+            assert(false);
+        }
+
+        return pixels;
+    }
+    TextureSettings::TextureSettings() : TextureSettings(GL_TEXTURE_2D, GL_RGB8, GL_CLAMP_TO_EDGE, GL_LINEAR, 1) {}
+    TextureSettings::TextureSettings(uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count) : TextureSettings(GL_TEXTURE_2D, format, wrap, filter, mip_count) {}
+    TextureSettings::TextureSettings(uint32_t type, uint32_t format, uint32_t wrap, uint32_t filter, uint32_t mip_count) : TextureSettings(type, format, wrap, wrap, wrap, filter, filter, mip_count) {}
+    TextureSettings::TextureSettings(uint32_t type, uint32_t format, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t filter_min, uint32_t filter_mag, uint32_t mip_count) : type{type}, format{format}, wrap_s{wrap_s}, wrap_t{wrap_t}, wrap_r{wrap_r}, filter_min{filter_min}, filter_mag{filter_mag}, mip_count{mip_count} {}
 } // namespace eng

@@ -30,8 +30,8 @@ namespace eng {
                                       .FORWARD_COMPAT = GL_FORWARD_COMPAT});
 
 #elif
-            throw std::runtime_error{
-                "Default GLFW hints disabled, please, call configure_glfw_and_hints method yourself."};
+            throw std::runtime_error{"Default GLFW hints disabled, please, call "
+                                     "configure_glfw_and_hints method yourself."};
 #endif
         }
 
@@ -44,9 +44,11 @@ namespace eng {
         }
 
         glfwSetFramebufferSizeCallback(
-            glfw_window,
-            (GLFWframebuffersizefun)[](auto a, auto b, auto c) { eng::Engine::instance().window()->resize(b, c); });
+            glfw_window, (GLFWframebuffersizefun)[](auto a, auto b, auto c) {
+                eng::Engine::instance().window()->resize(b, c);
+            });
 
+        glEnable(GL_MULTISAMPLE);
         glViewport(0, 0, window_width, window_height);
     }
 

@@ -53,7 +53,8 @@ int main() {
     {
         Assimp::Importer i;
         auto scene
-            = i.ReadFile("3dmodels/bust/scene.gltf", aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            = i.ReadFile("3dmodels/bust/scene.gltf",
+                         aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
         std::vector<Mesh> meshes;
 
@@ -117,7 +118,9 @@ int main() {
                     assert((path.length > 0 && "invalid path to texture"));
                     texture_path += path.C_Str();
 
-                    auto texture         = new Texture{texture_path};
+                    auto texture = new Texture{
+                        TextureSettings{GL_RGB8, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, 7},
+                        {TextureImageDataDescriptor{texture_path}}};
                     def_mat->textures[t] = texture;
                 }
 
