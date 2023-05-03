@@ -9,8 +9,8 @@
 namespace eng {
     Texture::Texture(const TextureSettings &settings,
                      const TextureImageDataDescriptor &data_descs,
-                     bool also_store_data_on_cpu)
-        : _settings{settings} {
+                     bool also_store_data_on_cpu) {
+        _settings = settings;
         _load(data_descs, also_store_data_on_cpu);
     }
 
@@ -26,9 +26,7 @@ namespace eng {
     }
 
     void Texture::make_resident() {
-        if (bindless_handle() == 0ull) {
-            _bindless_handle = glGetTextureHandleARB(handle());
-        }
+        if (bindless_handle() == 0ull) { _bindless_handle = glGetTextureHandleARB(handle()); }
 
         _is_resident = true;
         glMakeTextureHandleResidentARB(bindless_handle());

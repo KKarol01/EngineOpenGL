@@ -44,7 +44,7 @@ int main() {
                                                  | GL_STENCIL_BUFFER_BIT);
     glClearColor(.25f, .25f, .25f, 0.f);
 
-  //  Renderer r;
+    //  Renderer r;
 
     ShaderProgram prog;
     try {
@@ -142,15 +142,11 @@ int main() {
     }*/
 
     GpuResMgr rmgr;
-    auto &vvbo = rmgr.create_resource<GLBuffer>();
-    auto &vebo = rmgr.create_resource<GLBuffer>();
+    auto &vvbo = rmgr.create_resource<GLBuffer>(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+    auto &vebo = rmgr.create_resource<GLBuffer>(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
 
-    vvbo = GLBuffer{GL_DYNAMIC_STORAGE_BIT};
-    vebo = GLBuffer{GL_DYNAMIC_STORAGE_BIT};
-
-    GLVao v{{GLVaoBinding{0, vvbo.res_handle(), 12, 0}},
-            {GLVaoAttribute{0, 0, 3, 0}},
-            vebo.res_handle()};
+    GLVao v{
+        {GLVaoBinding{0, vvbo.id_handle(), 12, 0}}, {GLVaoAttribute{0, 0, 3, 0}}, vebo.id_handle()};
 
     while (!window->should_close()) {
         float time = glfwGetTime();
@@ -160,7 +156,7 @@ int main() {
         engine.cam->update();
 
         window->clear_framebuffer();
-    //    r.render();
+        //    r.render();
 
         window->swap_buffers();
     }

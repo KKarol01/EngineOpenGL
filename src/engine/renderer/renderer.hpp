@@ -57,6 +57,11 @@ namespace eng {
     };
 
     struct PassObject : IdResource<PassObject> {
+        PassObject(PassMaterial mat, Handle<Mesh> mesh, Handle<RenderObject> ro) {
+            this->mat           = mat;
+            this->mesh          = mesh;
+            this->render_object = ro;
+        }
         PassMaterial mat;
         Handle<Mesh> mesh;
         Handle<RenderObject> render_object;

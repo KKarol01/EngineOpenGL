@@ -9,7 +9,10 @@
 
 namespace eng {
 
-    GLBuffer::GLBuffer(uint32_t flags) : _flags{flags} { glCreateBuffers(1, &_handle); }
+    GLBuffer::GLBuffer(uint32_t flags) {
+        _flags = flags;
+        glCreateBuffers(1, &_handle);
+    }
 
     void GLBuffer::push_data(const void *data, size_t data_size) {
         if (_capacity < _size + data_size) { _resize(_size + data_size); }

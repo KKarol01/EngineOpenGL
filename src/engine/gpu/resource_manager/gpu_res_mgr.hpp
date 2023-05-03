@@ -11,13 +11,16 @@
 #include <engine/gpu/texture/texture.hpp>
 
 namespace eng {
+    template <typename Resource>
+    concept GpuResource = std::derived_from<Resource, IdResource<Resource>>
+                          and std::default_initializable<Resource>;
 
     class GpuResMgr {
       public:
-        template <typename Resource>
-        requires std::derived_from<Resource, IdResource<Resource>>
-                 and std::default_initializable<Resource>
-        Resource &create_resource();
+        template <GpuResource Resource> Resource &create_resource(Resource &&rsc) {
+            return *static_cast<Resource *>(
+                _get_storage<Resource>().insert(new Resource{std::move(rsc)}));
+        }
 
         template <typename Resource> Resource &get_resource(Handle<Resource>);
 
@@ -36,13 +39,6 @@ namespace eng {
             return _containers.at(ti);
         }
     };
-
-    template <typename Resource>
-    requires std::derived_from<Resource, IdResource<Resource>>
-             and std::default_initializable<Resource>
-    Resource &GpuResMgr::create_resource() {
-        return *static_cast<Resource *>(_get_storage<Resource>().insert(new Resource{}));
-    }
 
     template <typename Resource> Resource &GpuResMgr::get_resource(Handle<Resource> handle) {
         auto &storage = _get_storage<Resource>();
