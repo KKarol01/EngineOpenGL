@@ -9,6 +9,7 @@
 #include <utility>
 
 #include <engine/gpu/shaderprogram/shader.hpp>
+#include <engine/gpu/resource_manager/gpu_res_mgr.hpp>
 #include <engine/gpu/buffers/buffer.hpp>
 #include <engine/gpu/texture/texture.hpp>
 #include <engine/types/idallocator.hpp>
@@ -123,36 +124,19 @@ namespace eng {
         void register_object(const Object *o);
         void render();
 
-        RenderObject &get_render_object(Handle<RenderObject> h);
-        Material &get_material(Handle<Material> h);
-
       private:
-        template <typename Resource> Handle<Resource> get_resource_handle(const Resource &m);
-
-        template <typename Iter>
-        typename Iter::value_type *try_find_idresource(uint32_t id, Iter &it);
-
-        template <typename Iter>
-        typename Iter::value_type *try_find_idresource_binary(uint32_t id, Iter &it);
+        GpuResMgr &_gpu_mgr() { return *Engine::instance().get_gpu_res_mgr(); }
 
         MeshPass forward_pass;
 
         std::vector<Handle<RenderObject>> _dirty_objects;
-
         std::unordered_map<uint32_t, uint32_t> _mesh_instance_count;
 
-        using IdResourceSortComp
-            = decltype([](const auto &a, const auto &b) { return a.id < b.id; });
-        SortedVector<RenderObject, IdResourceSortComp> _renderables;
-        SortedVector<Mesh, IdResourceSortComp> _meshes;
-        SortedVector<Material, IdResourceSortComp> _materials;
-
-        uint32_t vao;
-        GLBuffer commands_buffer{GL_DYNAMIC_STORAGE_BIT};
-        GLBuffer geometry_buffer{GL_DYNAMIC_STORAGE_BIT};
-        GLBuffer index_buffer{GL_DYNAMIC_STORAGE_BIT};
-        GLBuffer mesh_data_buffer{GL_DYNAMIC_STORAGE_BIT};
-        GLBuffer bindless_handles_buffer{GL_DYNAMIC_STORAGE_BIT};
+        Handle<GLBuffer> commands_buffer;
+        Handle<GLBuffer> geometry_buffer;
+        Handle<GLBuffer> index_buffer;
+        Handle<GLBuffer> mesh_data_buffer;
+        Handle<GLBuffer> bindless_handles_buffer;
     };
 
 } // namespace eng

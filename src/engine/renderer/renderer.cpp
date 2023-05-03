@@ -28,6 +28,8 @@ eng::Renderer::Renderer() {
     glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 12);
     glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, 24);
     glVertexArrayAttribFormat(vao, 3, 3, GL_FLOAT, GL_FALSE, 36);
+
+    commands_buffer = _gpu_mgr().create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT}).res_handle();
     /*
         bloom_tex = Texture{eng::TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
                             eng::TextureImageDataDescriptor{"", 1920, 1080}};
