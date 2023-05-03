@@ -29,7 +29,7 @@ void RenderSystem::update_entity(eng::EntityID id) {
     ent_vec[id] = &entities.at(rd.sh);
 }
 
-void RenderSystem::update() {
+void RenderSystem::_update() {
     for (const auto &[sh, ids] : entities) {
         sh->use();
         for (const auto id : ids.data()) {

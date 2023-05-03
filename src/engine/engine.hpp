@@ -25,7 +25,7 @@ namespace eng {
         Engine() = default;
         ~Engine();
 
-        void update();
+        void start();
 
         Window *get_window() { return _window.get(); }
         Camera *get_camera() { return _camera.get(); }
@@ -45,6 +45,8 @@ namespace eng {
         std::unique_ptr<GUI> _gui;
 
       private:
+        void _update();
+
         inline static std::unique_ptr<Engine> _instance;
     };
 } // namespace eng

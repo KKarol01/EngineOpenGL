@@ -40,7 +40,7 @@ int main() {
 
     engine.get_camera()->set_position(glm::vec3{1.f, 3.f, 5.f});
     Engine::instance().get_window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
-                                                 | GL_STENCIL_BUFFER_BIT);
+                                                     | GL_STENCIL_BUFFER_BIT);
     glClearColor(.25f, .25f, .25f, 0.f);
 
     //  Renderer r;
@@ -140,16 +140,7 @@ int main() {
         r.register_object(&o);
     }*/
 
-    while (!window->should_close()) {
-        float time = glfwGetTime();
-        glfwPollEvents();
-
-        eng::Engine::instance().update();
-
-        window->clear_framebuffer();
-
-        window->swap_buffers();
-    }
+    engine.start();
 
     return 0;
 }

@@ -13,5 +13,5 @@ class RenderSystem : public eng::SystemBase {
     RenderSystem();
 
     void update_entity(eng::EntityID) final;
-    void update() final;
+    void _update() final;
 };

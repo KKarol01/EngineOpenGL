@@ -22,7 +22,7 @@ class Camera {
     glm::vec3 look_forward{forward}, look_right{right}, look_up{up};
 
   public:
-    void update();
+    void _update();
 
     inline void adjust_lens(const LensSettings &ls) {
         lens = ls;

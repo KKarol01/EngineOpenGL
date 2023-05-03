@@ -13,8 +13,8 @@ void eng::ECS::update_entity(eng::EntityID id) {
     for (auto &s : systems) s.second->update_entity(id);
 }
 
-void eng::ECS::update() {
-    for (auto &s : systems) s.second->update();
+void eng::ECS::_update() {
+    for (auto &s : systems) s.second->_update();
 }
 
 eng::ECS::~ECS() {

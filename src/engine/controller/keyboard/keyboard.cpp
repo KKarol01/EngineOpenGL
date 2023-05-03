@@ -33,7 +33,7 @@ namespace eng {
         return glfwGetKey(eng::Engine::instance().get_window()->glfwptr(), key) == GLFW_PRESS;
     }
 
-    void Keyboard::update() {
+    void Keyboard::_update() {
         double cx, cy;
         glfwGetCursorPos(eng::Engine::instance().get_window()->glfwptr(), &cx, &cy);
         glm::vec2 cursor{cx, cy};

@@ -32,7 +32,7 @@ namespace eng {
         virtual glm::vec3 move_vec() const       = 0;
         virtual bool key_pressed(unsigned) const = 0;
 
-        virtual void update() = 0;
+        virtual void _update() = 0;
 
       protected:
         virtual void _key_callback(GLFWwindow *, int, int, int, int);

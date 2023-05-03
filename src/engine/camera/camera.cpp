@@ -10,7 +10,7 @@ static void on_scroll(GLFWwindow *, double x, double y) {}
 
 Camera::Camera() { update_projection(); }
 
-void Camera::update() {
+void Camera::_update() {
     const auto &controller = *eng::Engine::instance().get_controller();
 
     static bool proceed     = true;

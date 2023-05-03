@@ -15,14 +15,19 @@ eng::Engine::~Engine() {
     glfwTerminate();
 }
 
-void eng::Engine::update() {
-    _controller->update();
-    _camera->update();
+void eng::Engine::_update() {
+    glfwPollEvents();
+    _controller->_update();
+    _camera->_update();
 
     _window->clear_framebuffer();
     //    renderer_->render_frame();
     _gui->draw();
     _window->swap_buffers();
+}
+
+void eng::Engine::start() {
+    while (_window->should_close() == false) { _update(); }
 }
 
 void eng::Engine::initialise(std::string_view window_name, uint32_t size_x, uint32_t size_y) {

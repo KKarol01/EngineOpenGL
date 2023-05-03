@@ -49,7 +49,7 @@ namespace eng {
         ECS_T T *get_system(SystemID id);
 
         void update_entity(EntityID id);
-        void update();
+        void _update();
 
         ~ECS();
 
@@ -70,7 +70,7 @@ namespace eng {
 
       public:
         virtual void update_entity(EntityID id) = 0;
-        virtual void update()                   = 0;
+        virtual void _update()                   = 0;
 
         virtual ~SystemBase() = default;
     };
