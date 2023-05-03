@@ -45,7 +45,7 @@ namespace eng {
 
         glfwSetFramebufferSizeCallback(
             glfw_window, (GLFWframebuffersizefun)[](auto a, auto b, auto c) {
-                eng::Engine::instance().window()->resize(b, c);
+                eng::Engine::instance().get_window()->resize(b, c);
             });
 
         glEnable(GL_MULTISAMPLE);

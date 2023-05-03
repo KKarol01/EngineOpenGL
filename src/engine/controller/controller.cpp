@@ -7,11 +7,11 @@
 
 namespace eng {
     static void glfw_callback_handler(GLFWwindow *w, int k, int s, int a, int m) {
-        eng::Engine::instance().controller()->_key_callback(w, k, s, a, m);
+        eng::Engine::instance().get_controller()->_key_callback(w, k, s, a, m);
     }
 
     Controller::Controller() {
-        glfwSetKeyCallback(eng::Engine::instance().window()->glfwptr(), (GLFWkeyfun)glfw_callback_handler);
+        glfwSetKeyCallback(eng::Engine::instance().get_window()->glfwptr(), (GLFWkeyfun)glfw_callback_handler);
     }
 
     void Controller::_key_callback(GLFWwindow *w, int k, int s, int a, int m) {

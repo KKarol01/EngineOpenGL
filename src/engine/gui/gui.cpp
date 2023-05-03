@@ -18,7 +18,7 @@ GUI::GUI() {
     io = &ImGui::GetIO();
     ImGui::StyleColorsDark();
 
-    ImGui_ImplGlfw_InitForOpenGL(eng::Engine::instance().window()->glfwptr(), true);
+    ImGui_ImplGlfw_InitForOpenGL(eng::Engine::instance().get_window()->glfwptr(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 
  //   render_graph = std::make_unique<RenderGraphGUI>();

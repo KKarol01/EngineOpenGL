@@ -36,7 +36,7 @@ namespace eng {
         auto operator<=>(Handle<Resource> h) const { return id <=> h.id; }
         auto operator==(Handle<Resource> h) const { return id == h.id; }
 
-        Handle<Resource> id_handle() const { return Handle<Resource>{id}; }
+        Handle<Resource> res_handle() const { return Handle<Resource>{id}; }
     };
 
 } // namespace eng

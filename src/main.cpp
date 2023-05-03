@@ -35,12 +35,11 @@ const auto make_model = [](glm::vec3 t, glm::vec3 r, glm::vec3 s) -> glm::mat4 {
 int main() {
     eng::Engine::initialise("window", 1920, 1080);
     auto &engine      = eng::Engine::instance();
-    const auto window = engine.window();
+    const auto window = engine.get_window();
     using namespace eng;
 
-    engine.cam = new Camera{};
-    engine.cam->set_position(glm::vec3{1.f, 3.f, 5.f});
-    Engine::instance().window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
+    engine.get_camera()->set_position(glm::vec3{1.f, 3.f, 5.f});
+    Engine::instance().get_window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
                                                  | GL_STENCIL_BUFFER_BIT);
     glClearColor(.25f, .25f, .25f, 0.f);
 
@@ -141,22 +140,13 @@ int main() {
         r.register_object(&o);
     }*/
 
-    GpuResMgr rmgr;
-    auto &vvbo = rmgr.create_resource<GLBuffer>(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
-    auto &vebo = rmgr.create_resource<GLBuffer>(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
-
-    GLVao v{
-        {GLVaoBinding{0, vvbo.id_handle(), 12, 0}}, {GLVaoAttribute{0, 0, 3, 0}}, vebo.id_handle()};
-
     while (!window->should_close()) {
         float time = glfwGetTime();
         glfwPollEvents();
 
-        eng::Engine::instance().controller()->update();
-        engine.cam->update();
+        eng::Engine::instance().update();
 
         window->clear_framebuffer();
-        //    r.render();
 
         window->swap_buffers();
     }

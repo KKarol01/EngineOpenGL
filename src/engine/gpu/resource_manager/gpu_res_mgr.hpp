@@ -42,11 +42,22 @@ namespace eng {
 
     template <typename Resource> Resource &GpuResMgr::get_resource(Handle<Resource> handle) {
         auto &storage = _get_storage<Resource>();
-        auto p_data   = storage.try_find(handle);
+        auto p_data   = storage.try_find(handle, [](auto &&a, auto &&b) {
+            uint32_t _a, _b;
+
+            // clang-format off
+            if constexpr (std::is_pointer_v<std::remove_reference_t<decltype(a)>>) { _a = a->id; } 
+            else { _a = a.id; }
+            if constexpr (std::is_pointer_v<std::remove_reference_t<decltype(b)>>) { _b = b->id; } 
+            else { _b = b.id; }
+            // clang-format on
+
+            return _a < _b;
+        });
 
         assert(p_data != nullptr && "Bad handle");
 
-        return *static_cast<Resource *>(p_data);
+        return *static_cast<Resource *>(*p_data);
     }
 
 } // namespace eng

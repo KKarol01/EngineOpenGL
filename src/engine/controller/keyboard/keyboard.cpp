@@ -7,7 +7,7 @@
 
 namespace eng {
     Keyboard::Keyboard() : Controller() {
-        auto window = eng::Engine::instance().window()->glfwptr();
+        auto window = eng::Engine::instance().get_window()->glfwptr();
         double cx, cy;
         glfwGetCursorPos(window, &cx, &cy);
         glfwSetCursorPos(window, cx, cx);
@@ -15,7 +15,7 @@ namespace eng {
     }
 
     glm::vec3 Keyboard::move_vec() const {
-        auto window = eng::Engine::instance().window()->glfwptr();
+        auto window = eng::Engine::instance().get_window()->glfwptr();
 
         const auto W      = glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS;
         const auto S      = glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
@@ -30,12 +30,12 @@ namespace eng {
     glm::vec2 Keyboard::look_vec() const { return look_vec_; }
 
     bool Keyboard::key_pressed(unsigned key) const {
-        return glfwGetKey(eng::Engine::instance().window()->glfwptr(), key) == GLFW_PRESS;
+        return glfwGetKey(eng::Engine::instance().get_window()->glfwptr(), key) == GLFW_PRESS;
     }
 
     void Keyboard::update() {
         double cx, cy;
-        glfwGetCursorPos(eng::Engine::instance().window()->glfwptr(), &cx, &cy);
+        glfwGetCursorPos(eng::Engine::instance().get_window()->glfwptr(), &cx, &cy);
         glm::vec2 cursor{cx, cy};
 
         look_vec_   = -(cursor - cursor_prev);

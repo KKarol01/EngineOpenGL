@@ -20,7 +20,6 @@ add_executable(opengl_engine
 "engine/gpu/buffers/buffer.cpp"
 "engine/gpu/buffers/ubo.cpp"
 "engine/gpu/shaderprogram/shader.cpp"
-"engine/gpu/shaderprogram/shader_manager.cpp"
 "engine/gpu/shaderprogram/shader_template.cpp"
 "engine/gpu/texture/texture.cpp"
 "engine/gui/gui.cpp"
