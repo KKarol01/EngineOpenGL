@@ -9,7 +9,6 @@
 
 
 struct ImGuiIO;
-struct RenderGraphGUI;
 
 
 class GUI {
@@ -41,5 +40,5 @@ class GUI {
     uint32_t ui_draws_count{0u};
     ImGuiIO *io{nullptr};
 
-    std::unique_ptr<RenderGraphGUI> render_graph;
+//    std::unique_ptr<RenderGraphGUI> render_graph;
 };

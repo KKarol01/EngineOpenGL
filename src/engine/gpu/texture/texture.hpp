@@ -58,8 +58,8 @@ namespace eng {
         bool is_bound() const { return _is_bound; }
         bool is_resident() const { return _is_resident; }
 
-        uint32_t handle() const { return _texture_handle; }
-        uint64_t bindless_handle() const { return _texture_bindless_handle; }
+        uint32_t handle() const { return _handle; }
+        uint64_t bindless_handle() const { return _bindless_handle; }
         uint32_t bound_unit() const { return _bound_unit; }
 
         std::pair<uint32_t, uint32_t> get_size() const {
@@ -76,7 +76,7 @@ namespace eng {
 
         bool _is_bound{false}, _is_resident{false};
         uint32_t _bound_unit{0};
-        uint32_t _texture_handle{0};
-        uint64_t _texture_bindless_handle{0};
+        uint32_t _handle{0};
+        uint64_t _bindless_handle{0};
     };
 } // namespace eng

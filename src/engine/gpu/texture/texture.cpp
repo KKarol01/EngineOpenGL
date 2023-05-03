@@ -27,7 +27,7 @@ namespace eng {
 
     void Texture::make_resident() {
         if (bindless_handle() == 0ull) {
-            _texture_bindless_handle = glGetTextureHandleARB(handle());
+            _bindless_handle = glGetTextureHandleARB(handle());
         }
 
         _is_resident = true;
@@ -40,7 +40,7 @@ namespace eng {
     }
 
     void Texture::_load(const TextureImageDataDescriptor &data_desc, bool also_store_data_on_cpu) {
-        glCreateTextures(_settings.type, 1, &_texture_handle);
+        glCreateTextures(_settings.type, 1, &_handle);
 
         switch (_settings.type) {
         case GL_TEXTURE_2D: {
@@ -57,8 +57,8 @@ namespace eng {
 				img_data.sizex = data_desc.xoffset;
 				img_data.sizey = data_desc.yoffset;
             }
-            glTextureStorage2D(_texture_handle, _settings.mip_count, _settings.format, img_data.sizex, img_data.sizey);
-            glTextureSubImage2D(_texture_handle, 0, desc.xoffset,desc.yoffset, img_data.sizex, img_data.sizey, img_data.channels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+            glTextureStorage2D(_handle, _settings.mip_count, _settings.format, img_data.sizex, img_data.sizey);
+            glTextureSubImage2D(_handle, 0, desc.xoffset,desc.yoffset, img_data.sizex, img_data.sizey, img_data.channels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, pixels);
             // clang-format on
 
             if (also_store_data_on_cpu) {
@@ -71,11 +71,11 @@ namespace eng {
             assert(false && "Unrecognized texture type");
         }
 
-        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTextureParameteri(_texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glGenerateTextureMipmap(_texture_handle);
+        glTextureParameteri(_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glGenerateTextureMipmap(_handle);
     }
     uint8_t *Texture::_load_image(
         std::string_view path, int *sizex, int *sizey, int *channels, int req_channels) {

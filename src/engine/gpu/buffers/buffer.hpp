@@ -10,7 +10,7 @@
 #include <cassert>
 
 #include <engine/types/types.hpp>
-typedef uint32_t GLBufferID;
+#include <engine/types/idresource.hpp>
 
 namespace eng {
     struct GLBufferDescriptor {
@@ -48,103 +48,60 @@ namespace eng {
         static constexpr float GROWTH_FACTOR{1.61f};
     };
 
-    enum GL_FORMAT_ { GL_FORMAT_FLOAT };
-    enum GL_ATTR_ {
-        GL_ATTR_0,
-        GL_ATTR_1,
-        GL_ATTR_2,
-        GL_ATTR_3,
-        GL_ATTR_4,
-        GL_ATTR_5,
-        GL_ATTR_6,
-    };
-
-    struct GLVaoAttributeDescriptor {
-        GLVaoAttributeDescriptor(GL_ATTR_ idx, uint32_t binding, uint32_t size, uint32_t offset);
-        GLVaoAttributeDescriptor(GL_ATTR_ idx,
-                                 uint32_t binding,
-                                 uint32_t size,
-                                 uint32_t offset,
-                                 GL_FORMAT_ gl_format,
-                                 bool normalize);
-
-        GL_ATTR_ idx;
-        uint32_t size{0}, offset{0};
-        uint32_t binding;
-        bool normalize{false};
-        GL_FORMAT_ gl_format = GL_FORMAT_FLOAT;
-    };
-
-    // struct GLVaoAttributeSameType {
-    //     GLVaoAttributeSameType(uint32_t idx, uint32_t binding, uint32_t size, bool normalize =
-    //     false)
-    //         : idx{idx}, binding{binding}, size{size}, normalize{normalize} {}
-
-    //    uint32_t idx, binding, size;
-    //    bool normalize{false};
-    //};
-    // struct GLVaoAttributeSameFormat {
-    //    GLVaoAttributeSameFormat(uint32_t idx, uint32_t binding, bool normalize = false)
-    //        : idx{idx}, binding{binding}, normalize{normalize} {}
-
-    //    uint32_t idx, binding;
-    //    bool normalize{false};
-    //};
-
-    struct GLVaoBufferBinding {
-        uint32_t binding{0u};
-        GLBufferID buffer{0u};
-        uint32_t stride{0u}, offset{0u};
-    };
-
-    struct GLVaoDescriptor {
-        GLVaoDescriptor() = default;
-
-        bool operator==(const GLVaoDescriptor &other) const noexcept {
-            return handle == other.handle;
+    struct GLVaoBinding {
+        explicit GLVaoBinding(uint32_t binding_id,
+                              Handle<GLBuffer> buffer_handle,
+                              size_t stride,
+                              size_t offset)
+            : binding_id{binding_id}, buffer_handle{buffer_handle}, stride{stride}, offset{offset} {
         }
 
-        const GLVaoAttributeDescriptor &get_attrib_by_binding(uint32_t binding) const {
-            for (auto &attr : attributes) {
-                if (attr.binding == binding) { return attr; }
-            }
-
-            assert(("Non-existent binding" && false));
-            return *attributes.begin();
-        }
-        GLVaoAttributeDescriptor &get_attrib_by_binding(uint32_t binding) {
-            for (auto &attr : attributes) {
-                if (attr.binding == binding) { return attr; }
-            }
-
-            assert(("Non-existent binding" && false));
-            return *attributes.begin();
-        }
-
-        uint32_t handle{0u};
-        std::vector<GLVaoAttributeDescriptor> attributes;
-        std::vector<GLVaoBufferBinding> buff_bindings;
-        GLBufferID ebo_buffer_id{0u};
+        uint32_t binding_id{0u};
+        Handle<GLBuffer> buffer_handle;
+        size_t stride{0u}, offset{0u};
     };
 
-    struct GLVao {
-        GLVao();
-        GLVao(GLVao &&) noexcept;
-        GLVao &operator=(GLVao &&) noexcept;
+    enum class ATTR_FORMAT { FLOAT };
+
+    struct GLVaoAttribute {
+        explicit GLVaoAttribute(uint32_t attr_id,
+                                uint32_t binding_id,
+                                uint32_t size,
+                                uint32_t byte_offset,
+                                ATTR_FORMAT format = ATTR_FORMAT::FLOAT,
+                                bool normalize     = false)
+            : attr_id{attr_id}, binding_id{binding_id}, size{size},
+              byte_offset{byte_offset}, format{format}, normalize{normalize} {}
+
+        uint32_t attr_id, binding_id, size, byte_offset;
+        ATTR_FORMAT format = ATTR_FORMAT::FLOAT;
+        bool normalize     = false;
+    };
+
+    class GLVao : public IdResource<GLVao> {
+      public:
+        explicit GLVao() = default;
+        explicit GLVao(std::initializer_list<GLVaoBinding> bindings,
+                       std::initializer_list<GLVaoAttribute> attributes,
+                       Handle<GLBuffer> ebo = Handle<GLBuffer>{0});
         ~GLVao();
 
         void bind() const;
+        bool is_bound() const { return _is_bound; }
+        bool uses_ebo() const { return _uses_ebo; }
 
-        void configure_binding(uint32_t id, GLBufferID bufferid, size_t stride, size_t offset = 0u);
-        void configure_ebo(GLBufferID bufferid);
+      private:
+        void _calculate_attr_offsets_if_zeros();
+        void _configure_bindings();
+        void _configure_attributes();
+        uint32_t _get_gl_attr_format(ATTR_FORMAT format);
 
-        void configure_attribute(GL_ATTR_ attribute_idx,
-                                 uint32_t binding_id,
-                                 uint32_t size,
-                                 uint32_t byte_offset,
-                                 GL_FORMAT_ format = GL_FORMAT_FLOAT,
-                                 bool normalize    = false);
+        uint32_t _handle;
+        std::vector<GLVaoBinding> _bindings;
+        std::vector<GLVaoAttribute> _attributes;
+        Handle<GLBuffer> _ebo;
 
-        GLVaoDescriptor descriptor;
+        bool _is_bound{false};
+        bool _uses_ebo{false};
     };
 } // namespace eng

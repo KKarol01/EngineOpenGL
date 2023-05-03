@@ -1,6 +1,5 @@
 #version 460 core
 #extension GL_ARB_bindless_texture : require
-#extension GL_ARB_gpu_shader_int64 : require
 
 layout(location = 0) in vec3 vPos;
 layout(location = 1) in vec3 vNorm;
@@ -8,11 +7,11 @@ layout(location = 2) in vec3 vTan;
 layout(location = 3) in vec3 vBTan;
 
 struct A {
-    uint64_t diffuse;
-    uint64_t normal;
-    uint64_t metallic;
-    uint64_t roughness;
-    uint64_t emissive;
+    uvec2 diffuse;
+    uvec2 normal;
+    uvec2 metallic;
+    uvec2 roughness;
+    uvec2 emissive;
     vec4 channels;
     mat4 transform;
 };

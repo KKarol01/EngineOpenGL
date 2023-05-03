@@ -21,7 +21,7 @@ GUI::GUI() {
     ImGui_ImplGlfw_InitForOpenGL(eng::Engine::instance().window()->glfwptr(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 
-    render_graph = std::make_unique<RenderGraphGUI>();
+ //   render_graph = std::make_unique<RenderGraphGUI>();
 
     //ImFontConfig fcfg;
     //fcfg.OversampleH = 2;
@@ -79,7 +79,7 @@ void GUI::draw() {
     //     ImGui::EndMainMenuBar();
     // }
 
-    if (render_graph->is_open()) render_graph->draw();
+   // if (render_graph->is_open()) render_graph->draw();
 
     // ImGui::PopFont();
     ImGui::Render();

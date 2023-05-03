@@ -1,6 +1,5 @@
 #version 460 core
 #extension GL_ARB_bindless_texture : require
-#extension GL_ARB_gpu_shader_int64 : require
 
 #define PI     3.14159265
 #define INV_PI 0.31830988
@@ -10,11 +9,11 @@
 out vec4 FRAG_COL;
 
 struct A {
-    uint64_t diffuse;
-    uint64_t normal;
-    uint64_t metallic;
-    uint64_t roughness;
-    uint64_t emissive;
+    uvec2 diffuse;
+    uvec2 normal;
+    uvec2 metallic;
+    uvec2 roughness;
+    uvec2 emissive;
     vec4 channels;
     mat4 transform;
 };
