@@ -13,37 +13,27 @@
 #include <engine/types/idresource.hpp>
 
 namespace eng {
-    struct GLBufferDescriptor {
-        GLBufferDescriptor() = default;
-        explicit GLBufferDescriptor(uint32_t flags) : flags{flags} {}
-        bool operator==(const GLBufferDescriptor &other) const noexcept {
-            return handle == other.handle;
-        }
-
-        std::uint32_t handle{0u}, flags{0u};
-        std::size_t size{0u}, capacity{0u};
-    };
-
-    struct GLBuffer {
-        GLBuffer() = default;
-        explicit GLBuffer(GLBuffer &&) noexcept;
-        GLBuffer &operator=(GLBuffer &&) noexcept;
-        ~GLBuffer();
-
+    struct GLBuffer : public IdResource<GLBuffer> {
+        explicit GLBuffer() = default;
         explicit GLBuffer(uint32_t flags);
-        GLBuffer(void *data, uint32_t size_bytes, uint32_t flags);
-        template <typename T>
-        GLBuffer(std::vector<T> &data, uint32_t flags)
-            : GLBuffer(data.data(), data.size() * sizeof(T), flags) {}
-
+        ~GLBuffer();
+            
         void push_data(const void *data, size_t size_bytes);
         void clear_invalidate();
+        void bind(uint32_t GL_TARGET);
+        void bind_base(uint32_t GL_TARGET, uint32_t base);
 
-        GLBufferDescriptor descriptor;
-        Signal<const GLBufferDescriptor &> on_handle_change;
+        uint32_t handle() const { return _handle; }
+        size_t size() const { return _size; }
+        size_t capacity() const { return _capacity; }
+
+        Signal<uint32_t> on_handle_change;
 
       private:
-        void resize(size_t required_size);
+        void _resize(size_t required_size);
+
+        uint32_t _handle{0}, _flags{0};
+        size_t _size{0}, _capacity{0};
 
         static constexpr float GROWTH_FACTOR{1.61f};
     };
@@ -88,7 +78,7 @@ namespace eng {
 
         void bind() const;
         bool is_bound() const { return _is_bound; }
-        bool uses_ebo() const { return _uses_ebo; }
+        bool uses_ebo() const { return _ebo.id != 0u; }
 
       private:
         void _calculate_attr_offsets_if_zeros();
@@ -102,6 +92,5 @@ namespace eng {
         Handle<GLBuffer> _ebo;
 
         bool _is_bound{false};
-        bool _uses_ebo{false};
     };
 } // namespace eng

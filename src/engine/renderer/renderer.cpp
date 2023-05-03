@@ -62,8 +62,8 @@ eng::Renderer::Renderer() {
     quad_vbo.push_data(quad_vbo_data, sizeof(quad_vbo_data));
     quad_ebo.push_data(quad_ebo_data, sizeof(quad_ebo_data));
 
-    glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo.descriptor.handle, 0, 16);
-    glad_glVertexArrayElementBuffer(quad_vao, quad_ebo.descriptor.handle);
+    glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo.handle(), 0, 16);
+    glVertexArrayElementBuffer(quad_vao, quad_ebo.handle());
 }
 
 namespace eng {
@@ -225,8 +225,8 @@ namespace eng {
             index_buffer.clear_invalidate();
             index_buffer.push_data(mesh_indices.data(), mesh_indices.size() * sizeof(unsigned));
 
-            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.descriptor.handle, 0, 48);
-            glVertexArrayElementBuffer(vao, index_buffer.descriptor.handle);
+            glVertexArrayVertexBuffer(vao, 0, geometry_buffer.handle(), 0, 48);
+            glVertexArrayElementBuffer(vao, index_buffer.handle());
         }
 
         if (forward_pass.unbatched.empty() == false) { forward_pass.refresh(this); }
@@ -267,8 +267,8 @@ namespace eng {
         glFrontFace(GL_CCW);
 
         glBindVertexArray(vao);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mesh_data_buffer.descriptor.handle);
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commands_buffer.descriptor.handle);
+        mesh_data_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+        commands_buffer.bind(GL_DRAW_INDIRECT_BUFFER);
         glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         for (const auto &mb : forward_pass.multi_batches) {

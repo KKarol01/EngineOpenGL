@@ -9,64 +9,54 @@
 
 namespace eng {
 
-    GLBuffer::GLBuffer(uint32_t flags) {
-        descriptor.flags = flags;
-        glCreateBuffers(1, &descriptor.handle);
-    }
-
-    GLBuffer::GLBuffer(void *data, uint32_t size_bytes, uint32_t flags) : GLBuffer(flags) {
-        push_data(data, size_bytes);
-    }
-
-    GLBuffer::GLBuffer(GLBuffer &&other) noexcept { *this = std::move(other); }
-
-    GLBuffer &GLBuffer::operator=(GLBuffer &&other) noexcept {
-        descriptor              = std::move(other.descriptor);
-        other.descriptor.handle = 0;
-        return *this;
-    }
+    GLBuffer::GLBuffer(uint32_t flags) : _flags{flags} { glCreateBuffers(1, &_handle); }
 
     void GLBuffer::push_data(const void *data, size_t data_size) {
-        if (descriptor.capacity < descriptor.size + data_size) {
-            resize(descriptor.size + data_size);
-        }
+        if (_capacity < _size + data_size) { _resize(_size + data_size); }
 
-        if ((descriptor.flags & GL_DYNAMIC_STORAGE_BIT) != GL_DYNAMIC_STORAGE_BIT) {
+        if ((_flags & GL_DYNAMIC_STORAGE_BIT) != GL_DYNAMIC_STORAGE_BIT) {
             GLuint temp_buffer;
             glCreateBuffers(1, &temp_buffer);
             glNamedBufferStorage(temp_buffer, data_size, data, 0);
 
-            glCopyNamedBufferSubData(temp_buffer, descriptor.handle, 0, descriptor.size, data_size);
+            glCopyNamedBufferSubData(temp_buffer, _handle, 0, _size, data_size);
             glDeleteBuffers(1, &temp_buffer);
         } else {
-            glNamedBufferSubData(descriptor.handle, descriptor.size, data_size, data);
+            glNamedBufferSubData(_handle, _size, data_size, data);
         }
 
-        descriptor.size += data_size;
-        on_handle_change.emit(descriptor);
+        _size += data_size;
     }
 
     void GLBuffer::clear_invalidate() {
-        glInvalidateBufferData(descriptor.handle);
-        descriptor.size = 0;
+        glInvalidateBufferData(_handle);
+        _size = 0;
     }
 
-    void GLBuffer::resize(size_t required_size) {
+    void GLBuffer::bind(uint32_t GL_TARGET) { glBindBuffer(GL_TARGET, handle()); }
+
+    void GLBuffer::bind_base(uint32_t GL_TARGET, uint32_t base) {
+        glBindBufferBase(GL_TARGET, base, handle());
+    }
+
+    void GLBuffer::_resize(size_t required_size) {
         size_t new_capacity = fmaxl(required_size * GROWTH_FACTOR, 1.);
 
-        uint32_t old_handle = descriptor.handle;
+        uint32_t old_handle = _handle;
         uint32_t new_handle;
 
         glCreateBuffers(1, &new_handle);
-        glNamedBufferStorage(new_handle, new_capacity, 0, descriptor.flags);
-        glCopyNamedBufferSubData(old_handle, new_handle, 0, 0, descriptor.size);
+        glNamedBufferStorage(new_handle, new_capacity, 0, _flags);
+        glCopyNamedBufferSubData(old_handle, new_handle, 0, 0, _size);
         glDeleteBuffers(1, &old_handle);
 
-        descriptor.handle   = new_handle;
-        descriptor.capacity = new_capacity;
+        _handle   = new_handle;
+        _capacity = new_capacity;
+
+        on_handle_change.emit(id);
     }
 
-    GLBuffer::~GLBuffer() { glDeleteBuffers(1, &descriptor.handle); }
+    GLBuffer::~GLBuffer() { glDeleteBuffers(1, &_handle); }
 
     GLVao::GLVao(std::initializer_list<GLVaoBinding> bindings,
                  std::initializer_list<GLVaoAttribute> attributes,
@@ -77,7 +67,8 @@ namespace eng {
         _configure_bindings();
         _configure_attributes();
     }
-    GLVao::~GLVao() {}
+
+    GLVao::~GLVao() { glDeleteVertexArrays(1, &_handle); }
 
     void GLVao::bind() const { glBindVertexArray(_handle); }
 

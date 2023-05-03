@@ -17,17 +17,25 @@ namespace eng {
 
         uint32_t id;
     };
+
     template <typename Type> struct TypeIdGen {
         static inline uint32_t unique() {
             static uint32_t gid{0u};
             return ++gid;
         }
     };
-    template <typename Resource> struct IdResource {
+
+    struct IdWrapper {
+        uint32_t id{0};
+    };
+
+    template <typename Resource> struct IdResource : public IdWrapper {
+        IdResource() { id = TypeIdGen<Resource>::unique(); }
+
         auto operator<=>(const IdResource<Resource> &) const = default;
         auto operator<=>(Handle<Resource> h) const { return id <=> h.id; }
         auto operator==(Handle<Resource> h) const { return id == h.id; }
 
-        uint32_t id{TypeIdGen<Resource>::unique()};
+        Handle<Resource> res_handle() const { return Handle<Resource>{id}; }
     };
 } // namespace eng

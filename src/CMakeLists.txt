@@ -28,7 +28,7 @@ add_executable(opengl_engine
 "engine/renderer/renderer.cpp"
 "engine/window/window.cpp"
 "engine/gpu/framebuffer/framebuffer.cpp"  
-"engine/scene/scene.cpp")
+"engine/scene/scene.cpp" "engine/gpu/resource_manager/gpu_res_mgr.cpp")
 
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 

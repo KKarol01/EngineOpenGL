@@ -12,6 +12,8 @@
 #include <engine/types/types.hpp>
 #include <engine/renderer/renderer.hpp>
 #include <engine/gpu/texture/texture.hpp>
+#include <engine/gpu/buffers/buffer.hpp>
+#include <engine/gpu/resource_manager/gpu_res_mgr.hpp>
 
 #include <GLFW/glfw3.h>
 #include <assimp/scene.h>
@@ -42,7 +44,7 @@ int main() {
                                                  | GL_STENCIL_BUFFER_BIT);
     glClearColor(.25f, .25f, .25f, 0.f);
 
-    Renderer r;
+  //  Renderer r;
 
     ShaderProgram prog;
     try {
@@ -50,7 +52,7 @@ int main() {
 
     } catch (const std::exception &err) { fprintf(stderr, err.what()); }
 
-    {
+    /*{
         Assimp::Importer i;
         auto scene
             = i.ReadFile("3dmodels/bust/scene.gltf",
@@ -136,18 +138,19 @@ int main() {
         parse_scene(scene, scene->mRootNode);
 
         Object o{.meshes = meshes};
+        r.register_object(&o);
+    }*/
 
-        for (int i = 0; i < 1; ++i) {
-            o.meshes = meshes;
-            o.id++;
-            for (auto &m : o.meshes) {
-                m.transform
-                    = glm::rotate(glm::mat4{1.f}, 3.14f / 4.f * (float)i, glm::vec3{0.f, 1.f, 0.f})
-                      * glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -2.f});
-            }
-            r.register_object(&o);
-        }
-    }
+    GpuResMgr rmgr;
+    auto &vvbo = rmgr.create_resource<GLBuffer>();
+    auto &vebo = rmgr.create_resource<GLBuffer>();
+
+    vvbo = GLBuffer{GL_DYNAMIC_STORAGE_BIT};
+    vebo = GLBuffer{GL_DYNAMIC_STORAGE_BIT};
+
+    GLVao v{{GLVaoBinding{0, vvbo.res_handle(), 12, 0}},
+            {GLVaoAttribute{0, 0, 3, 0}},
+            vebo.res_handle()};
 
     while (!window->should_close()) {
         float time = glfwGetTime();
@@ -157,7 +160,7 @@ int main() {
         engine.cam->update();
 
         window->clear_framebuffer();
-        r.render();
+    //    r.render();
 
         window->swap_buffers();
     }
