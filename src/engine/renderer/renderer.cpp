@@ -288,7 +288,6 @@ namespace eng {
                                         mb.count,
                                         0);
         }
-        glFinish();
 
         static ShaderProgram quad_prog{"rect"};
         static ShaderProgram bloom_prog{"bloom"};
@@ -301,7 +300,7 @@ namespace eng {
         glBindFramebuffer(GL_FRAMEBUFFER, mip_fbo);
         for (int i = 0; i < 4; ++i) {
             if (i > 0) { mip_chain[i - 1].bind(0); }
-            glMemoryBarrier(GL_ALL_BARRIER_BITS);
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
             glNamedFramebufferTexture(mip_fbo, GL_COLOR_ATTACHMENT0, mip_chain[i].handle(), 0);
             glViewport(0, 0, 1920 / (i + 2), 1080 / (i + 2));
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -314,7 +313,7 @@ namespace eng {
         for (int i = 2; i >= -1; --i) {
             mip_chain[i + 1].bind(0);
 
-            glMemoryBarrier(GL_ALL_BARRIER_BITS);
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
 
             if (i > -1) {
                 glNamedFramebufferTexture(mip_fbo, GL_COLOR_ATTACHMENT0, mip_chain[i].handle(), 0);
@@ -329,6 +328,7 @@ namespace eng {
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
         glViewport(0, 0, 1920, 1080);
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
 
         bloom_tex.bind(0);
         quad_prog.use();
