@@ -2,26 +2,34 @@
 
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
-//#include "../../renderer/typedefs.hpp"
-//
-//namespace eng {
-//    typedef uint32_t GLFboAttachment;
-//
-//    struct GLFboDescriptor {
-//        GLFboDescriptor();
-//        GLFboDescriptor(GLFboDescriptor &&other) noexcept;
-//        GLFboDescriptor &operator=(GLFboDescriptor &&other) noexcept;
-//        ~GLFboDescriptor();
-//
-//        FboID handle{0u};
-//        std::unordered_map<GLFboAttachment, TextureID> attachments;
-//    };
-//
-//    struct GLFbo {
-//        
-//        void add_attachment();
-//
-//        GLFboDescriptor descriptor;
-//    };
-//} // namespace eng
+#include <engine/types/idresource.hpp>
+#include <engine/gpu/texture/texture.hpp>
+
+namespace eng {
+
+    struct FramebufferAttachment {
+        uint32_t target{0u};
+        Handle<Texture> texture{0u};
+        uint32_t level{0u};
+    };
+
+    class Framebuffer : public IdResource<Framebuffer> {
+      public:
+        explicit Framebuffer() = default;
+        explicit Framebuffer(std::initializer_list<FramebufferAttachment> texture_attachments);
+        Framebuffer(Framebuffer &&) noexcept;
+        ~Framebuffer() override;
+
+        void bind();
+        uint32_t handle() { return _handle; }
+
+      private:
+        void _configure_attachments();
+        void _assert_completness();
+
+        uint32_t _handle;
+        std::unordered_map<uint32_t, FramebufferAttachment> _attachments;
+    };
+} // namespace eng

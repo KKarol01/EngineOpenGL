@@ -15,6 +15,7 @@
 #include <engine/gpu/texture/texture.hpp>
 #include <engine/gpu/buffers/buffer.hpp>
 #include <engine/gpu/resource_manager/gpu_res_mgr.hpp>
+#include <engine/gpu/framebuffer/framebuffer.hpp>
 
 #include <GLFW/glfw3.h>
 #include <assimp/scene.h>
@@ -137,6 +138,9 @@ int main() {
         Object o{meshes};
         engine.get_renderer()->register_object(&o);
     }
+
+    Texture &t1 = *engine.get_gpu_res_mgr()->create_resource(Texture{TextureSettings{}, TextureImageDataDescriptor{"", 100, 100}});
+    Framebuffer fbo{{FramebufferAttachment{GL_COLOR_ATTACHMENT0, t1.res_handle()}}};
 
     engine.start();
 
