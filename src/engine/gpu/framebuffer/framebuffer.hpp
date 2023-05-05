@@ -20,6 +20,7 @@ namespace eng {
         explicit Framebuffer() = default;
         explicit Framebuffer(std::initializer_list<FramebufferAttachment> texture_attachments);
         Framebuffer(Framebuffer &&) noexcept;
+        Framebuffer& operator=(Framebuffer&&) noexcept;
         ~Framebuffer() override;
 
         void bind();

@@ -15,11 +15,14 @@ eng::Framebuffer::Framebuffer(std::initializer_list<FramebufferAttachment> textu
     _assert_completness();
 }
 
-eng::Framebuffer::Framebuffer(Framebuffer &&other) noexcept {
+eng::Framebuffer::Framebuffer(Framebuffer &&other) noexcept { *this = std::move(other); }
+
+eng::Framebuffer &eng::Framebuffer::operator=(Framebuffer &&other) noexcept {
     id            = other.id;
     _handle       = other._handle;
     _attachments  = other._attachments;
     other._handle = 0u;
+    return *this;
 }
 
 eng::Framebuffer::~Framebuffer() { glDeleteFramebuffers(1, &_handle); }

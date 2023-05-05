@@ -17,21 +17,38 @@ eng::GLBuffer quad_vbo, quad_ebo;
 eng::Renderer::Renderer() {
     auto g = Engine::instance().get_gpu_res_mgr();
 
+    color_texture
+        = g->create_resource(Texture{TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
+                                     TextureImageDataDescriptor{"", 1920, 1080}});
+    depth_stencil_texture = g->create_resource(
+        Texture{TextureSettings{GL_DEPTH24_STENCIL8, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
+                TextureImageDataDescriptor{"", 1920, 1080}});
+    render_fbo = Framebuffer{
+        {FramebufferAttachment{GL_COLOR_ATTACHMENT0, color_texture->res_handle()},
+         FramebufferAttachment{GL_DEPTH_STENCIL_ATTACHMENT, depth_stencil_texture->res_handle()}}};
+
     commands_buffer  = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
     geometry_buffer  = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
     index_buffer     = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
     mesh_data_buffer = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
-
     mesh_vao = g->create_resource(GLVao{{GLVaoBinding{0, geometry_buffer->res_handle(), 48, 0}},
                                         {GLVaoAttribute{0, 0, 3, 0},
                                          GLVaoAttribute{1, 0, 3, 0},
                                          GLVaoAttribute{2, 0, 3, 0},
                                          GLVaoAttribute{3, 0, 3, 0}},
                                         index_buffer->res_handle()});
-
     geometry_buffer->on_handle_change.connect([=](auto nh) { mesh_vao->update_binding(0, nh); });
     index_buffer->on_handle_change.connect([=](auto nh) { mesh_vao->update_ebo(nh); });
 
+    quad_buffer = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+    {
+        float quad_vertices[]{
+            -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f};
+        quad_buffer->push_data(quad_vertices, sizeof(quad_vertices));
+    }
+    quad_vao = g->create_resource(
+        GLVao{{GLVaoBinding{0, quad_buffer->res_handle(), 8, 0}}, {GLVaoAttribute{0, 0, 2, 0}}});
+    quad_shader = ShaderProgram{"quad"};
     /*
         bloom_tex = Texture{eng::TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
                             eng::TextureImageDataDescriptor{"", 1920, 1080}};
@@ -278,10 +295,10 @@ namespace eng {
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
+        render_fbo.bind();
         mesh_vao->bind();
         mesh_data_buffer->bind_base(GL_SHADER_STORAGE_BUFFER, 0);
         commands_buffer->bind(GL_DRAW_INDIRECT_BUFFER);
-        // glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         for (const auto &mb : _forward_pass.multi_batches) {
             auto prog = gpu->get_resource(_forward_pass.indirect_batches[mb.first].material.prog);
@@ -295,6 +312,14 @@ namespace eng {
             glMultiDrawElementsIndirect(
                 GL_TRIANGLES, GL_UNSIGNED_INT, (void *)draw_count, mb.count, 0);
         }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        quad_shader.use();
+        quad_vao->bind();
+        color_texture->bind(0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
 
         //    static ShaderProgram quad_prog{"rect"};
         //    static ShaderProgram bloom_prog{"bloom"};
@@ -345,5 +370,4 @@ namespace eng {
         //    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 
-   
 } // namespace eng

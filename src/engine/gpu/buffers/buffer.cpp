@@ -69,6 +69,9 @@ namespace eng {
         _calculate_attr_offsets_if_zeros();
         _configure_bindings();
         _configure_attributes();
+        if (_ebo.id != 0u) {
+            update_ebo(Engine::instance().get_gpu_res_mgr()->get_resource(ebo)->handle());
+        }
     }
 
     GLVao::~GLVao() { glDeleteVertexArrays(1, &_handle); }
@@ -108,8 +111,8 @@ namespace eng {
 
     void GLVao::_configure_bindings() {
         for (const auto &b : _bindings) {
-            glVertexArrayVertexBuffer(
-                _handle, b.binding_id, b.buffer_handle.id, b.offset, b.stride);
+            auto h = Engine::instance().get_gpu_res_mgr()->get_resource(b.buffer_handle)->handle();
+            glVertexArrayVertexBuffer(_handle, b.binding_id, h, b.offset, b.stride);
         }
     }
 

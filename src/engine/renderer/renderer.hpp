@@ -14,6 +14,7 @@
 #include <engine/gpu/texture/texture.hpp>
 #include <engine/types/idallocator.hpp>
 #include <engine/types/idresource.hpp>
+#include <engine/gpu/framebuffer/framebuffer.hpp>
 #include <glm/glm.hpp>
 
 namespace eng {
@@ -157,7 +158,13 @@ namespace eng {
         std::vector<Handle<RenderObject>> _dirty_objects;
         std::unordered_map<uint32_t, uint32_t> _mesh_instance_count;
 
-        GLVao *mesh_vao{nullptr};
+        ShaderProgram quad_shader;
+        Framebuffer render_fbo;
+        Texture *color_texture{nullptr};
+        Texture *depth_stencil_texture{nullptr};
+
+        GLVao *mesh_vao{nullptr}, *quad_vao{nullptr};
+        GLBuffer *quad_buffer{nullptr};
         GLBuffer *commands_buffer{nullptr};
         GLBuffer *geometry_buffer{nullptr};
         GLBuffer *index_buffer{nullptr};
