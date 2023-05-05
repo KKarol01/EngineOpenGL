@@ -139,9 +139,6 @@ int main() {
         engine.get_renderer()->register_object(&o);
     }
 
-    Texture &t1 = *engine.get_gpu_res_mgr()->create_resource(Texture{TextureSettings{}, TextureImageDataDescriptor{"", 100, 100}});
-    Framebuffer fbo{{FramebufferAttachment{GL_COLOR_ATTACHMENT0, t1.res_handle()}}};
-
     engine.start();
 
     return 0;
