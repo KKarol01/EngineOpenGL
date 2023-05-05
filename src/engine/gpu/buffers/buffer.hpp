@@ -16,8 +16,19 @@ namespace eng {
     struct GLBuffer : public IdResource<GLBuffer> {
         explicit GLBuffer() = default;
         explicit GLBuffer(uint32_t flags);
+        GLBuffer(GLBuffer &&b) noexcept {
+            id               = b.id;
+            _handle          = b._handle;
+            _flags           = b._flags;
+            _size            = b._size;
+            _capacity        = b._capacity;
+            on_handle_change = std::move(b.on_handle_change);
+
+            b.id      = 0;
+            b._handle = 0;
+        }
         ~GLBuffer();
-            
+
         void push_data(const void *data, size_t size_bytes);
         void clear_invalidate();
         void bind(uint32_t GL_TARGET);
@@ -74,11 +85,24 @@ namespace eng {
         explicit GLVao(std::initializer_list<GLVaoBinding> bindings,
                        std::initializer_list<GLVaoAttribute> attributes,
                        Handle<GLBuffer> ebo = Handle<GLBuffer>{0});
+        GLVao(GLVao &&other) noexcept {
+            id          = other.id;
+            _handle     = other._handle;
+            _bindings   = other._bindings;
+            _attributes = other._attributes;
+            _ebo        = other._ebo;
+
+            other.id      = 0;
+            other._handle = 0;
+        }
         ~GLVao();
 
         void bind() const;
         bool is_bound() const { return _is_bound; }
         bool uses_ebo() const { return _ebo.id != 0u; }
+
+        void update_binding(uint32_t binding_id, uint32_t new_handle);
+        void update_ebo(uint32_t new_handle);
 
       private:
         void _calculate_attr_offsets_if_zeros();

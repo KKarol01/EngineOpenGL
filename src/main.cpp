@@ -41,17 +41,10 @@ int main() {
     engine.get_camera()->set_position(glm::vec3{1.f, 3.f, 5.f});
     Engine::instance().get_window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
                                                      | GL_STENCIL_BUFFER_BIT);
-    glClearColor(.25f, .25f, .25f, 0.f);
 
-    //  Renderer r;
+    ShaderProgram prog{"a"};
 
-    ShaderProgram prog;
-    try {
-        prog = ShaderProgram{"a"};
-
-    } catch (const std::exception &err) { fprintf(stderr, err.what()); }
-
-    /*{
+    {
         Assimp::Importer i;
         auto scene
             = i.ReadFile("3dmodels/bust/scene.gltf",
@@ -137,8 +130,8 @@ int main() {
         parse_scene(scene, scene->mRootNode);
 
         Object o{.meshes = meshes};
-        r.register_object(&o);
-    }*/
+        engine.get_renderer()->register_object(&o);
+    }
 
     engine.start();
 

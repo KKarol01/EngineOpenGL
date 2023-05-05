@@ -15,21 +15,23 @@ eng::GLBuffer quad_vbo, quad_ebo;
 */
 
 eng::Renderer::Renderer() {
-    glCreateVertexArrays(1, &vao);
-    glVertexArrayAttribBinding(vao, 0, 0);
-    glVertexArrayAttribBinding(vao, 1, 0);
-    glVertexArrayAttribBinding(vao, 2, 0);
-    glVertexArrayAttribBinding(vao, 3, 0);
-    glEnableVertexArrayAttrib(vao, 0);
-    glEnableVertexArrayAttrib(vao, 1);
-    glEnableVertexArrayAttrib(vao, 2);
-    glEnableVertexArrayAttrib(vao, 3);
-    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
-    glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 12);
-    glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, 24);
-    glVertexArrayAttribFormat(vao, 3, 3, GL_FLOAT, GL_FALSE, 36);
+    auto g = Engine::instance().get_gpu_res_mgr();
 
-    commands_buffer = _gpu_mgr().create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT}).res_handle();
+    commands_buffer  = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+    geometry_buffer  = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+    index_buffer     = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+    mesh_data_buffer = g->create_resource(GLBuffer{GL_DYNAMIC_STORAGE_BIT});
+
+    mesh_vao = g->create_resource(GLVao{{GLVaoBinding{0, geometry_buffer->res_handle(), 48, 0}},
+                                        {GLVaoAttribute{0, 0, 3, 0},
+                                         GLVaoAttribute{1, 0, 3, 0},
+                                         GLVaoAttribute{2, 0, 3, 0},
+                                         GLVaoAttribute{3, 0, 3, 0}},
+                                        index_buffer->res_handle()});
+
+    geometry_buffer->on_handle_change.connect([=](auto nh) { mesh_vao->update_binding(0, nh); });
+    index_buffer->on_handle_change.connect([=](auto nh) { mesh_vao->update_ebo(nh); });
+
     /*
         bloom_tex = Texture{eng::TextureSettings{GL_RGB16F, GL_CLAMP_TO_EDGE, GL_LINEAR, 1},
                             eng::TextureImageDataDescriptor{"", 1920, 1080}};
@@ -41,8 +43,8 @@ eng::Renderer::Renderer() {
         glNamedFramebufferTexture(bloom_fbo, GL_COLOR_ATTACHMENT0, bloom_tex.handle(), 0);
         glNamedFramebufferTexture(bloom_fbo, GL_DEPTH_STENCIL_ATTACHMENT, bloom_depth_tex.handle(),
        0); if (glCheckNamedFramebufferStatus(bloom_fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-       { std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-        }
+       //{ std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+       // }
 
         glCreateFramebuffers(1, &mip_fbo);
         for (int i = 0; i < 4; ++i) {
@@ -143,11 +145,10 @@ namespace eng {
     }
 
     void Renderer::register_object(const Object *o) {
-
         for (auto &m : o->meshes) {
             RenderObject ro{.object_id = o->id,
-                            .mesh      = get_resource_handle(m),
-                            .material  = get_resource_handle(*m.material),
+                            .mesh      = _get_mesh_handle(m),
+                            .material  = _get_material_handle(*m.material),
                             .transform = m.transform};
 
             _renderables.insert(ro);
@@ -155,147 +156,142 @@ namespace eng {
             _mesh_instance_count[m.id]++;
 
             if (m.material->passes.contains(RenderPass::Forward)) {
-                forward_pass.unbatched.push_back(Handle<RenderObject>{ro.id});
+                _forward_pass.unbatched.push_back(Handle<RenderObject>{ro.id});
             }
         }
     }
 
     void Renderer::render() {
-        //    if (_dirty_objects.empty() == false) {
-        //        _dirty_objects.clear();
+        if (_dirty_objects.empty() == false) {
+            _dirty_objects.clear();
 
-        //        std::unordered_map<uint32_t, uint32_t> offsets;
+            std::unordered_map<uint32_t, uint32_t> offsets;
 
-        //        struct alignas(16) Payload {
-        //            uint64_t diffuse;
-        //            uint64_t normal;
-        //            uint64_t metallic;
-        //            uint64_t roughness;
-        //            uint64_t emissive;
-        //            uint64_t _1;
-        //            glm::vec4 texture_channels;
-        //            glm::mat4 transform;
-        //        };
+            struct alignas(16) Payload {
+                uint64_t diffuse;
+                uint64_t normal;
+                uint64_t metallic;
+                uint64_t roughness;
+                uint64_t emissive;
+                uint64_t _1;
+                glm::vec4 texture_channels;
+                glm::mat4 transform;
+            };
 
-        //        std::vector<Payload> mesh_data;
-        //        std::vector<uint64_t> mesh_bindless_handle;
-        //        mesh_data.resize(_renderables.size());
-        //        mesh_bindless_handle.resize(_renderables.size());
+            std::vector<Payload> mesh_data;
+            std::vector<uint64_t> mesh_bindless_handle;
+            mesh_data.resize(_renderables.size());
+            mesh_bindless_handle.resize(_renderables.size());
 
-        //        offsets[_meshes[0].id] = 0;
-        //        for (auto i = 1u, prev_offset = 0u; i < _meshes.size(); ++i) {
-        //            const auto &m0    = _meshes[i - 1];
-        //            const auto &m1    = _meshes[i];
-        //            const auto offset = _mesh_instance_count.at(m0.id) + prev_offset;
-        //            offsets[m1.id]    = offset;
-        //            prev_offset       = offset;
-        //        }
+            offsets[_meshes[0].id] = 0;
+            for (auto i = 1u, prev_offset = 0u; i < _meshes.size(); ++i) {
+                const auto &m0    = _meshes[i - 1];
+                const auto &m1    = _meshes[i];
+                const auto offset = _mesh_instance_count.at(m0.id) + prev_offset;
+                offsets[m1.id]    = offset;
+                prev_offset       = offset;
+            }
 
-        //        for (const auto &r : _renderables) {
-        //            const auto offset = offsets.at(r.mesh.id)++;
-        //            const auto &mesh  = *_meshes.try_find(r.mesh);
+            for (const auto &r : _renderables) {
+                const auto offset = offsets.at(r.mesh.id)++;
+                const auto &mesh  = *_meshes.try_find(r.mesh);
 
-        //            mesh.material->textures.at(TextureType::Diffuse)->make_resident();
-        //            mesh.material->textures.at(TextureType::Normal)->make_resident();
-        //            mesh.material->textures.at(TextureType::Metallic)->make_resident();
-        //            mesh.material->textures.at(TextureType::Roughness)->make_resident();
-        //            mesh.material->textures.at(TextureType::Emissive)->make_resident();
+                mesh.material->textures.at(TextureType::Diffuse)->make_resident();
+                mesh.material->textures.at(TextureType::Normal)->make_resident();
+                mesh.material->textures.at(TextureType::Metallic)->make_resident();
+                mesh.material->textures.at(TextureType::Roughness)->make_resident();
+                mesh.material->textures.at(TextureType::Emissive)->make_resident();
 
-        //            mesh_data[offset] = {
-        //                mesh.material->textures.at(TextureType::Diffuse)->bindless_handle(),
-        //                mesh.material->textures.at(TextureType::Normal)->bindless_handle(),
-        //                mesh.material->textures.at(TextureType::Metallic)->bindless_handle(),
-        //                mesh.material->textures.at(TextureType::Roughness)->bindless_handle(),
-        //                mesh.material->textures.at(TextureType::Emissive)->bindless_handle(),
-        //                0,
-        //                glm::vec4{0.f, 0.f, 1.f, 0.f},
-        //                r.transform,
-        //            };
+                mesh_data[offset] = {
+                    mesh.material->textures.at(TextureType::Diffuse)->bindless_handle(),
+                    mesh.material->textures.at(TextureType::Normal)->bindless_handle(),
+                    mesh.material->textures.at(TextureType::Metallic)->bindless_handle(),
+                    mesh.material->textures.at(TextureType::Roughness)->bindless_handle(),
+                    mesh.material->textures.at(TextureType::Emissive)->bindless_handle(),
+                    0,
+                    glm::vec4{0.f, 0.f, 1.f, 0.f},
+                    r.transform,
+                };
 
-        //            ENG_DEBUG("Inserting %i at %i\n", mesh.id, offset);
-        //        }
+                ENG_DEBUG("Inserting %i at %i\n", mesh.id, offset);
+            }
 
-        //        mesh_data_buffer.clear_invalidate();
-        //        mesh_data_buffer.push_data(mesh_data.data(), mesh_data.size() * sizeof(Payload));
+            mesh_data_buffer->clear_invalidate();
+            mesh_data_buffer->push_data(mesh_data.data(), mesh_data.size() * sizeof(Payload));
 
-        //        std::vector<float> mesh_vertices;
-        //        std::vector<unsigned> mesh_indices;
-        //        for (const auto &m : _meshes) {
-        //            mesh_vertices.insert(mesh_vertices.end(), m.vertices.begin(),
-        //            m.vertices.end()); mesh_indices.insert(mesh_indices.end(), m.indices.begin(),
-        //            m.indices.end());
-        //        }
+            std::vector<float> mesh_vertices;
+            std::vector<unsigned> mesh_indices;
+            for (const auto &m : _meshes) {
+                mesh_vertices.insert(mesh_vertices.end(), m.vertices.begin(), m.vertices.end());
+                mesh_indices.insert(mesh_indices.end(), m.indices.begin(), m.indices.end());
+            }
 
-        //        geometry_buffer.clear_invalidate();
-        //        geometry_buffer.push_data(mesh_vertices.data(), mesh_vertices.size() *
-        //        sizeof(float));
+            geometry_buffer->clear_invalidate();
+            geometry_buffer->push_data(mesh_vertices.data(), mesh_vertices.size() * sizeof(float));
 
-        //        index_buffer.clear_invalidate();
-        //        index_buffer.push_data(mesh_indices.data(), mesh_indices.size() *
-        //        sizeof(unsigned));
+            index_buffer->clear_invalidate();
+            index_buffer->push_data(mesh_indices.data(), mesh_indices.size() * sizeof(unsigned));
+        }
 
-        //        glVertexArrayVertexBuffer(vao, 0, geometry_buffer.handle(), 0, 48);
-        //        glVertexArrayElementBuffer(vao, index_buffer.handle());
-        //    }
+        if (_forward_pass.unbatched.empty() == false) { _forward_pass.refresh(this); }
 
-        //    if (forward_pass.unbatched.empty() == false) { forward_pass.refresh(this); }
+        struct DrawElementsIndirectCommandExtended : public DrawElementsIndirectCommand {
+            DrawElementsIndirectCommandExtended() = default;
+            DrawElementsIndirectCommandExtended(const DrawElementsIndirectCommand *cmd,
+                                                uint32_t vertex_count) {
+                *static_cast<DrawElementsIndirectCommand *>(this) = *cmd;
+                this->vertex_count                                = vertex_count;
+            }
 
-        //    struct DrawElementsIndirectCommandExtended : public DrawElementsIndirectCommand {
-        //        DrawElementsIndirectCommandExtended() = default;
-        //        DrawElementsIndirectCommandExtended(const DrawElementsIndirectCommand *cmd,
-        //                                            uint32_t vertex_count) {
-        //            *static_cast<DrawElementsIndirectCommand *>(this) = *cmd;
-        //            this->vertex_count                                = vertex_count;
-        //        }
+            uint32_t vertex_count{0u};
+        } prev_cmd;
 
-        //        uint32_t vertex_count{0u};
-        //    } prev_cmd;
+        std::vector<DrawElementsIndirectCommand> draw_commands;
 
-        //    std::vector<DrawElementsIndirectCommand> draw_commands;
+        for (auto i = 0u; i < _forward_pass.indirect_batches.size(); ++i) {
+            const auto &ib = _forward_pass.indirect_batches[i];
+            const auto &m  = *_meshes.try_find(ib.mesh);
+            DrawElementsIndirectCommand cmd{
+                .count          = (uint32_t)m.indices.size(),
+                .instance_count = ib.count,
+                .first_index    = prev_cmd.first_index + prev_cmd.count,
+                .base_vertex    = prev_cmd.base_vertex + prev_cmd.vertex_count,
+                .base_instance  = prev_cmd.base_instance + prev_cmd.instance_count};
+            prev_cmd = DrawElementsIndirectCommandExtended{&cmd, (uint32_t)m.vertices.size() / 12u};
+            draw_commands.push_back(cmd);
+        }
 
-        //    for (auto i = 0u; i < forward_pass.indirect_batches.size(); ++i) {
-        //        const auto &ib = forward_pass.indirect_batches[i];
-        //        const auto &m  = *_meshes.try_find(ib.mesh);
-        //        DrawElementsIndirectCommand cmd{
-        //            .count          = (uint32_t)m.indices.size(),
-        //            .instance_count = ib.count,
-        //            .first_index    = prev_cmd.first_index + prev_cmd.count,
-        //            .base_vertex    = prev_cmd.base_vertex + prev_cmd.vertex_count,
-        //            .base_instance  = prev_cmd.base_instance + prev_cmd.instance_count};
-        //        prev_cmd = DrawElementsIndirectCommandExtended{&cmd, (uint32_t)m.vertices.size() /
-        //        12u}; draw_commands.push_back(cmd);
-        //    }
+        commands_buffer->clear_invalidate();
+        commands_buffer->push_data(draw_commands.data(),
+                                   draw_commands.size() * sizeof(DrawElementsIndirectCommand));
 
-        //    commands_buffer.clear_invalidate();
-        //    commands_buffer.push_data(draw_commands.data(),
-        //                              draw_commands.size() * sizeof(DrawElementsIndirectCommand));
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
 
-        //    glEnable(GL_DEPTH_TEST);
-        //    glEnable(GL_CULL_FACE);
-        //    glCullFace(GL_BACK);
-        //    glFrontFace(GL_CCW);
-
-        //    glBindVertexArray(vao);
-        //    mesh_data_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 0);
-        //    commands_buffer.bind(GL_DRAW_INDIRECT_BUFFER);
-        //    glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
-        //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        //    for (const auto &mb : forward_pass.multi_batches) {
-        //        forward_pass.indirect_batches[mb.first].material.prog->use();
-        //        forward_pass.indirect_batches[mb.first].material.prog->set(
-        //            "v", Engine::instance().cam->view_matrix());
-        //        forward_pass.indirect_batches[mb.first].material.prog->set(
-        //            "p", Engine::instance().cam->perspective_matrix());
-        //        forward_pass.indirect_batches[mb.first].material.prog->set(
-        //            "view_vec", Engine::instance().cam->forward_vec());
-        //        forward_pass.indirect_batches[mb.first].material.prog->set(
-        //            "view_pos", Engine::instance().cam->position());
-        //        forward_pass.indirect_batches[mb.first].material.prog->use();
-        //        glMultiDrawElementsIndirect(GL_TRIANGLES,
-        //                                    GL_UNSIGNED_INT,
-        //                                    (void *)(mb.first *
-        //                                    sizeof(DrawElementsIndirectCommand)), mb.count, 0);
-        //    }
+        mesh_vao->bind();
+        mesh_data_buffer->bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+        commands_buffer->bind(GL_DRAW_INDIRECT_BUFFER);
+        // glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        for (const auto &mb : _forward_pass.multi_batches) {
+            _forward_pass.indirect_batches[mb.first].material.prog->use();
+            _forward_pass.indirect_batches[mb.first].material.prog->set(
+                "v", Engine::instance().get_camera()->view_matrix());
+            _forward_pass.indirect_batches[mb.first].material.prog->set(
+                "p", Engine::instance().get_camera()->perspective_matrix());
+            _forward_pass.indirect_batches[mb.first].material.prog->set(
+                "view_vec", Engine::instance().get_camera()->forward_vec());
+            _forward_pass.indirect_batches[mb.first].material.prog->set(
+                "view_pos", Engine::instance().get_camera()->position());
+            _forward_pass.indirect_batches[mb.first].material.prog->use();
+            glMultiDrawElementsIndirect(GL_TRIANGLES,
+                                        GL_UNSIGNED_INT,
+                                        (void *)(mb.first * sizeof(DrawElementsIndirectCommand)),
+                                        mb.count,
+                                        0);
+        }
 
         //    static ShaderProgram quad_prog{"rect"};
         //    static ShaderProgram bloom_prog{"bloom"};
@@ -347,41 +343,21 @@ namespace eng {
     }
 
     RenderObject &Renderer::get_render_object(Handle<RenderObject> h) {
-        auto ptr_ro = _renderables.try_find(h);
-        assert((ptr_ro != nullptr && "Invalid handle"));
-        return *ptr_ro;
-    }
-    Material &Renderer::get_material(Handle<Material> h) {
-        auto ptr_ro = _materials.try_find(h);
-        assert((ptr_ro != nullptr && "Invalid handle"));
-        return *ptr_ro;
+        return *_renderables.try_find(h);
     }
 
-    template <typename Resource> Handle<Resource> Renderer::get_resource_handle(const Resource &m) {
+    Material &Renderer::get_material(Handle<Material> h) { return *_materials.try_find(h); }
 
-        SortedVector<Resource, IdResourceSortComp> *vec{nullptr};
-        if constexpr (std::is_same_v<Resource, Mesh>) {
-            vec = &_meshes;
-        } else if (std::is_same_v<Resource, Material>) {
-            vec = &_materials;
-        }
-
-        assert((vec != nullptr && "Resource not recognized"));
-
-        auto ptr_data = vec->try_find(m);
-
-        if (ptr_data == nullptr) { vec->insert(m); }
-
-        return Handle<Resource>{m.id};
+    Handle<Mesh> Renderer::_get_mesh_handle(const Mesh &m) {
+        auto it = _meshes.try_find(m.res_handle());
+        if (it == nullptr) { _meshes.insert(m); }
+        return m.res_handle();
     }
 
-    template <typename Iter>
-    typename Iter::value_type *Renderer::try_find_idresource(uint32_t id, Iter &it) {
-        auto data = std::lower_bound(
-            it.begin(), it.end(), id, [](auto &&e, auto &&v) { return e.id < v; });
-
-        if (data == it.end() || data->id != id) { return nullptr; }
-
-        return &*data;
+    Handle<Material> Renderer::_get_material_handle(const Material &m) {
+        auto it = _materials.try_find(m.res_handle());
+        if (it == nullptr) { _materials.insert(m); }
+        return m.res_handle();
     }
+
 } // namespace eng

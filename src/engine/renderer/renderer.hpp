@@ -124,19 +124,28 @@ namespace eng {
         void register_object(const Object *o);
         void render();
 
-      private:
-        GpuResMgr &_gpu_mgr() { return *Engine::instance().get_gpu_res_mgr(); }
+        RenderObject& get_render_object(Handle<RenderObject> h);
+        Material& get_material(Handle<Material> h);
 
-        MeshPass forward_pass;
+      private:
+        Handle<Mesh> _get_mesh_handle(const Mesh &m);
+        Handle<Material> _get_material_handle(const Material &m);
+
+        using _sort_func_t = decltype([](const auto &a, const auto &b) { return a.id < b.id; });
+        SortedVector<RenderObject, _sort_func_t> _renderables;
+        SortedVector<Mesh, _sort_func_t> _meshes;
+        SortedVector<Material, _sort_func_t> _materials;
+
+        MeshPass _forward_pass;
 
         std::vector<Handle<RenderObject>> _dirty_objects;
         std::unordered_map<uint32_t, uint32_t> _mesh_instance_count;
 
-        Handle<GLBuffer> commands_buffer;
-        Handle<GLBuffer> geometry_buffer;
-        Handle<GLBuffer> index_buffer;
-        Handle<GLBuffer> mesh_data_buffer;
-        Handle<GLBuffer> bindless_handles_buffer;
+        GLVao *mesh_vao{nullptr};
+        GLBuffer *commands_buffer{nullptr};
+        GLBuffer *geometry_buffer{nullptr};
+        GLBuffer *index_buffer{nullptr};
+        GLBuffer *mesh_data_buffer{nullptr};
     };
 
 } // namespace eng

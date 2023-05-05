@@ -21,7 +21,7 @@ void eng::Engine::_update() {
     _camera->_update();
 
     _window->clear_framebuffer();
-    //    renderer_->render_frame();
+    _renderer->render();
     _gui->draw();
     _window->swap_buffers();
 }

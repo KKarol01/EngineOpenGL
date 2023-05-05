@@ -17,12 +17,12 @@ namespace eng {
 
     class GpuResMgr {
       public:
-        template <GpuResource Resource> Resource &create_resource(Resource &&rsc) {
-            return *static_cast<Resource *>(
+        template <GpuResource Resource> Resource *create_resource(Resource &&rsc) {
+            return static_cast<Resource *>(
                 _get_storage<Resource>().insert(new Resource{std::move(rsc)}));
         }
 
-        template <typename Resource> Resource &get_resource(Handle<Resource>);
+        template <typename Resource> Resource *get_resource(Handle<Resource>);
 
       private:
         using _sort_func_t
@@ -40,7 +40,7 @@ namespace eng {
         }
     };
 
-    template <typename Resource> Resource &GpuResMgr::get_resource(Handle<Resource> handle) {
+    template <typename Resource> Resource *GpuResMgr::get_resource(Handle<Resource> handle) {
         auto &storage = _get_storage<Resource>();
         auto p_data   = storage.try_find(handle, [](auto &&a, auto &&b) {
             uint32_t _a, _b;
@@ -57,7 +57,7 @@ namespace eng {
 
         assert(p_data != nullptr && "Bad handle");
 
-        return *static_cast<Resource *>(*p_data);
+        return static_cast<Resource *>(*p_data);
     }
 
 } // namespace eng

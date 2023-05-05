@@ -56,7 +56,7 @@ namespace eng {
         _handle   = new_handle;
         _capacity = new_capacity;
 
-        on_handle_change.emit(id);
+        on_handle_change.emit(new_handle);
     }
 
     GLBuffer::~GLBuffer() { glDeleteBuffers(1, &_handle); }
@@ -74,6 +74,17 @@ namespace eng {
     GLVao::~GLVao() { glDeleteVertexArrays(1, &_handle); }
 
     void GLVao::bind() const { glBindVertexArray(_handle); }
+
+    void GLVao::update_binding(uint32_t binding_id, uint32_t new_handle) {
+        for (auto &b : _bindings) {
+            if (b.binding_id == binding_id) {
+                glVertexArrayVertexBuffer(_handle, b.binding_id, new_handle, b.offset, b.stride);
+                break;
+            }
+        }
+    }
+
+    void GLVao::update_ebo(uint32_t new_handle) { glVertexArrayElementBuffer(_handle, new_handle); }
 
     void GLVao::_calculate_attr_offsets_if_zeros() {
         bool only_zeros_as_offsets = true;
