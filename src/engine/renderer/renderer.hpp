@@ -29,11 +29,35 @@ namespace eng {
     };
 
     struct Material : public IdResource<Material> {
+        explicit Material() = default;
+        explicit Material(std::unordered_map<TextureType, Texture *> textures,
+                          std::unordered_map<RenderPass, ShaderProgram *> passes)
+            : textures{textures}, passes{passes} {}
+        Material(Material &&o) noexcept {
+            id       = o.id;
+            textures = std::move(o.textures);
+            passes   = std::move(o.passes);
+            o.id     = 0u;
+        }
+        Material(const Material &o) noexcept {
+            id       = o.id;
+            textures = std::move(o.textures);
+            passes   = std::move(o.passes);
+        }
+        Material &operator=(const Material &o) noexcept {
+            id       = o.id;
+            textures = std::move(o.textures);
+            passes   = std::move(o.passes);
+            return *this;
+        }
+
         std::unordered_map<TextureType, Texture *> textures;
         std::unordered_map<RenderPass, ShaderProgram *> passes;
     };
 
     struct Mesh : public IdResource<Mesh> {
+        explicit Mesh() = default;
+
         Material *material{nullptr};
 
         glm::mat4 transform{1.f};
@@ -43,10 +67,21 @@ namespace eng {
     };
 
     struct Object : public IdResource<Object> {
+        explicit Object() = default;
+        explicit Object(const std::vector<Mesh> &meshes) : meshes{meshes} {}
+
         std::vector<Mesh> meshes;
     };
 
     struct RenderObject : public IdResource<RenderObject> {
+
+        explicit RenderObject() = default;
+        explicit RenderObject(uint32_t object_id,
+                              Handle<Mesh> mesh,
+                              Handle<Material> material,
+                              const glm::mat4 &transform)
+            : object_id{object_id}, mesh{mesh}, material{material}, transform{transform} {}
+
         uint32_t object_id;
         Handle<Mesh> mesh;
         Handle<Material> material;
@@ -124,8 +159,8 @@ namespace eng {
         void register_object(const Object *o);
         void render();
 
-        RenderObject& get_render_object(Handle<RenderObject> h);
-        Material& get_material(Handle<Material> h);
+        RenderObject &get_render_object(Handle<RenderObject> h);
+        Material &get_material(Handle<Material> h);
 
       private:
         Handle<Mesh> _get_mesh_handle(const Mesh &m);

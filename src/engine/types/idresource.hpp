@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <compare>
+#include <engine/types/debug_logger.hpp>
 
 namespace eng {
     template <typename Resource> struct Handle {
@@ -26,11 +27,20 @@ namespace eng {
     };
 
     struct IdWrapper {
+        virtual ~IdWrapper() = default;
+
         uint32_t id{0};
     };
 
     template <typename Resource> struct IdResource : public IdWrapper {
         IdResource() { id = TypeIdGen<Resource>::unique(); }
+
+        virtual ~IdResource() {
+            if (id != 0u) {
+                ENG_DEBUG(
+                    "Destroying \"%s\" [%d Bytes]", typeid(Resource).name(), sizeof(Resource));
+            }
+        };
 
         auto operator<=>(const IdResource<Resource> &) const = default;
         auto operator<=>(Handle<Resource> h) const { return id <=> h.id; }

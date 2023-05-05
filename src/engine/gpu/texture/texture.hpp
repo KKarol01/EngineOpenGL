@@ -49,6 +49,8 @@ namespace eng {
         explicit Texture(const TextureSettings &settings,
                          const TextureImageDataDescriptor &data_descs,
                          bool also_store_data_on_cpu = false);
+        Texture(Texture &&) noexcept;
+        ~Texture() override;
 
         void bind(uint32_t unit);
         void unbind();

@@ -14,6 +14,26 @@ namespace eng {
         _load(data_descs, also_store_data_on_cpu);
     }
 
+    Texture::Texture(Texture &&other) noexcept {
+        id               = other.id;
+        _settings        = other._settings;
+        _image_data      = other._image_data;
+        _is_bound        = other._is_bound;
+        _is_resident     = other._is_resident;
+        _bound_unit      = other._bound_unit;
+        _handle          = other._handle;
+        _bindless_handle = other._bindless_handle;
+
+        other.id               = 0;
+        other._handle          = 0;
+        other._bindless_handle = 0;
+    }
+
+    Texture::~Texture() {
+        if (is_resident()) { make_non_resident(); }
+        glDeleteTextures(1, &_handle);
+    }
+
     void Texture::bind(uint32_t unit) {
         _bound_unit = unit;
         _is_bound   = true;

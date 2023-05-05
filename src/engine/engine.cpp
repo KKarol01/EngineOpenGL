@@ -10,10 +10,7 @@
 #include "controller/controller.hpp"
 #include "controller/keyboard/keyboard.hpp"
 
-eng::Engine::~Engine() {
-    _window->close();
-    glfwTerminate();
-}
+eng::Engine::~Engine() {}
 
 void eng::Engine::_update() {
     glfwPollEvents();
@@ -28,7 +25,12 @@ void eng::Engine::_update() {
 
 void eng::Engine::start() {
     while (_window->should_close() == false) { _update(); }
+
+    exit();
+    glfwTerminate();
 }
+
+void eng::Engine::exit() { _instance.reset(); }
 
 void eng::Engine::initialise(std::string_view window_name, uint32_t size_x, uint32_t size_y) {
     eng::Engine::_instance = std::make_unique<eng::Engine>();

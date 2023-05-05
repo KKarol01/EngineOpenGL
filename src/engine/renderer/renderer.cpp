@@ -146,10 +146,8 @@ namespace eng {
 
     void Renderer::register_object(const Object *o) {
         for (auto &m : o->meshes) {
-            RenderObject ro{.object_id = o->id,
-                            .mesh      = _get_mesh_handle(m),
-                            .material  = _get_material_handle(*m.material),
-                            .transform = m.transform};
+            RenderObject ro{
+                o->id, _get_mesh_handle(m), _get_material_handle(*m.material), m.transform};
 
             _renderables.insert(ro);
             _dirty_objects.emplace_back(ro.id);

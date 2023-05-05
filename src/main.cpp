@@ -5,6 +5,7 @@
 #include <memory>
 #include <numeric>
 #include <initializer_list>
+#include <compare>
 
 #include <engine/engine.hpp>
 #include <engine/camera/camera.hpp>
@@ -98,7 +99,8 @@ int main() {
                     {aiTextureType_EMISSIVE, TextureType::Emissive},
                 }};
 
-                Material *def_mat = new Material{.passes = {{RenderPass::Forward, &prog}}};
+                Material *def_mat = engine.get_gpu_res_mgr()->create_resource(Material{});
+                def_mat->passes[RenderPass::Forward] = &prog;
 
                 for (const auto &[ait, t] : textures_types) {
                     const auto ait_count = material->GetTextureCount(ait);
@@ -112,14 +114,17 @@ int main() {
                     assert((path.length > 0 && "invalid path to texture"));
                     texture_path += path.C_Str();
 
-                    auto texture = new Texture{
+                    auto texture         = engine.get_gpu_res_mgr()->create_resource(Texture{
                         TextureSettings{GL_RGB8, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, 7},
-                        TextureImageDataDescriptor{texture_path}};
+                        TextureImageDataDescriptor{texture_path}});
                     def_mat->textures[t] = texture;
                 }
 
-                meshes.push_back(
-                    Mesh{.material = def_mat, .vertices = mesh_vertices, .indices = mesh_indices});
+                Mesh m;
+                m.material = def_mat;
+                m.vertices = mesh_vertices;
+                m.indices  = mesh_indices;
+                meshes.push_back(m);
             }
 
             for (auto i = 0u; i < node->mNumChildren; ++i) {
@@ -129,7 +134,7 @@ int main() {
 
         parse_scene(scene, scene->mRootNode);
 
-        Object o{.meshes = meshes};
+        Object o{meshes};
         engine.get_renderer()->register_object(&o);
     }
 
