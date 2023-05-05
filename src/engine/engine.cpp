@@ -10,8 +10,6 @@
 #include "controller/controller.hpp"
 #include "controller/keyboard/keyboard.hpp"
 
-eng::Engine::~Engine() {}
-
 void eng::Engine::_update() {
     glfwPollEvents();
     _controller->_update();

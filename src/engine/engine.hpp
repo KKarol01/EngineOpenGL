@@ -17,7 +17,6 @@ namespace eng {
     class Engine {
       public:
         Engine() = default;
-        ~Engine();
 
         void start();
         static void exit();
