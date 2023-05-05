@@ -20,17 +20,19 @@ namespace eng {
         explicit Framebuffer() = default;
         explicit Framebuffer(std::initializer_list<FramebufferAttachment> texture_attachments);
         Framebuffer(Framebuffer &&) noexcept;
-        Framebuffer& operator=(Framebuffer&&) noexcept;
+        Framebuffer &operator=(Framebuffer &&) noexcept;
         ~Framebuffer() override;
 
         void bind();
         uint32_t handle() { return _handle; }
 
+        void update_attachments(std::initializer_list<FramebufferAttachment> texture_attachments);
+
       private:
         void _configure_attachments();
         void _assert_completness();
 
-        uint32_t _handle;
+        uint32_t _handle{0u};
         std::unordered_map<uint32_t, FramebufferAttachment> _attachments;
     };
 } // namespace eng

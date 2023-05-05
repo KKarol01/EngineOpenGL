@@ -29,6 +29,17 @@ eng::Framebuffer::~Framebuffer() { glDeleteFramebuffers(1, &_handle); }
 
 void eng::Framebuffer::bind() { glBindFramebuffer(GL_FRAMEBUFFER, handle()); }
 
+void eng::Framebuffer::update_attachments(
+    std::initializer_list<FramebufferAttachment> texture_attachments) {
+    if (_handle == 0u) {
+        *this = Framebuffer(texture_attachments);
+    } else {
+        for (const auto &att : texture_attachments) { _attachments[att.target] = att; }
+    }
+    _configure_attachments();
+    _assert_completness();
+}
+
 void eng::Framebuffer::_configure_attachments() {
     std::vector<GLenum> color_attachments;
 

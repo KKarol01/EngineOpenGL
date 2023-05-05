@@ -1,5 +1,4 @@
-add_executable(opengl_engine 
-"main.cpp" 
+add_executable(opengl_engine "main.cpp"
 "3rdparty/glad.c"
 "3rdparty/include/glm/detail/glm.cpp"
 "3rdparty/include/imgui/imgui.cpp"
@@ -27,7 +26,9 @@ add_executable(opengl_engine
 "engine/renderer/renderer.cpp"
 "engine/window/window.cpp"
 "engine/gpu/framebuffer/framebuffer.cpp"  
-"engine/scene/scene.cpp" "engine/gpu/resource_manager/gpu_res_mgr.cpp")
+"engine/scene/scene.cpp"
+"engine/gpu/resource_manager/gpu_res_mgr.cpp"
+"engine/renderer/postprocess.cpp")
 
 set_property(TARGET opengl_engine PROPERTY CXX_STANDARD 20)
 

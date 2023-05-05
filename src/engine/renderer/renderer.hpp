@@ -15,6 +15,7 @@
 #include <engine/types/idallocator.hpp>
 #include <engine/types/idresource.hpp>
 #include <engine/gpu/framebuffer/framebuffer.hpp>
+#include <engine/renderer/postprocess.hpp>
 #include <glm/glm.hpp>
 
 namespace eng {
@@ -154,6 +155,7 @@ namespace eng {
 
       private:
         MeshPass _forward_pass;
+        PostprocessBloom* bloom{nullptr};
 
         std::vector<Handle<RenderObject>> _dirty_objects;
         std::unordered_map<uint32_t, uint32_t> _mesh_instance_count;

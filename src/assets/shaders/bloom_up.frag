@@ -52,6 +52,6 @@ void main()
     if(primary==0) {
       upsample = blurred;
     } else if(primary==1) {
-        upsample =   mix(texture(full_res, texCoord).rgb, blurred, 0.1);
+        upsample =   mix(texture(full_res, texCoord).rgb, blurred.rgb, 0.1);
     }
 }
