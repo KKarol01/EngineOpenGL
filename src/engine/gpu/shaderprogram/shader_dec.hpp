@@ -10,10 +10,12 @@
 #include <functional>
 #include <utility>
 
+#include <engine/types/idresource.hpp>
 #include <glm/glm.hpp>
 
+
 namespace eng {
-    class ShaderProgram {
+    class ShaderProgram : public IdResource<ShaderProgram> {
       public:
         ShaderProgram() = default;
         explicit ShaderProgram(const std::string &file_name);

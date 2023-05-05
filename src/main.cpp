@@ -43,7 +43,7 @@ int main() {
     Engine::instance().get_window()->set_clear_flags(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
                                                      | GL_STENCIL_BUFFER_BIT);
 
-    ShaderProgram prog{"a"};
+    auto &prog = *engine.get_gpu_res_mgr()->create_resource(ShaderProgram{"a"});
 
     {
         Assimp::Importer i;
@@ -120,8 +120,8 @@ int main() {
                     def_mat->textures[t] = texture;
                 }
 
-                Mesh m;
-                m.material = def_mat;
+                Mesh &m    = *engine.get_gpu_res_mgr()->create_resource(Mesh{});
+                m.material = def_mat->res_handle();
                 m.vertices = mesh_vertices;
                 m.indices  = mesh_indices;
                 meshes.push_back(m);

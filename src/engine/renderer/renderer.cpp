@@ -76,13 +76,17 @@ eng::Renderer::Renderer() {
 
 namespace eng {
     void MeshPass::refresh(Renderer *r) {
+        auto gpu = Engine::instance().get_gpu_res_mgr();
+
         while (unbatched.empty() == false) {
             auto h_ro = unbatched.front();
             unbatched.erase(unbatched.begin());
-            auto &ro = r->get_render_object(h_ro);
+            auto &ro = *gpu->get_resource(h_ro);
 
             PassObject po{
-                PassMaterial{.prog = r->get_material(ro.material).passes.at(RenderPass::Forward)},
+                PassMaterial{
+                    .prog
+                    = gpu->get_resource(ro.material)->passes.at(RenderPass::Forward)->res_handle()},
                 ro.mesh,
                 h_ro};
 
@@ -94,7 +98,7 @@ namespace eng {
         multi_batches.clear();
 
         for (const auto &po : pass_objects) {
-            auto &ro = r->get_render_object(po.render_object);
+            auto &ro = *gpu->get_resource(po.render_object);
             flat_batches.emplace_back(get_batch_id(po.mesh, ro.material),
                                       Handle<PassObject>(po.id));
         }
@@ -145,21 +149,23 @@ namespace eng {
     }
 
     void Renderer::register_object(const Object *o) {
+        auto gpu = Engine::instance().get_gpu_res_mgr();
         for (auto &m : o->meshes) {
-            RenderObject ro{
-                o->id, _get_mesh_handle(m), _get_material_handle(*m.material), m.transform};
+            auto ro = gpu->create_resource(
+                RenderObject{o->id, m.res_handle(), m.material, m.transform});
 
-            _renderables.insert(ro);
-            _dirty_objects.emplace_back(ro.id);
+            _dirty_objects.emplace_back(ro->res_handle());
             _mesh_instance_count[m.id]++;
 
-            if (m.material->passes.contains(RenderPass::Forward)) {
-                _forward_pass.unbatched.push_back(Handle<RenderObject>{ro.id});
+            if (gpu->get_resource(m.material)->passes.contains(RenderPass::Forward)) {
+                _forward_pass.unbatched.push_back(Handle<RenderObject>{ro->res_handle()});
             }
         }
     }
 
     void Renderer::render() {
+        auto gpu = Engine::instance().get_gpu_res_mgr();
+
         if (_dirty_objects.empty() == false) {
             _dirty_objects.clear();
 
@@ -178,37 +184,41 @@ namespace eng {
 
             std::vector<Payload> mesh_data;
             std::vector<uint64_t> mesh_bindless_handle;
-            mesh_data.resize(_renderables.size());
-            mesh_bindless_handle.resize(_renderables.size());
 
-            offsets[_meshes[0].id] = 0;
-            for (auto i = 1u, prev_offset = 0u; i < _meshes.size(); ++i) {
-                const auto &m0    = _meshes[i - 1];
-                const auto &m1    = _meshes[i];
+            auto &meshes      = gpu->get_storage<Mesh>();
+            auto &renderables = gpu->get_storage<RenderObject>();
+
+            mesh_data.resize(gpu->count<RenderObject>());
+            mesh_bindless_handle.resize(gpu->count<RenderObject>());
+
+            offsets[meshes[0]->id] = 0;
+            for (auto i = 1u, prev_offset = 0u; i < meshes.size(); ++i) {
+                const auto &m0    = *meshes[i - 1];
+                const auto &m1    = *meshes[i];
                 const auto offset = _mesh_instance_count.at(m0.id) + prev_offset;
                 offsets[m1.id]    = offset;
                 prev_offset       = offset;
             }
 
-            for (const auto &r : _renderables) {
-                const auto offset = offsets.at(r.mesh.id)++;
-                const auto &mesh  = *_meshes.try_find(r.mesh);
-
-                mesh.material->textures.at(TextureType::Diffuse)->make_resident();
-                mesh.material->textures.at(TextureType::Normal)->make_resident();
-                mesh.material->textures.at(TextureType::Metallic)->make_resident();
-                mesh.material->textures.at(TextureType::Roughness)->make_resident();
-                mesh.material->textures.at(TextureType::Emissive)->make_resident();
+            for (const auto r : gpu->get_storage<RenderObject>()) {
+                const auto offset = offsets.at(r->mesh.id)++;
+                const auto &mesh  = *gpu->get_resource(r->mesh);
+                auto material     = gpu->get_resource(mesh.material);
+                material->textures.at(TextureType::Diffuse)->make_resident();
+                material->textures.at(TextureType::Normal)->make_resident();
+                material->textures.at(TextureType::Metallic)->make_resident();
+                material->textures.at(TextureType::Roughness)->make_resident();
+                material->textures.at(TextureType::Emissive)->make_resident();
 
                 mesh_data[offset] = {
-                    mesh.material->textures.at(TextureType::Diffuse)->bindless_handle(),
-                    mesh.material->textures.at(TextureType::Normal)->bindless_handle(),
-                    mesh.material->textures.at(TextureType::Metallic)->bindless_handle(),
-                    mesh.material->textures.at(TextureType::Roughness)->bindless_handle(),
-                    mesh.material->textures.at(TextureType::Emissive)->bindless_handle(),
+                    material->textures.at(TextureType::Diffuse)->bindless_handle(),
+                    material->textures.at(TextureType::Normal)->bindless_handle(),
+                    material->textures.at(TextureType::Metallic)->bindless_handle(),
+                    material->textures.at(TextureType::Roughness)->bindless_handle(),
+                    material->textures.at(TextureType::Emissive)->bindless_handle(),
                     0,
                     glm::vec4{0.f, 0.f, 1.f, 0.f},
-                    r.transform,
+                    r->transform,
                 };
 
                 ENG_DEBUG("Inserting %i at %i\n", mesh.id, offset);
@@ -219,9 +229,9 @@ namespace eng {
 
             std::vector<float> mesh_vertices;
             std::vector<unsigned> mesh_indices;
-            for (const auto &m : _meshes) {
-                mesh_vertices.insert(mesh_vertices.end(), m.vertices.begin(), m.vertices.end());
-                mesh_indices.insert(mesh_indices.end(), m.indices.begin(), m.indices.end());
+            for (const auto m : meshes) {
+                mesh_vertices.insert(mesh_vertices.end(), m->vertices.begin(), m->vertices.end());
+                mesh_indices.insert(mesh_indices.end(), m->indices.begin(), m->indices.end());
             }
 
             geometry_buffer->clear_invalidate();
@@ -248,7 +258,7 @@ namespace eng {
 
         for (auto i = 0u; i < _forward_pass.indirect_batches.size(); ++i) {
             const auto &ib = _forward_pass.indirect_batches[i];
-            const auto &m  = *_meshes.try_find(ib.mesh);
+            const auto &m  = *gpu->get_resource(ib.mesh);
             DrawElementsIndirectCommand cmd{
                 .count          = (uint32_t)m.indices.size(),
                 .instance_count = ib.count,
@@ -274,21 +284,16 @@ namespace eng {
         // glBindFramebuffer(GL_FRAMEBUFFER, bloom_fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         for (const auto &mb : _forward_pass.multi_batches) {
-            _forward_pass.indirect_batches[mb.first].material.prog->use();
-            _forward_pass.indirect_batches[mb.first].material.prog->set(
-                "v", Engine::instance().get_camera()->view_matrix());
-            _forward_pass.indirect_batches[mb.first].material.prog->set(
-                "p", Engine::instance().get_camera()->perspective_matrix());
-            _forward_pass.indirect_batches[mb.first].material.prog->set(
-                "view_vec", Engine::instance().get_camera()->forward_vec());
-            _forward_pass.indirect_batches[mb.first].material.prog->set(
-                "view_pos", Engine::instance().get_camera()->position());
-            _forward_pass.indirect_batches[mb.first].material.prog->use();
-            glMultiDrawElementsIndirect(GL_TRIANGLES,
-                                        GL_UNSIGNED_INT,
-                                        (void *)(mb.first * sizeof(DrawElementsIndirectCommand)),
-                                        mb.count,
-                                        0);
+            auto prog = gpu->get_resource(_forward_pass.indirect_batches[mb.first].material.prog);
+            prog->use();
+            prog->set("v", Engine::instance().get_camera()->view_matrix());
+            prog->set("p", Engine::instance().get_camera()->perspective_matrix());
+            prog->set("view_vec", Engine::instance().get_camera()->forward_vec());
+            prog->set("view_pos", Engine::instance().get_camera()->position());
+            prog->use();
+            int draw_count = mb.first * sizeof(DrawElementsIndirectCommand);
+            glMultiDrawElementsIndirect(
+                GL_TRIANGLES, GL_UNSIGNED_INT, (void *)draw_count, mb.count, 0);
         }
 
         //    static ShaderProgram quad_prog{"rect"};
@@ -340,22 +345,5 @@ namespace eng {
         //    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 
-    RenderObject &Renderer::get_render_object(Handle<RenderObject> h) {
-        return *_renderables.try_find(h);
-    }
-
-    Material &Renderer::get_material(Handle<Material> h) { return *_materials.try_find(h); }
-
-    Handle<Mesh> Renderer::_get_mesh_handle(const Mesh &m) {
-        auto it = _meshes.try_find(m.res_handle());
-        if (it == nullptr) { _meshes.insert(m); }
-        return m.res_handle();
-    }
-
-    Handle<Material> Renderer::_get_material_handle(const Material &m) {
-        auto it = _materials.try_find(m.res_handle());
-        if (it == nullptr) { _materials.insert(m); }
-        return m.res_handle();
-    }
-
+   
 } // namespace eng

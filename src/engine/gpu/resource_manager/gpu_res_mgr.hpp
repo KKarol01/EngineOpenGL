@@ -23,8 +23,19 @@ namespace eng {
             return static_cast<Resource *>(
                 _get_storage<Resource>().insert(new Resource{std::move(rsc)}));
         }
-
         template <typename Resource> Resource *get_resource(Handle<Resource>);
+        template <typename Resource> Resource *get_resource(size_t idx) {
+            return _get_storage<Resource>()[idx];
+        }
+        template <typename Resource> auto count() { return _get_storage<Resource>().size(); };
+
+        // Don't like this idea, but didn't have time to make something safer.
+        // Casting from vec<B*> to vec<D*>: no object slicing, containers are always homogenous.
+        // B - base, D - Derived
+        template <typename Resource> auto &get_storage() {
+            return *reinterpret_cast<SortedVector<Resource *, _sort_func_t> *>(
+                &_get_storage<Resource>());
+        }
 
       private:
         using _sort_func_t = decltype([](auto &&a, auto &&b) { return a->id < b->id; });

@@ -39,17 +39,6 @@ namespace eng {
             passes   = std::move(o.passes);
             o.id     = 0u;
         }
-        Material(const Material &o) noexcept {
-            id       = o.id;
-            textures = std::move(o.textures);
-            passes   = std::move(o.passes);
-        }
-        Material &operator=(const Material &o) noexcept {
-            id       = o.id;
-            textures = std::move(o.textures);
-            passes   = std::move(o.passes);
-            return *this;
-        }
 
         std::unordered_map<TextureType, Texture *> textures;
         std::unordered_map<RenderPass, ShaderProgram *> passes;
@@ -57,13 +46,16 @@ namespace eng {
 
     struct Mesh : public IdResource<Mesh> {
         explicit Mesh() = default;
-
-        Material *material{nullptr};
-
-        glm::mat4 transform{1.f};
+        explicit Mesh(std::vector<float> vertices,
+                      std::vector<unsigned> indices,
+                      Handle<Material> material,
+                      glm::mat4 transform)
+            : vertices{vertices}, indices{indices}, material{material}, transform{transform} {}
 
         std::vector<float> vertices;
         std::vector<unsigned> indices;
+        Handle<Material> material;
+        glm::mat4 transform{1.f};
     };
 
     struct Object : public IdResource<Object> {
@@ -89,7 +81,7 @@ namespace eng {
     };
 
     struct PassMaterial {
-        ShaderProgram *prog;
+        Handle<ShaderProgram> prog;
     };
 
     struct PassObject : IdResource<PassObject> {
@@ -159,18 +151,7 @@ namespace eng {
         void register_object(const Object *o);
         void render();
 
-        RenderObject &get_render_object(Handle<RenderObject> h);
-        Material &get_material(Handle<Material> h);
-
       private:
-        Handle<Mesh> _get_mesh_handle(const Mesh &m);
-        Handle<Material> _get_material_handle(const Material &m);
-
-        using _sort_func_t = decltype([](const auto &a, const auto &b) { return a.id < b.id; });
-        SortedVector<RenderObject, _sort_func_t> _renderables;
-        SortedVector<Mesh, _sort_func_t> _meshes;
-        SortedVector<Material, _sort_func_t> _materials;
-
         MeshPass _forward_pass;
 
         std::vector<Handle<RenderObject>> _dirty_objects;
