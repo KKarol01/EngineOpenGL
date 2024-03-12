@@ -6,6 +6,10 @@ Branch **main** contains scene to test PBR and Bloom.
 The result looks like this:
 ![pbr_bloom_render](images/bust.png)
 
+Branch **fire** contains scene to test simple fire generated with noise. 
+The result looks like this:\
+![fire_render](images/fire.png)
+
 ## Used libraries: 
 - [GLFW](https://github.com/glfw/glfw#head1234)
 - [ASSIMP](https://github.com/assimp/assimp)
