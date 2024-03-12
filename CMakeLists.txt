@@ -1,6 +1,6 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required (VERSION 3.2)
 
-project ("opengl_engine")
+project("opengl_engine")
 
 add_subdirectory("src")
 #add_subdirectory("tests")

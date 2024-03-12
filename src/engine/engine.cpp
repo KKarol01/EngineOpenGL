@@ -1,47 +1,43 @@
 #include "engine.hpp"
 
 #include <iostream>
+#include <cstdint>
+#include <string_view>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "camera/camera.hpp"
-#include "subsystems/renderer/renderer.hpp"
+#include "controller/controller.hpp"
 #include "controller/keyboard/keyboard.hpp"
-#include "signal/signal.hpp"
-#include "subsystems/ecs/ecs.hpp"
-#include "wrappers/include_all.hpp"
 
-Engine::Engine(Window &&window) noexcept { *this = std::move(window); }
+void eng::Engine::_update() {
+    glfwPollEvents();
+    _controller->_update();
+    _camera->_update();
 
-Engine &Engine::operator=(Window &&window) noexcept {
-    Engine::window_         = std::make_unique<Window>(std::move(window));
-    Engine::controller_     = std::make_unique<Keyboard>();
-    Engine::shader_manager_ = std::make_unique<ShaderManager>();
-    Engine::ecs_            = std::make_unique<ECS>();
-    Engine::renderer_       = std::make_unique<Renderer>();
-
-    time = dt = glfwGetTime();
-    return *this;
+    _window->clear_framebuffer();
+    _renderer->render();
+    _gui->draw();
+    _window->swap_buffers();
 }
 
-Engine::~Engine() {
-    window_->close();
+void eng::Engine::start() {
+    while (_window->should_close() == false) { _update(); }
+
+    exit();
     glfwTerminate();
 }
 
-void Engine::update() {
-    dt   = glfwGetTime() - time;
-    time = glfwGetTime();
+void eng::Engine::exit() { _instance.reset(); }
 
-    controller_->update();
+void eng::Engine::initialise(std::string_view window_name, uint32_t size_x, uint32_t size_y) {
+    eng::Engine::_instance = std::make_unique<eng::Engine>();
+    auto this_             = eng::Engine::_instance.get();
 
-    glClearColor(0.3f, 0.8f, 0.21f, 1.f);
-    window_->clear_framebuffer();
-    renderer_->render_frame();
-    window_->swap_buffers();
+    this_->_window      = std::make_unique<Window>(window_name, size_x, size_y);
+    this_->_camera      = std::make_unique<Camera>();
+    this_->_controller  = std::make_unique<Keyboard>();
+    this_->_gpu_res_mgr = std::make_unique<GpuResMgr>();
+    this_->_renderer    = std::make_unique<Renderer>();
+    this_->_gui         = std::make_unique<GUI>();
 }
-
-void Engine::initialise(Window &&w) { _instance = std::move(w); }
-
-Engine Engine::_instance = Engine{};

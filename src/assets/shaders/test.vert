@@ -14,10 +14,8 @@ uniform float time;
 
 out vec2 vs_tc;
 void main() {
-    vs_tc = texture_coordinates;
+    vs_tc         = texture_coordinates;
     vec4 position = vec4(0.f);
-    for(int i=0; i<4;++i) {
-        position += (bone_mats[bone_id[i]] * vec4(vert, 1.f)) * bone_weight[i];
-    }
+    for (int i = 0; i < 4; ++i) { position += (bone_mats[bone_id[i]] * vec4(vert, 1.f)) * bone_weight[i]; }
     gl_Position = projection * view * model * position;
 }

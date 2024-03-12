@@ -8,7 +8,7 @@ class Camera {
 
   public:
     static inline const glm::vec3 forward{0.f, 0.f, -1.f}, right{1.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-    static inline float movement_speed{1.5f};
+    static inline float movement_speed{.15f};
 
     struct LensSettings {
         float fovydeg{90.f}, near{0.01f}, far{100.f};
@@ -22,7 +22,7 @@ class Camera {
     glm::vec3 look_forward{forward}, look_right{right}, look_up{up};
 
   public:
-    void update();
+    void _update();
 
     inline void adjust_lens(const LensSettings &ls) {
         lens = ls;
@@ -32,6 +32,10 @@ class Camera {
 
     glm::mat4 view_matrix() const;
     glm::mat4 perspective_matrix() const { return projection; };
-    glm::vec3 forward_vec() const { return glm::normalize(m_position + look_forward); }
+    glm::vec3 forward_vec() const { return glm::normalize(look_forward); }
+    glm::vec3 right_vec() const { return glm::normalize(glm::cross(forward_vec(), up)); }
     glm::vec3 position() const { return m_position; }
+
+    void set_position(glm::vec3 npos) {m_position = npos;}
+    
 };

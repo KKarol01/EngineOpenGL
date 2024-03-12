@@ -52,7 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma GCC system_header
 #endif
 
-#include "scene.h"
+#include <assimp/config.h>
 
 //////////////////////////////////////////////////////////////////////////
 /* Define ASSIMP_BUILD_NO_XX_IMPORTER to disable a specific
@@ -190,7 +190,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef __cplusplus
 /* No explicit 'struct' and 'enum' tags for C++, this keeps showing up
- * in doxydocs. 
+ * in doxydocs.
  */
 #define C_STRUCT
 #define C_ENUM

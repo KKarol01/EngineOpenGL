@@ -50,7 +50,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   pragma GCC system_header
 #endif
 
-#include <glm/glm.hpp>
 #include <assimp/types.h>
 #include <assimp/texture.h>
 #include <assimp/mesh.h>
@@ -434,7 +433,7 @@ struct aiScene
         for (unsigned int i = 0; i < mNumTextures; i++) {
             const char* shortTextureFilename = GetShortFilename(mTextures[i]->mFilename.C_Str());
             if (strcmp(shortTextureFilename, shortFilename) == 0) {
-                return std::make_pair(mTextures[i], i);
+                return std::make_pair(mTextures[i], static_cast<int>(i));
             }
         }
         return std::make_pair(nullptr, -1);
@@ -451,7 +450,7 @@ struct aiScene
 };
 
 #ifdef __cplusplus
-} 
+}
 #endif //! extern "C"
 
 #endif // AI_SCENE_H_INC
