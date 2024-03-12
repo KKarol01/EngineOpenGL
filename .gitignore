@@ -34,3 +34,4 @@
 #visual stuff
 .vs/*
 out/*
+build/*

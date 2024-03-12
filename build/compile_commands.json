@@ -1,0 +1,164 @@
+[
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\main.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\main.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\main.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\main.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\clang.exe -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\glad.c.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\glad.c",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\glad.c",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\glad.c.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\engine.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\engine.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\engine.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\engine.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\camera\\camera.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\camera\\camera.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\camera\\camera.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\camera\\camera.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\controller\\controller.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\controller\\controller.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\controller\\controller.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\controller\\controller.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\controller\\keyboard\\keyboard.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\controller\\keyboard\\keyboard.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\controller\\keyboard\\keyboard.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\controller\\keyboard\\keyboard.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\ecs\\ecs.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\ecs\\ecs.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\ecs\\ecs.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\ecs\\ecs.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\gui\\gui.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\gui\\gui.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\gui\\gui.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\gui\\gui.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\renderer\\systems.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\renderer\\systems.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\renderer\\systems.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\renderer\\systems.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\buffer\\buffer.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\buffer\\buffer.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\buffer\\buffer.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\buffer\\buffer.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\shader\\shader.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\shader\\shader.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\shader\\shader.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\shader\\shader.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\shader\\shader_manager.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\shader\\shader_manager.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\shader\\shader_manager.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\shader\\shader_manager.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\texture\\texture.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\texture\\texture.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\texture\\texture.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\texture\\texture.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\window\\window.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\window\\window.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\window\\window.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\window\\window.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\gui\\ecs_comps.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\gui\\ecs_comps.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\subsystems\\gui\\ecs_comps.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\subsystems\\gui\\ecs_comps.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\scene\\scene.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\scene\\scene.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\scene\\scene.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\scene\\scene.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\model\\importers.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\model\\importers.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\model\\importers.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\model\\importers.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\renderer\\renderer.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\renderer\\renderer.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\renderer\\renderer.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\renderer\\renderer.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\buffer\\ubo.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\buffer\\ubo.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\engine\\wrappers\\buffer\\ubo.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\engine\\wrappers\\buffer\\ubo.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_draw.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_draw.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_draw.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_draw.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_tables.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_tables.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_tables.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_tables.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_widgets.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_widgets.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_widgets.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_widgets.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_impl_opengl3.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_impl_opengl3.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_impl_opengl3.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_impl_opengl3.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_impl_glfw.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_impl_glfw.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\imgui_impl_glfw.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\imgui_impl_glfw.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\implot.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\implot.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\implot.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\implot.cpp.obj"
+},
+{
+  "directory": "C:/Users/k/Desktop/EngineOpenGL/build",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DGL_FORWARD_COMPAT=GLFW_OPENGL_FORWARD_COMPAT -DGL_PROFILE=GLFW_OPENGL_CORE_PROFILE -DGL_VER_MAJ=4 -DGL_VER_MIN=6 -DUSE_DEFAULT_GL_INIT_HINTS -IC:/Users/k/Desktop/EngineOpenGL/src/3rdparty/include -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++20 -o src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\implot_items.cpp.obj -c C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\implot_items.cpp",
+  "file": "C:\\Users\\k\\Desktop\\EngineOpenGL\\src\\3rdparty\\include\\imgui\\implot_items.cpp",
+  "output": "src\\CMakeFiles\\opengl_engine.dir\\3rdparty\\include\\imgui\\implot_items.cpp.obj"
+}
+]
